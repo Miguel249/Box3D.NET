@@ -143,97 +143,103 @@ public readonly record struct DistanceJointDefinition
 /// </summary>
 public readonly record struct DistanceJoint
 {
-    internal DistanceJoint(b3JointId id) => Id = id;
+    internal DistanceJoint(b3JointId id) => NativeId = id;
 
-    /// <summary>Gets the underlying native identifier.</summary>
-    public b3JointId Id { get; }
+    /// <summary>Gets the native identifier this handle wraps.</summary>
+    /// <remarks>
+    /// Internal on purpose: exposing it would put a Box3D.Native type in the
+    /// public surface and weld the C ABI to this API. Reach it through
+    /// <c>Box3D.Interop.NativeInterop.ToNativeId</c> when you genuinely need the
+    /// C function this layer does not wrap.
+    /// </remarks>
+    internal b3JointId NativeId { get; }
 
     /// <summary>Gets the generic handle, carrying what every joint has in common.</summary>
-    public Joint AsJoint => new(Id);
+    public Joint AsJoint => new(NativeId);
 
     /// <summary>Gets the current distance between the two anchors.</summary>
-    public float CurrentLength => B3.b3DistanceJoint_GetCurrentLength(Id);
+    public float CurrentLength => B3.b3DistanceJoint_GetCurrentLength(NativeId);
 
     /// <summary>Gets or sets the rest length.</summary>
     public float Length
     {
-        get => B3.b3DistanceJoint_GetLength(Id);
-        set => B3.b3DistanceJoint_SetLength(Id, value);
+        get => B3.b3DistanceJoint_GetLength(NativeId);
+        set => B3.b3DistanceJoint_SetLength(NativeId, value);
     }
 
     /// <summary>Gets or sets a value indicating whether the joint behaves as a spring.</summary>
     public bool SpringEnabled
     {
-        get => B3.b3DistanceJoint_IsSpringEnabled(Id);
-        set => B3.b3DistanceJoint_EnableSpring(Id, value);
+        get => B3.b3DistanceJoint_IsSpringEnabled(NativeId);
+        set => B3.b3DistanceJoint_EnableSpring(NativeId, value);
     }
 
     /// <summary>Gets or sets the spring stiffness in cycles per second.</summary>
     public float Hertz
     {
-        get => B3.b3DistanceJoint_GetSpringHertz(Id);
-        set => B3.b3DistanceJoint_SetSpringHertz(Id, value);
+        get => B3.b3DistanceJoint_GetSpringHertz(NativeId);
+        set => B3.b3DistanceJoint_SetSpringHertz(NativeId, value);
     }
 
     /// <summary>Gets or sets the spring damping ratio.</summary>
     public float DampingRatio
     {
-        get => B3.b3DistanceJoint_GetSpringDampingRatio(Id);
-        set => B3.b3DistanceJoint_SetSpringDampingRatio(Id, value);
+        get => B3.b3DistanceJoint_GetSpringDampingRatio(NativeId);
+        set => B3.b3DistanceJoint_SetSpringDampingRatio(NativeId, value);
     }
 
     /// <summary>Gets or sets a value indicating whether the length limits are enforced.</summary>
     public bool LimitsEnabled
     {
-        get => B3.b3DistanceJoint_IsLimitEnabled(Id);
-        set => B3.b3DistanceJoint_EnableLimit(Id, value);
+        get => B3.b3DistanceJoint_IsLimitEnabled(NativeId);
+        set => B3.b3DistanceJoint_EnableLimit(NativeId, value);
     }
 
     /// <summary>Gets the minimum length.</summary>
-    public float MinLength => B3.b3DistanceJoint_GetMinLength(Id);
+    public float MinLength => B3.b3DistanceJoint_GetMinLength(NativeId);
 
     /// <summary>Gets the maximum length.</summary>
-    public float MaxLength => B3.b3DistanceJoint_GetMaxLength(Id);
+    public float MaxLength => B3.b3DistanceJoint_GetMaxLength(NativeId);
 
     /// <summary>Gets or sets a value indicating whether the motor is enabled.</summary>
     public bool MotorEnabled
     {
-        get => B3.b3DistanceJoint_IsMotorEnabled(Id);
-        set => B3.b3DistanceJoint_EnableMotor(Id, value);
+        get => B3.b3DistanceJoint_IsMotorEnabled(NativeId);
+        set => B3.b3DistanceJoint_EnableMotor(NativeId, value);
     }
 
     /// <summary>Gets or sets the speed the motor drives towards, in metres per second.</summary>
     public float MotorSpeed
     {
-        get => B3.b3DistanceJoint_GetMotorSpeed(Id);
-        set => B3.b3DistanceJoint_SetMotorSpeed(Id, value);
+        get => B3.b3DistanceJoint_GetMotorSpeed(NativeId);
+        set => B3.b3DistanceJoint_SetMotorSpeed(NativeId, value);
     }
 
     /// <summary>Gets or sets the maximum force the motor may apply, in newtons.</summary>
     public float MaxMotorForce
     {
-        get => B3.b3DistanceJoint_GetMaxMotorForce(Id);
-        set => B3.b3DistanceJoint_SetMaxMotorForce(Id, value);
+        get => B3.b3DistanceJoint_GetMaxMotorForce(NativeId);
+        set => B3.b3DistanceJoint_SetMaxMotorForce(NativeId, value);
     }
 
     /// <summary>Gets the force the motor is currently applying, in newtons.</summary>
-    public float MotorForce => B3.b3DistanceJoint_GetMotorForce(Id);
+    public float MotorForce => B3.b3DistanceJoint_GetMotorForce(NativeId);
 
     /// <summary>Sets both length limits.</summary>
     /// <param name="minLength">The minimum length.</param>
     /// <param name="maxLength">The maximum length.</param>
     public void SetLengthRange(float minLength, float maxLength) =>
-        B3.b3DistanceJoint_SetLengthRange(Id, minLength, maxLength);
+        B3.b3DistanceJoint_SetLengthRange(NativeId, minLength, maxLength);
 
     /// <summary>Sets the force range the spring may apply.</summary>
     /// <param name="lowerForce">The lower bound, which limits tension.</param>
     /// <param name="upperForce">The upper bound, which limits compression.</param>
     public void SetSpringForceRange(float lowerForce, float upperForce) =>
-        B3.b3DistanceJoint_SetSpringForceRange(Id, lowerForce, upperForce);
+        B3.b3DistanceJoint_SetSpringForceRange(NativeId, lowerForce, upperForce);
 
     /// <summary>Destroys this joint.</summary>
     /// <param name="wakeBodies">Whether to wake the attached bodies.</param>
-    public void Destroy(bool wakeBodies = true) => B3.b3DestroyJoint(Id, wakeBodies);
+    public void Destroy(bool wakeBodies = true) => B3.b3DestroyJoint(NativeId, wakeBodies);
 }
 
 /// <summary>
@@ -367,106 +373,112 @@ public readonly record struct SphericalJointDefinition
 /// </summary>
 public readonly record struct SphericalJoint
 {
-    internal SphericalJoint(b3JointId id) => Id = id;
+    internal SphericalJoint(b3JointId id) => NativeId = id;
 
-    /// <summary>Gets the underlying native identifier.</summary>
-    public b3JointId Id { get; }
+    /// <summary>Gets the native identifier this handle wraps.</summary>
+    /// <remarks>
+    /// Internal on purpose: exposing it would put a Box3D.Native type in the
+    /// public surface and weld the C ABI to this API. Reach it through
+    /// <c>Box3D.Interop.NativeInterop.ToNativeId</c> when you genuinely need the
+    /// C function this layer does not wrap.
+    /// </remarks>
+    internal b3JointId NativeId { get; }
 
     /// <summary>Gets the generic handle, carrying what every joint has in common.</summary>
-    public Joint AsJoint => new(Id);
+    public Joint AsJoint => new(NativeId);
 
     /// <summary>Gets the current swing away from the cone axis, in radians.</summary>
-    public float ConeAngle => B3.b3SphericalJoint_GetConeAngle(Id);
+    public float ConeAngle => B3.b3SphericalJoint_GetConeAngle(NativeId);
 
     /// <summary>Gets the current twist about the cone axis, in radians.</summary>
-    public float TwistAngle => B3.b3SphericalJoint_GetTwistAngle(Id);
+    public float TwistAngle => B3.b3SphericalJoint_GetTwistAngle(NativeId);
 
     /// <summary>Gets or sets a value indicating whether the cone limit is enforced.</summary>
     public bool ConeLimitEnabled
     {
-        get => B3.b3SphericalJoint_IsConeLimitEnabled(Id);
-        set => B3.b3SphericalJoint_EnableConeLimit(Id, value);
+        get => B3.b3SphericalJoint_IsConeLimitEnabled(NativeId);
+        set => B3.b3SphericalJoint_EnableConeLimit(NativeId, value);
     }
 
     /// <summary>Gets or sets the cone half angle in radians.</summary>
     public float ConeLimit
     {
-        get => B3.b3SphericalJoint_GetConeLimit(Id);
-        set => B3.b3SphericalJoint_SetConeLimit(Id, value);
+        get => B3.b3SphericalJoint_GetConeLimit(NativeId);
+        set => B3.b3SphericalJoint_SetConeLimit(NativeId, value);
     }
 
     /// <summary>Gets or sets a value indicating whether the twist limit is enforced.</summary>
     public bool TwistLimitEnabled
     {
-        get => B3.b3SphericalJoint_IsTwistLimitEnabled(Id);
-        set => B3.b3SphericalJoint_EnableTwistLimit(Id, value);
+        get => B3.b3SphericalJoint_IsTwistLimitEnabled(NativeId);
+        set => B3.b3SphericalJoint_EnableTwistLimit(NativeId, value);
     }
 
     /// <summary>Gets the lower twist limit in radians.</summary>
-    public float LowerTwistLimit => B3.b3SphericalJoint_GetLowerTwistLimit(Id);
+    public float LowerTwistLimit => B3.b3SphericalJoint_GetLowerTwistLimit(NativeId);
 
     /// <summary>Gets the upper twist limit in radians.</summary>
-    public float UpperTwistLimit => B3.b3SphericalJoint_GetUpperTwistLimit(Id);
+    public float UpperTwistLimit => B3.b3SphericalJoint_GetUpperTwistLimit(NativeId);
 
     /// <summary>Gets or sets a value indicating whether the alignment spring is enabled.</summary>
     public bool SpringEnabled
     {
-        get => B3.b3SphericalJoint_IsSpringEnabled(Id);
-        set => B3.b3SphericalJoint_EnableSpring(Id, value);
+        get => B3.b3SphericalJoint_IsSpringEnabled(NativeId);
+        set => B3.b3SphericalJoint_EnableSpring(NativeId, value);
     }
 
     /// <summary>Gets or sets the spring stiffness in cycles per second.</summary>
     public float Hertz
     {
-        get => B3.b3SphericalJoint_GetSpringHertz(Id);
-        set => B3.b3SphericalJoint_SetSpringHertz(Id, value);
+        get => B3.b3SphericalJoint_GetSpringHertz(NativeId);
+        set => B3.b3SphericalJoint_SetSpringHertz(NativeId, value);
     }
 
     /// <summary>Gets or sets the spring damping ratio.</summary>
     public float DampingRatio
     {
-        get => B3.b3SphericalJoint_GetSpringDampingRatio(Id);
-        set => B3.b3SphericalJoint_SetSpringDampingRatio(Id, value);
+        get => B3.b3SphericalJoint_GetSpringDampingRatio(NativeId);
+        set => B3.b3SphericalJoint_SetSpringDampingRatio(NativeId, value);
     }
 
     /// <summary>Gets or sets the rotation the spring drives towards.</summary>
     public Quaternion TargetRotation
     {
-        get => B3.b3SphericalJoint_GetTargetRotation(Id);
-        set => B3.b3SphericalJoint_SetTargetRotation(Id, value);
+        get => B3.b3SphericalJoint_GetTargetRotation(NativeId);
+        set => B3.b3SphericalJoint_SetTargetRotation(NativeId, value);
     }
 
     /// <summary>Gets or sets a value indicating whether the motor is enabled.</summary>
     public bool MotorEnabled
     {
-        get => B3.b3SphericalJoint_IsMotorEnabled(Id);
-        set => B3.b3SphericalJoint_EnableMotor(Id, value);
+        get => B3.b3SphericalJoint_IsMotorEnabled(NativeId);
+        set => B3.b3SphericalJoint_EnableMotor(NativeId, value);
     }
 
     /// <summary>Gets or sets the angular velocity the motor drives towards, in radians per second.</summary>
     public Vector3 MotorVelocity
     {
-        get => B3.b3SphericalJoint_GetMotorVelocity(Id);
-        set => B3.b3SphericalJoint_SetMotorVelocity(Id, value);
+        get => B3.b3SphericalJoint_GetMotorVelocity(NativeId);
+        set => B3.b3SphericalJoint_SetMotorVelocity(NativeId, value);
     }
 
     /// <summary>Gets or sets the maximum torque the motor may apply, in newton-metres.</summary>
     public float MaxMotorTorque
     {
-        get => B3.b3SphericalJoint_GetMaxMotorTorque(Id);
-        set => B3.b3SphericalJoint_SetMaxMotorTorque(Id, value);
+        get => B3.b3SphericalJoint_GetMaxMotorTorque(NativeId);
+        set => B3.b3SphericalJoint_SetMaxMotorTorque(NativeId, value);
     }
 
     /// <summary>Gets the torque the motor is currently applying, in newton-metres.</summary>
-    public Vector3 MotorTorque => B3.b3SphericalJoint_GetMotorTorque(Id);
+    public Vector3 MotorTorque => B3.b3SphericalJoint_GetMotorTorque(NativeId);
 
     /// <summary>Sets both twist limits.</summary>
     /// <param name="lower">The lower limit in radians.</param>
     /// <param name="upper">The upper limit in radians.</param>
     public void SetTwistLimits(float lower, float upper) =>
-        B3.b3SphericalJoint_SetTwistLimits(Id, lower, upper);
+        B3.b3SphericalJoint_SetTwistLimits(NativeId, lower, upper);
 
     /// <summary>Destroys this joint.</summary>
     /// <param name="wakeBodies">Whether to wake the attached bodies.</param>
-    public void Destroy(bool wakeBodies = true) => B3.b3DestroyJoint(Id, wakeBodies);
+    public void Destroy(bool wakeBodies = true) => B3.b3DestroyJoint(NativeId, wakeBodies);
 }

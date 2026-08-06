@@ -76,7 +76,7 @@ public readonly record struct WorldSettings
 
     /// <summary>
     /// Gets the number of worker threads, clamped to one through
-    /// <see cref="Constants.B3_MAX_WORKERS"/>.
+    /// <see cref="MaxWorkerCount"/>.
     /// </summary>
     /// <remarks>
     /// Any value above one enables multithreading, and the engine starts and
@@ -87,6 +87,16 @@ public readonly record struct WorldSettings
 
     /// <summary>Gets the engine's default settings.</summary>
     public static WorldSettings Default => FromNative(B3.b3DefaultWorldDef());
+
+    /// <summary>
+    /// Gets the largest value <see cref="WorkerCount"/> may take.
+    /// </summary>
+    /// <remarks>
+    /// Asking for more is clamped rather than rejected. Box3D performs best on
+    /// performance cores sharing one cache; efficiency cores and hyper-threading
+    /// add little and can cost, so the useful figure is usually well below this.
+    /// </remarks>
+    public static int MaxWorkerCount => Constants.B3_MAX_WORKERS;
 
     internal unsafe b3WorldDef ToNative()
     {

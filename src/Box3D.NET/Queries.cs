@@ -10,7 +10,7 @@ namespace Box3D;
 /// </summary>
 /// <example>
 /// <code>
-/// RaycastHit hit = world.CastRayClosest(camera.Position, camera.Forward * 100.0f);
+/// RaycastHit hit = world.RaycastClosest(camera.Position, camera.Forward * 100.0f);
 /// if (hit.Hit)
 /// {
 ///     PlaceDecal(hit.Point, hit.Normal);
@@ -140,7 +140,7 @@ public readonly record struct RaycastAction
 /// }
 ///
 /// var callback = new CollectAll();
-/// world.CastRay(origin, direction * 50.0f, ref callback);
+/// world.Raycast(origin, direction * 50.0f, ref callback);
 /// Console.WriteLine($"passed through {callback.Count} shapes");
 /// </code>
 /// Ignoring the shooter's own body:

@@ -15,8 +15,7 @@ namespace Box3D;
 /// <remarks>
 /// <para>
 /// Worlds are completely independent and may be stepped in parallel on separate
-/// threads. Box3D allows up to
-/// <see cref="Constants.B3_MAX_WORLDS"/> of them at once.
+/// threads. Up to <see cref="MaxCount"/> of them may exist at once.
 /// </para>
 /// <para>
 /// This is the only type in the library that owns a native resource, and so the
@@ -82,7 +81,7 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
     /// <param name="settings">The tuning to apply.</param>
     /// <exception cref="InvalidOperationException">
     /// The engine refused to create the world, which happens when
-    /// <see cref="Constants.B3_MAX_WORLDS"/> are already live.
+    /// <see cref="MaxCount"/> are already live.
     /// </exception>
     public PhysicsWorld(WorldSettings settings)
     {
@@ -93,16 +92,34 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
         {
             throw new InvalidOperationException(
                 $"Box3D refused to create a world. {B3.b3GetWorldCount()} of a maximum " +
-                $"{Constants.B3_MAX_WORLDS} are already live; dispose worlds you are finished with.");
+                $"{MaxCount} are already live; dispose worlds you are finished with.");
         }
     }
 
-    /// <summary>Gets the underlying native identifier.</summary>
+    /// <summary>
+    /// Gets the maximum number of worlds that may exist at the same time.
+    /// </summary>
     /// <remarks>
-    /// Exposed so that code can drop down to <see cref="Box3D.Native"/> for
-    /// anything this layer does not yet cover.
+    /// Creating one beyond this throws. Worlds are cheap to keep and expensive
+    /// to leak, so this is normally only reached by forgetting to dispose them.
     /// </remarks>
-    public b3WorldId Id => _id;
+    public static int MaxCount => Constants.B3_MAX_WORLDS;
+
+    /// <summary>Gets the number of worlds currently alive in this process.</summary>
+    /// <remarks>
+    /// Useful when hunting a leak: this climbing across frames means worlds are
+    /// not being disposed.
+    /// </remarks>
+    public static int Count => B3.b3GetWorldCount();
+
+    /// <summary>Gets the native identifier this handle wraps.</summary>
+    /// <remarks>
+    /// Internal on purpose: exposing it would put a Box3D.Native type in the
+    /// public surface and weld the C ABI to this API. Reach it through
+    /// <c>Box3D.Interop.NativeInterop.ToNativeId</c> when you genuinely need the
+    /// C function this layer does not wrap.
+    /// </remarks>
+    internal b3WorldId NativeId => _id;
 
     /// <summary>Gets a value indicating whether this world has been disposed.</summary>
     public bool IsDisposed => _disposed;
@@ -355,7 +372,7 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
     /// <remarks>
     /// Shapes arrive in no particular order. For the nearest hit either return
     /// <see cref="RaycastAction.ClipTo"/> from the callback or use
-    /// <see cref="CastRayClosest"/>.
+    /// <see cref="RaycastClosest"/>.
     /// </remarks>
     /// <example>
     /// <code>
@@ -371,10 +388,10 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
     /// }
     ///
     /// var callback = new CountHits();
-    /// world.CastRay(Vector3.Zero, new Vector3(100.0f, 0.0f, 0.0f), ref callback);
+    /// world.Raycast(Vector3.Zero, new Vector3(100.0f, 0.0f, 0.0f), ref callback);
     /// </code>
     /// </example>
-    public void CastRay<TCallback>(
+    public void Raycast<TCallback>(
         Vector3 origin,
         Vector3 translation,
         ref TCallback callback,
@@ -412,14 +429,14 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
     /// </remarks>
     /// <example>
     /// <code>
-    /// var hit = world.CastRayClosest(muzzle, aim * 100.0f);
+    /// var hit = world.RaycastClosest(muzzle, aim * 100.0f);
     /// if (hit.Hit)
     /// {
     ///     Spawn(Impact, hit.Point, hit.Normal);
     /// }
     /// </code>
     /// </example>
-    public RaycastHit CastRayClosest(Vector3 origin, Vector3 translation, QueryFilter? filter = null)
+    public RaycastHit RaycastClosest(Vector3 origin, Vector3 translation, QueryFilter? filter = null)
     {
         ThrowIfDisposed();
 

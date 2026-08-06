@@ -37,17 +37,19 @@ namespace Box3D;
 /// </example>
 public readonly record struct Body
 {
-    internal Body(b3BodyId id) => Id = id;
+    internal Body(b3BodyId id) => NativeId = id;
 
-    /// <summary>Gets the underlying native identifier.</summary>
+    /// <summary>Gets the native identifier this handle wraps.</summary>
     /// <remarks>
-    /// Exposed so that code can drop down to <see cref="Box3D.Native"/> for
-    /// anything this layer does not yet cover.
+    /// Internal on purpose: exposing it would put a Box3D.Native type in the
+    /// public surface and weld the C ABI to this API. Reach it through
+    /// <c>Box3D.Interop.NativeInterop.ToNativeId</c> when you genuinely need the
+    /// C function this layer does not wrap.
     /// </remarks>
-    public b3BodyId Id { get; }
+    internal b3BodyId NativeId { get; }
 
     /// <summary>Gets a value indicating whether this handle refers to a live body.</summary>
-    public bool IsValid => !Id.IsNull && B3.b3Body_IsValid(Id);
+    public bool IsValid => !NativeId.IsNull && B3.b3Body_IsValid(NativeId);
 
     /// <summary>Gets or sets how the body participates in the simulation.</summary>
     /// <remarks>
@@ -55,64 +57,64 @@ public readonly record struct Body
     /// </remarks>
     public BodyType Type
     {
-        get => (BodyType)B3.b3Body_GetType(Id);
-        set => B3.b3Body_SetType(Id, (b3BodyType)value);
+        get => (BodyType)B3.b3Body_GetType(NativeId);
+        set => B3.b3Body_SetType(NativeId, (b3BodyType)value);
     }
 
     /// <summary>Gets the world position of the body origin.</summary>
     /// <remarks>Use <see cref="SetTransform"/> to move a body; it is a teleport and is not cheap.</remarks>
-    public Vector3 Position => B3.b3Body_GetPosition(Id);
+    public Vector3 Position => B3.b3Body_GetPosition(NativeId);
 
     /// <summary>Gets the world rotation.</summary>
-    public Quaternion Rotation => B3.b3Body_GetRotation(Id);
+    public Quaternion Rotation => B3.b3Body_GetRotation(NativeId);
 
     /// <summary>Gets the world position of the centre of mass.</summary>
     /// <remarks>
     /// Not the same as <see cref="Position"/> unless the shapes happen to be
     /// balanced around the body origin. Velocities are measured here.
     /// </remarks>
-    public Vector3 CenterOfMass => B3.b3Body_GetWorldCenter(Id);
+    public Vector3 CenterOfMass => B3.b3Body_GetWorldCenter(NativeId);
 
     /// <summary>Gets the centre of mass in body-local space.</summary>
-    public Vector3 LocalCenterOfMass => B3.b3Body_GetLocalCenter(Id);
+    public Vector3 LocalCenterOfMass => B3.b3Body_GetLocalCenter(NativeId);
 
     /// <summary>Gets or sets the linear velocity of the centre of mass, usually in metres per second.</summary>
     public Vector3 LinearVelocity
     {
-        get => B3.b3Body_GetLinearVelocity(Id);
-        set => B3.b3Body_SetLinearVelocity(Id, value);
+        get => B3.b3Body_GetLinearVelocity(NativeId);
+        set => B3.b3Body_SetLinearVelocity(NativeId, value);
     }
 
     /// <summary>Gets or sets the angular velocity, in radians per second.</summary>
     public Vector3 AngularVelocity
     {
-        get => B3.b3Body_GetAngularVelocity(Id);
-        set => B3.b3Body_SetAngularVelocity(Id, value);
+        get => B3.b3Body_GetAngularVelocity(NativeId);
+        set => B3.b3Body_SetAngularVelocity(NativeId, value);
     }
 
     /// <summary>Gets the mass, usually in kilograms.</summary>
     /// <remarks>Zero for static and kinematic bodies, and for a dynamic body with no shapes.</remarks>
-    public float Mass => B3.b3Body_GetMass(Id);
+    public float Mass => B3.b3Body_GetMass(NativeId);
 
     /// <summary>Gets or sets the multiplier applied to gravity for this body.</summary>
     public float GravityScale
     {
-        get => B3.b3Body_GetGravityScale(Id);
-        set => B3.b3Body_SetGravityScale(Id, value);
+        get => B3.b3Body_GetGravityScale(NativeId);
+        set => B3.b3Body_SetGravityScale(NativeId, value);
     }
 
     /// <summary>Gets or sets the linear damping.</summary>
     public float LinearDamping
     {
-        get => B3.b3Body_GetLinearDamping(Id);
-        set => B3.b3Body_SetLinearDamping(Id, value);
+        get => B3.b3Body_GetLinearDamping(NativeId);
+        set => B3.b3Body_SetLinearDamping(NativeId, value);
     }
 
     /// <summary>Gets or sets the angular damping.</summary>
     public float AngularDamping
     {
-        get => B3.b3Body_GetAngularDamping(Id);
-        set => B3.b3Body_SetAngularDamping(Id, value);
+        get => B3.b3Body_GetAngularDamping(NativeId);
+        set => B3.b3Body_SetAngularDamping(NativeId, value);
     }
 
     /// <summary>Gets or sets a value indicating whether the body is awake.</summary>
@@ -122,45 +124,45 @@ public readonly record struct Body
     /// </remarks>
     public bool IsAwake
     {
-        get => B3.b3Body_IsAwake(Id);
-        set => B3.b3Body_SetAwake(Id, value);
+        get => B3.b3Body_IsAwake(NativeId);
+        set => B3.b3Body_SetAwake(NativeId, value);
     }
 
     /// <summary>Gets or sets a value indicating whether the body is allowed to sleep.</summary>
     /// <remarks>Setting this to false wakes the body.</remarks>
     public bool CanSleep
     {
-        get => B3.b3Body_IsSleepEnabled(Id);
-        set => B3.b3Body_EnableSleep(Id, value);
+        get => B3.b3Body_IsSleepEnabled(NativeId);
+        set => B3.b3Body_EnableSleep(NativeId, value);
     }
 
     /// <summary>Gets or sets a value indicating whether the body uses continuous collision as a bullet.</summary>
     public bool IsBullet
     {
-        get => B3.b3Body_IsBullet(Id);
-        set => B3.b3Body_SetBullet(Id, value);
+        get => B3.b3Body_IsBullet(NativeId);
+        set => B3.b3Body_SetBullet(NativeId, value);
     }
 
     /// <summary>Gets a value indicating whether the body takes part in the simulation.</summary>
     /// <remarks>Use <see cref="Enable"/> and <see cref="Disable"/> to change it.</remarks>
-    public bool IsEnabled => B3.b3Body_IsEnabled(Id);
+    public bool IsEnabled => B3.b3Body_IsEnabled(NativeId);
 
     /// <summary>Gets or sets the axes the body may not move along or rotate about.</summary>
     public MotionLocks MotionLocks
     {
-        get => Box3D.MotionLocks.FromNative(B3.b3Body_GetMotionLocks(Id));
-        set => B3.b3Body_SetMotionLocks(Id, value.ToNative());
+        get => Box3D.MotionLocks.FromNative(B3.b3Body_GetMotionLocks(NativeId));
+        set => B3.b3Body_SetMotionLocks(NativeId, value.ToNative());
     }
 
     /// <summary>Gets the number of shapes attached to this body.</summary>
-    public int ShapeCount => B3.b3Body_GetShapeCount(Id);
+    public int ShapeCount => B3.b3Body_GetShapeCount(NativeId);
 
     /// <summary>Gets the world-space bounding box covering every attached shape.</summary>
     /// <remarks>
     /// May not contain the body origin. Empty and centred on the origin when the
     /// body has no shapes.
     /// </remarks>
-    public BoundingBox Bounds => BoundingBox.FromNative(B3.b3Body_ComputeAABB(Id));
+    public BoundingBox Bounds => BoundingBox.FromNative(B3.b3Body_ComputeAABB(NativeId));
 
     // ------------------------------------------------------------- geometry
 
@@ -181,7 +183,7 @@ public readonly record struct Body
                 b3ShapeDef def = settings.ToNative(name.IsNull ? null : namePtr);
                 b3Sphere native = sphere.ToNative();
 
-                return new Shape(B3.b3CreateSphereShape(Id, &def, &native));
+                return new Shape(B3.b3CreateSphereShape(NativeId, &def, &native));
             }
         }
         finally
@@ -207,7 +209,7 @@ public readonly record struct Body
                 b3ShapeDef def = settings.ToNative(name.IsNull ? null : namePtr);
                 b3Capsule native = capsule.ToNative();
 
-                return new Shape(B3.b3CreateCapsuleShape(Id, &def, &native));
+                return new Shape(B3.b3CreateCapsuleShape(NativeId, &def, &native));
             }
         }
         finally
@@ -237,7 +239,7 @@ public readonly record struct Body
                 b3ShapeDef def = settings.ToNative(name.IsNull ? null : namePtr);
                 b3BoxHull hull = box.ToNativeHull();
 
-                return new Shape(B3.b3CreateHullShape(Id, &def, &hull.@base));
+                return new Shape(B3.b3CreateHullShape(NativeId, &def, &hull.@base));
             }
         }
         finally
@@ -277,7 +279,7 @@ public readonly record struct Body
         // and the ids can be written straight into the caller's buffer.
         fixed (Shape* target = destination)
         {
-            return B3.b3Body_GetShapes(Id, (b3ShapeId*)target, destination.Length);
+            return B3.b3Body_GetShapes(NativeId, (b3ShapeId*)target, destination.Length);
         }
     }
 
@@ -292,20 +294,20 @@ public readonly record struct Body
     /// <see cref="ApplyImpulseToCenter"/>.
     /// </remarks>
     public void ApplyForceToCenter(Vector3 force, bool wake = true) =>
-        B3.b3Body_ApplyForceToCenter(Id, force, wake);
+        B3.b3Body_ApplyForceToCenter(NativeId, force, wake);
 
     /// <summary>Applies a force at a world-space point, producing torque if it is off-centre.</summary>
     /// <param name="force">The force, in newtons.</param>
     /// <param name="point">The point of application, in world space.</param>
     /// <param name="wake">Whether to wake the body first.</param>
     public void ApplyForce(Vector3 force, Vector3 point, bool wake = true) =>
-        B3.b3Body_ApplyForce(Id, force, point, wake);
+        B3.b3Body_ApplyForce(NativeId, force, point, wake);
 
     /// <summary>Applies a torque, changing angular velocity without moving the body.</summary>
     /// <param name="torque">The torque, in newton-metres.</param>
     /// <param name="wake">Whether to wake the body first.</param>
     public void ApplyTorque(Vector3 torque, bool wake = true) =>
-        B3.b3Body_ApplyTorque(Id, torque, wake);
+        B3.b3Body_ApplyTorque(NativeId, torque, wake);
 
     /// <summary>Changes the velocity immediately, with no rotation.</summary>
     /// <param name="impulse">The impulse, in newton-seconds.</param>
@@ -316,20 +318,20 @@ public readonly record struct Body
     /// smoothly.
     /// </remarks>
     public void ApplyImpulseToCenter(Vector3 impulse, bool wake = true) =>
-        B3.b3Body_ApplyLinearImpulseToCenter(Id, impulse, wake);
+        B3.b3Body_ApplyLinearImpulseToCenter(NativeId, impulse, wake);
 
     /// <summary>Changes the velocity immediately at a world-space point, adding spin if it is off-centre.</summary>
     /// <param name="impulse">The impulse, in newton-seconds.</param>
     /// <param name="point">The point of application, in world space.</param>
     /// <param name="wake">Whether to wake the body first.</param>
     public void ApplyImpulse(Vector3 impulse, Vector3 point, bool wake = true) =>
-        B3.b3Body_ApplyLinearImpulse(Id, impulse, point, wake);
+        B3.b3Body_ApplyLinearImpulse(NativeId, impulse, point, wake);
 
     /// <summary>Changes the angular velocity immediately.</summary>
     /// <param name="impulse">The angular impulse, in kilogram metres squared per second.</param>
     /// <param name="wake">Whether to wake the body first.</param>
     public void ApplyAngularImpulse(Vector3 impulse, bool wake = true) =>
-        B3.b3Body_ApplyAngularImpulse(Id, impulse, wake);
+        B3.b3Body_ApplyAngularImpulse(NativeId, impulse, wake);
 
     // ------------------------------------------------------------- movement
 
@@ -343,7 +345,7 @@ public readonly record struct Body
     /// <see cref="MoveTowards"/> or a velocity.
     /// </remarks>
     public void SetTransform(Vector3 position, Quaternion? rotation = null) =>
-        B3.b3Body_SetTransform(Id, position, rotation ?? Rotation);
+        B3.b3Body_SetTransform(NativeId, position, rotation ?? Rotation);
 
     /// <summary>
     /// Sets the velocity needed to arrive at a target pose after one time step.
@@ -358,27 +360,27 @@ public readonly record struct Body
     /// teleport does not.
     /// </remarks>
     public void MoveTowards(Vector3 position, Quaternion rotation, float timeStep, bool wake = true) =>
-        B3.b3Body_SetTargetTransform(Id, new b3Transform { p = position, q = rotation }, timeStep, wake);
+        B3.b3Body_SetTargetTransform(NativeId, new b3Transform { p = position, q = rotation }, timeStep, wake);
 
     /// <summary>Converts a point from world space into body-local space.</summary>
     /// <param name="worldPoint">The point, in world space.</param>
     /// <returns>The point, in body-local space.</returns>
-    public Vector3 ToLocalPoint(Vector3 worldPoint) => B3.b3Body_GetLocalPoint(Id, worldPoint);
+    public Vector3 ToLocalPoint(Vector3 worldPoint) => B3.b3Body_GetLocalPoint(NativeId, worldPoint);
 
     /// <summary>Converts a point from body-local space into world space.</summary>
     /// <param name="localPoint">The point, in body-local space.</param>
     /// <returns>The point, in world space.</returns>
-    public Vector3 ToWorldPoint(Vector3 localPoint) => B3.b3Body_GetWorldPoint(Id, localPoint);
+    public Vector3 ToWorldPoint(Vector3 localPoint) => B3.b3Body_GetWorldPoint(NativeId, localPoint);
 
     /// <summary>Converts a direction from world space into body-local space.</summary>
     /// <param name="worldVector">The direction, in world space.</param>
     /// <returns>The direction, in body-local space.</returns>
-    public Vector3 ToLocalVector(Vector3 worldVector) => B3.b3Body_GetLocalVector(Id, worldVector);
+    public Vector3 ToLocalVector(Vector3 worldVector) => B3.b3Body_GetLocalVector(NativeId, worldVector);
 
     /// <summary>Converts a direction from body-local space into world space.</summary>
     /// <param name="localVector">The direction, in body-local space.</param>
     /// <returns>The direction, in world space.</returns>
-    public Vector3 ToWorldVector(Vector3 localVector) => B3.b3Body_GetWorldVector(Id, localVector);
+    public Vector3 ToWorldVector(Vector3 localVector) => B3.b3Body_GetWorldVector(NativeId, localVector);
 
     /// <summary>Gets the velocity of a point attached to this body.</summary>
     /// <param name="worldPoint">The point, in world space.</param>
@@ -387,7 +389,7 @@ public readonly record struct Body
     /// Accounts for rotation, so a point on the rim of a spinning wheel moves
     /// even when the wheel's centre does not.
     /// </remarks>
-    public Vector3 GetVelocityAt(Vector3 worldPoint) => B3.b3Body_GetWorldPointVelocity(Id, worldPoint);
+    public Vector3 GetVelocityAt(Vector3 worldPoint) => B3.b3Body_GetWorldPointVelocity(NativeId, worldPoint);
 
     // --------------------------------------------------------------- state
 
@@ -398,15 +400,15 @@ public readonly record struct Body
     /// Only needed after attaching or removing shapes with the mass update
     /// deferred, or to undo an explicit mass override.
     /// </remarks>
-    public void RecomputeMass() => B3.b3Body_ApplyMassFromShapes(Id);
+    public void RecomputeMass() => B3.b3Body_ApplyMassFromShapes(NativeId);
 
     /// <summary>Removes the body from the simulation without destroying it.</summary>
     /// <remarks>A disabled body neither moves nor collides. Expensive; do not do it every frame.</remarks>
-    public void Disable() => B3.b3Body_Disable(Id);
+    public void Disable() => B3.b3Body_Disable(NativeId);
 
     /// <summary>Returns a disabled body to the simulation.</summary>
     /// <remarks>Expensive.</remarks>
-    public void Enable() => B3.b3Body_Enable(Id);
+    public void Enable() => B3.b3Body_Enable(NativeId);
 
     /// <summary>Destroys this body along with every shape and joint attached to it.</summary>
     /// <remarks>
@@ -414,5 +416,5 @@ public readonly record struct Body
     /// Destroying the world destroys its bodies, so this is only needed to
     /// remove one while keeping the rest.
     /// </remarks>
-    public void Destroy() => B3.b3DestroyBody(Id);
+    public void Destroy() => B3.b3DestroyBody(NativeId);
 }

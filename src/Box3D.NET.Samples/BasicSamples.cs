@@ -192,7 +192,7 @@ internal static class RaycastSample
         Vector3 origin = Vector3.Zero;
         Vector3 ray = new(20.0f, 0.0f, 0.0f);
 
-        RaycastHit closest = world.CastRayClosest(origin, ray);
+        RaycastHit closest = world.RaycastClosest(origin, ray);
 
         Console.WriteLine($"   closest hit  : x = {closest.Point.X:F2}, fraction {closest.Fraction:F3}");
         Console.WriteLine($"   normal       : {closest.Normal}");
@@ -201,14 +201,14 @@ internal static class RaycastSample
         SampleRunner.Expect(MathF.Abs(closest.Point.X - 4.0f) < 0.1f, "the near surface of the first sphere is at x = 4");
 
         var all = new CountEverything();
-        world.CastRay(origin, ray, ref all);
+        world.Raycast(origin, ray, ref all);
 
         Console.WriteLine($"   shapes along : {all.Count}");
 
         SampleRunner.Expect(all.Count == 3, "continuing past each hit finds all three spheres");
 
         var excluding = new NearestExcluding { Excluded = near };
-        world.CastRay(origin, ray, ref excluding);
+        world.Raycast(origin, ray, ref excluding);
 
         Console.WriteLine($"   ignoring the first: x = {excluding.Nearest.Point.X:F2}");
 
@@ -217,7 +217,7 @@ internal static class RaycastSample
             "skipping the first sphere leaves the second");
 
         // A ray that misses everything.
-        RaycastHit miss = world.CastRayClosest(new Vector3(0.0f, 100.0f, 0.0f), ray);
+        RaycastHit miss = world.RaycastClosest(new Vector3(0.0f, 100.0f, 0.0f), ray);
         SampleRunner.Expect(!miss.Hit, "a ray above the scene hits nothing");
     }
 

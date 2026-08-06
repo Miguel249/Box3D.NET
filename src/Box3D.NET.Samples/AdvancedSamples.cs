@@ -316,7 +316,7 @@ internal static class CharacterControllerSample
         }
 
         var probe = new FindGround { Self = character };
-        world.CastRay(character.Position, new Vector3(0.0f, -2.0f, 0.0f), ref probe);
+        world.Raycast(character.Position, new Vector3(0.0f, -2.0f, 0.0f), ref probe);
 
         Console.WriteLine($"   character at : {character.Position}");
         Console.WriteLine($"   crate at     : {crate.Position}");

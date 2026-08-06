@@ -173,7 +173,7 @@ public sealed partial class PhysicsWorld
             throw new ArgumentException("The second body of the joint is null or has been destroyed.", nameof(definition));
         }
 
-        if (definition.BodyA.Id == definition.BodyB.Id)
+        if (definition.BodyA.NativeId == definition.BodyB.NativeId)
         {
             throw new ArgumentException("A joint must connect two different bodies.", nameof(definition));
         }

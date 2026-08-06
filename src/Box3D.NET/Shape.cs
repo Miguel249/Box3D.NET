@@ -41,83 +41,85 @@ namespace Box3D;
 /// </example>
 public readonly record struct Shape
 {
-    internal Shape(b3ShapeId id) => Id = id;
+    internal Shape(b3ShapeId id) => NativeId = id;
 
-    /// <summary>Gets the underlying native identifier.</summary>
+    /// <summary>Gets the native identifier this handle wraps.</summary>
     /// <remarks>
-    /// Exposed so that code can drop down to <see cref="Box3D.Native"/> for
-    /// anything this layer does not yet cover.
+    /// Internal on purpose: exposing it would put a Box3D.Native type in the
+    /// public surface and weld the C ABI to this API. Reach it through
+    /// <c>Box3D.Interop.NativeInterop.ToNativeId</c> when you genuinely need the
+    /// C function this layer does not wrap.
     /// </remarks>
-    public b3ShapeId Id { get; }
+    internal b3ShapeId NativeId { get; }
 
     /// <summary>Gets a value indicating whether this handle refers to a live shape.</summary>
     /// <remarks>
     /// False for a default-constructed handle and for one whose shape has been
     /// destroyed.
     /// </remarks>
-    public bool IsValid => !Id.IsNull && B3.b3Shape_IsValid(Id);
+    public bool IsValid => !NativeId.IsNull && B3.b3Shape_IsValid(NativeId);
 
     /// <summary>Gets the kind of geometry backing this shape.</summary>
-    public ShapeType Type => (ShapeType)B3.b3Shape_GetType(Id);
+    public ShapeType Type => (ShapeType)B3.b3Shape_GetType(NativeId);
 
     /// <summary>Gets the body this shape is attached to.</summary>
-    public Body Body => new(B3.b3Shape_GetBody(Id));
+    public Body Body => new(B3.b3Shape_GetBody(NativeId));
 
     /// <summary>Gets a value indicating whether this shape reports overlaps instead of colliding.</summary>
-    public bool IsSensor => B3.b3Shape_IsSensor(Id);
+    public bool IsSensor => B3.b3Shape_IsSensor(NativeId);
 
     /// <summary>Gets or sets the friction coefficient.</summary>
     public float Friction
     {
-        get => B3.b3Shape_GetFriction(Id);
-        set => B3.b3Shape_SetFriction(Id, value);
+        get => B3.b3Shape_GetFriction(NativeId);
+        set => B3.b3Shape_SetFriction(NativeId, value);
     }
 
     /// <summary>Gets or sets the bounciness.</summary>
     public float Restitution
     {
-        get => B3.b3Shape_GetRestitution(Id);
-        set => B3.b3Shape_SetRestitution(Id, value);
+        get => B3.b3Shape_GetRestitution(NativeId);
+        set => B3.b3Shape_SetRestitution(NativeId, value);
     }
 
     /// <summary>Gets the density, usually in kilograms per cubic metre.</summary>
     /// <remarks>Use <see cref="SetDensity"/> to change it, which lets you defer the body mass update.</remarks>
-    public float Density => B3.b3Shape_GetDensity(Id);
+    public float Density => B3.b3Shape_GetDensity(NativeId);
 
     /// <summary>Gets or sets the surface properties.</summary>
     public PhysicsMaterial Material
     {
-        get => PhysicsMaterial.FromNative(B3.b3Shape_GetSurfaceMaterial(Id));
-        set => B3.b3Shape_SetSurfaceMaterial(Id, value.ToNative());
+        get => PhysicsMaterial.FromNative(B3.b3Shape_GetSurfaceMaterial(NativeId));
+        set => B3.b3Shape_SetSurfaceMaterial(NativeId, value.ToNative());
     }
 
     /// <summary>Gets the collision filtering rules.</summary>
     /// <remarks>Use <see cref="SetFilter"/> to change them; it is nearly as expensive as recreating the shape.</remarks>
-    public CollisionFilter Filter => CollisionFilter.FromNative(B3.b3Shape_GetFilter(Id));
+    public CollisionFilter Filter => CollisionFilter.FromNative(B3.b3Shape_GetFilter(NativeId));
 
     /// <summary>Gets or sets a value indicating whether this shape reports begin and end touch events.</summary>
     public bool ContactEventsEnabled
     {
-        get => B3.b3Shape_AreContactEventsEnabled(Id);
-        set => B3.b3Shape_EnableContactEvents(Id, value);
+        get => B3.b3Shape_AreContactEventsEnabled(NativeId);
+        set => B3.b3Shape_EnableContactEvents(NativeId, value);
     }
 
     /// <summary>Gets or sets a value indicating whether this shape reports hit events.</summary>
     public bool HitEventsEnabled
     {
-        get => B3.b3Shape_AreHitEventsEnabled(Id);
-        set => B3.b3Shape_EnableHitEvents(Id, value);
+        get => B3.b3Shape_AreHitEventsEnabled(NativeId);
+        set => B3.b3Shape_EnableHitEvents(NativeId, value);
     }
 
     /// <summary>Gets or sets a value indicating whether this shape reports sensor overlaps.</summary>
     public bool SensorEventsEnabled
     {
-        get => B3.b3Shape_AreSensorEventsEnabled(Id);
-        set => B3.b3Shape_EnableSensorEvents(Id, value);
+        get => B3.b3Shape_AreSensorEventsEnabled(NativeId);
+        set => B3.b3Shape_EnableSensorEvents(NativeId, value);
     }
 
     /// <summary>Gets the world-space bounding box of this shape.</summary>
-    public BoundingBox Bounds => BoundingBox.FromNative(B3.b3Shape_GetAABB(Id));
+    public BoundingBox Bounds => BoundingBox.FromNative(B3.b3Shape_GetAABB(NativeId));
 
     /// <summary>Sets the density, optionally deferring the body mass update.</summary>
     /// <param name="density">The new density, usually in kilograms per cubic metre.</param>
@@ -126,7 +128,7 @@ public readonly record struct Shape
     /// shapes at once and call <see cref="Body.RecomputeMass"/> afterwards.
     /// </param>
     public void SetDensity(float density, bool updateBodyMass = true) =>
-        B3.b3Shape_SetDensity(Id, density, updateBodyMass);
+        B3.b3Shape_SetDensity(NativeId, density, updateBodyMass);
 
     /// <summary>Sets the collision filtering rules.</summary>
     /// <param name="filter">The new rules.</param>
@@ -136,21 +138,21 @@ public readonly record struct Shape
     /// against shapes already touching it.
     /// </param>
     public void SetFilter(CollisionFilter filter, bool recomputeContacts = true) =>
-        B3.b3Shape_SetFilter(Id, filter.ToNative(), recomputeContacts);
+        B3.b3Shape_SetFilter(NativeId, filter.ToNative(), recomputeContacts);
 
     /// <summary>Gets the closest point on this shape to a world-space target.</summary>
     /// <param name="target">The target point, in world space.</param>
     /// <returns>The closest point on the shape surface, in world space.</returns>
-    public Vector3 ClosestPointTo(Vector3 target) => B3.b3Shape_GetClosestPoint(Id, target);
+    public Vector3 ClosestPointTo(Vector3 target) => B3.b3Shape_GetClosestPoint(NativeId, target);
 
     /// <summary>Casts a ray directly against this shape, skipping the broad phase.</summary>
     /// <param name="origin">The start of the ray, in world space.</param>
     /// <param name="translation">The ray vector; its length is the range.</param>
     /// <returns>Where the ray met the shape.</returns>
     /// <remarks>Faster than a world cast when you already know which shape you care about.</remarks>
-    public RaycastHit CastRay(Vector3 origin, Vector3 translation)
+    public RaycastHit Raycast(Vector3 origin, Vector3 translation)
     {
-        b3CastOutput output = B3.b3Shape_RayCast(Id, origin, translation);
+        b3CastOutput output = B3.b3Shape_RayCast(NativeId, origin, translation);
 
         return new RaycastHit
         {
@@ -177,7 +179,7 @@ public readonly record struct Shape
     /// </param>
     /// <param name="wake">Whether to wake the body.</param>
     public void ApplyWind(Vector3 wind, float drag, float lift, float maxSpeed, bool wake = true) =>
-        B3.b3Shape_ApplyWind(Id, wind, drag, lift, maxSpeed, wake);
+        B3.b3Shape_ApplyWind(NativeId, wind, drag, lift, maxSpeed, wake);
 
     /// <summary>Removes this shape from its body.</summary>
     /// <param name="updateBodyMass">
@@ -189,5 +191,5 @@ public readonly record struct Shape
     /// world destroys its shapes, so this is only needed to remove one shape
     /// while keeping the rest.
     /// </remarks>
-    public void Destroy(bool updateBodyMass = true) => B3.b3DestroyShape(Id, updateBodyMass);
+    public void Destroy(bool updateBodyMass = true) => B3.b3DestroyShape(NativeId, updateBodyMass);
 }

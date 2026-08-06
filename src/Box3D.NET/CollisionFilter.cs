@@ -111,7 +111,7 @@ public readonly record struct CollisionFilter
 ///     CollidesWith = (ulong)(Layers.World | Layers.Enemy),
 /// };
 ///
-/// if (world.CastRayClosest(muzzle, direction * range, filter) is { Hit: true } hit)
+/// if (world.RaycastClosest(muzzle, direction * range, filter) is { Hit: true } hit)
 /// {
 ///     ApplyDamage(hit.Shape, hit.Point);
 /// }
