@@ -51,7 +51,7 @@ namespace Box3D;
 /// Console.WriteLine(ball.Position);
 /// </code>
 /// </example>
-public sealed unsafe class PhysicsWorld : IDisposable
+public sealed unsafe partial class PhysicsWorld : IDisposable
 {
     /*
      * There is deliberately no finalizer.

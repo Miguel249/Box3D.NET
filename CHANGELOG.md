@@ -38,6 +38,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nothing, plus `CastRayClosest` for the common case.
 - `WorldEvents`, exposing contact, sensor and body-move events as `ref struct`
   views over engine memory with struct enumerators.
+- All nine joint types — revolute, prismatic, distance, spherical, weld, wheel,
+  motor, parallel and filter — each with its own handle and definition type
+  covering limits, motors and springs.
+- `Joint.FramesFromWorldAnchor`, which builds the matched pair of local frames
+  from a world-space anchor and axis. Getting this wrong leaves a joint violated
+  from the first step, and it is the part people most often get wrong by hand.
+- Joint creation validates its bodies. Box3D asserts on a null, destroyed or
+  self-referencing body, and asserts are compiled out of a release build, so the
+  check has to happen on the managed side to produce a diagnosable error.
 
 #### Infrastructure
 
@@ -49,14 +58,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the submodule, and publishing the samples with NativeAOT.
 - A release workflow driven by a version tag, which refuses to publish unless
   every platform's binary is present.
-- Nine samples covering a basic world, dynamic and static bodies, collisions,
-  ray casts, contact events, sensors, compound bodies, continuous collision and
-  a kinematic character.
+- Twelve samples covering a basic world, dynamic and static bodies, collisions,
+  ray casts, contact events, sensors, compound bodies, continuous collision, a
+  kinematic character, a hinged door, a hanging chain and a wheeled vehicle.
 
 ### Known limitations
 
-- Joints, the character mover plane solver, debug draw, meshes, height fields
-  and baked compounds are only reachable through `Box3D.NET.Native`.
+- The character mover plane solver, debug draw, meshes, height fields and baked
+  compounds are only reachable through `Box3D.NET.Native`.
 - Single precision only. Box3D's large-world mode changes the ABI and would need
   a separate package.
 

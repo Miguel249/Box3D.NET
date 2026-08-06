@@ -20,6 +20,9 @@ SampleRunner.Run("Sensor trigger", SensorSample.Run);
 SampleRunner.Run("Compound body", CompoundShapeSample.Run);
 SampleRunner.Run("Continuous collision", ContinuousCollisionSample.Run);
 SampleRunner.Run("Character controller", CharacterControllerSample.Run);
+SampleRunner.Run("Hinged door", HingedDoorSample.Run);
+SampleRunner.Run("Chain", ChainSample.Run);
+SampleRunner.Run("Vehicle", VehicleSample.Run);
 
 Console.WriteLine();
 Console.WriteLine("All samples completed.");

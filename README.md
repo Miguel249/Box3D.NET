@@ -3,10 +3,11 @@
 An idiomatic, allocation-free C# binding for [Box3D](https://github.com/erincatto/box3d),
 the 3D physics engine by Erin Catto.
 
-> **Status: pre-release.** The native binding is complete and the high-level API
-> covers worlds, bodies, shapes, queries and events. Joints, the character mover
-> and debug draw are still only reachable through the low-level layer. No package
-> has been published yet. See the [changelog](CHANGELOG.md).
+> **Status: pre-release.** The native binding is complete, and the high-level API
+> covers worlds, bodies, shapes, queries, events and all nine joint types. The
+> character mover, debug draw, meshes and height fields are still only reachable
+> through the low-level layer. No package has been published yet. See the
+> [changelog](CHANGELOG.md).
 
 ```csharp
 using var world = new PhysicsWorld(WorldSettings.Default with
@@ -110,6 +111,34 @@ transition. A delegate-based API would allocate a closure on every cast.
 
 For the common case there is `world.CastRayClosest(...)`, which needs no
 callback at all.
+
+### Each joint type has its own handle
+
+```csharp
+RevoluteJoint hinge = world.CreateRevoluteJoint(
+    RevoluteJointDefinition.Hinge(frame, door, hingePoint, Vector3.UnitY) with
+    {
+        LimitsEnabled = true,
+        LowerAngle = 0.0f,
+        UpperAngle = MathF.PI * 0.5f,
+    });
+
+hinge.MotorEnabled = true;
+hinge.MotorSpeed = -1.0f;      // a door closer
+hinge.MaxMotorTorque = 50.0f;
+```
+
+`CreateRevoluteJoint` returns a `RevoluteJoint`, not a generic `Joint`. A single
+`CreateJoint` would hand back something that has to be narrowed before it is
+useful, and would let a distance joint definition produce a handle whose
+revolute members compile and then assert at run time. The shared members are
+always one hop away through `hinge.AsJoint`.
+
+The factory methods matter more than they look. A joint needs a *pair* of local
+frames that describe the same world pose from each body's point of view; get
+that wrong and the joint starts out violated and snaps on the first step.
+`RevoluteJointDefinition.Hinge` and `Joint.FramesFromWorldAnchor` do that
+calculation from a world-space anchor and axis.
 
 ### Runtime marshalling is disabled
 
