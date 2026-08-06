@@ -3,6 +3,21 @@ name: Release
 # Publishing is driven by a version tag. Pushing v1.2.3 builds the native
 # library for every supported platform, packs it together with the managed
 # assemblies, and publishes to NuGet.
+#
+# Authentication uses NuGet trusted publishing rather than a stored API key.
+# The setup, done once on nuget.org under Trusted Publishing:
+#
+#   Policy Name      anything memorable
+#   Package Owner    the NuGet account that will own the packages
+#   CI/CD Provider   GitHub Actions
+#   Repository Owner the GitHub user or organisation
+#   Repository       the repository name, matching its canonical casing
+#   Workflow File    release.yml
+#   Environment      leave empty, unless a job below declares one
+#
+# A policy created before the package exists is valid for seven days, which is
+# the window in which the first publish has to happen. Once a package exists
+# under that owner, the policy stops expiring.
 on:
   push:
     tags: ['v*.*.*']
@@ -13,8 +28,13 @@ on:
         required: true
         type: string
 
+# id-token is what makes NuGet trusted publishing work: GitHub mints a
+# short-lived OIDC token describing this exact repository and workflow, and
+# NuGet exchanges it for an API key valid for a few minutes. Nothing long-lived
+# is stored anywhere, so there is no key to leak, rotate or expire.
 permissions:
   contents: write
+  id-token: write
 
 env:
   DOTNET_NOLOGO: true
@@ -114,13 +134,23 @@ jobs:
           --output ./artifacts/packages
           -p:Version=${{ steps.version.outputs.version }}
 
+      # Exchanges the workflow's OIDC token for a short-lived NuGet API key. The
+      # trusted publishing policy on nuget.org names this repository and this
+      # workflow file, so a token minted by any other workflow is refused.
+      #
+      # The user below is the NuGet account that owns the packages, which is the
+      # "Package Owner" chosen when the policy was created. It is not a secret.
+      - name: Authenticate to NuGet
+        uses: NuGet/login@v1
+        id: nuget-login
+        with:
+          user: Miguelcc.02
+
       - name: Publish to NuGet
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: >
           dotnet nuget push "./artifacts/packages/*.nupkg"
           --source https://api.nuget.org/v3/index.json
-          --api-key "$NUGET_API_KEY"
+          --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}"
           --skip-duplicate
 
       - name: Attach the packages to the release
