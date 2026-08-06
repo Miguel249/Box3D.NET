@@ -1,0 +1,320 @@
+// SPDX-License-Identifier: MIT
+
+using System;
+using System.Numerics;
+
+namespace Box3D.Samples;
+
+/// <summary>
+/// Reading collision events after a step, rather than being called back during one.
+/// </summary>
+internal static class ContactEventsSample
+{
+    public static void Run()
+    {
+        using var world = new PhysicsWorld(WorldSettings.Default with
+        {
+            Gravity = new Vector3(0.0f, -10.0f, 0.0f),
+
+            // Only collisions approaching faster than this raise a hit event.
+            HitEventThreshold = 1.0f,
+        });
+
+        Body ground = world.CreateBody(BodyDefinition.Static(new Vector3(0.0f, -0.5f, 0.0f)));
+
+        // Events are opt-in per shape, because collecting them is not free.
+        var reporting = ShapeDefinition.Default with
+        {
+            EnableContactEvents = true,
+            EnableHitEvents = true,
+        };
+
+        ground.AddBox(new Box(new Vector3(50.0f, 0.5f, 50.0f)), reporting);
+
+        Body ball = world.CreateBody(BodyDefinition.Dynamic(new Vector3(0.0f, 5.0f, 0.0f)));
+        ball.AddSphere(new Sphere(0.5f), reporting with
+        {
+            Material = PhysicsMaterial.Default with { Restitution = 0.6f },
+        });
+
+        int begins = 0;
+        int ends = 0;
+        float hardestHit = 0.0f;
+
+        for (int i = 0; i < 240; i++)
+        {
+            world.Step(1.0f / 60.0f);
+
+            // Box3D buffers events during the step and hands them back
+            // afterwards, because the solver is multithreaded and because
+            // applications usually want to change the world in response.
+            WorldEvents events = world.Events;
+
+            begins += events.ContactBegins.Count;
+            ends += events.ContactEnds.Count;
+
+            foreach (ContactHitEvent hit in events.ContactHits)
+            {
+                hardestHit = MathF.Max(hardestHit, hit.ApproachSpeed);
+            }
+        }
+
+        Console.WriteLine($"   begin touch  : {begins}");
+        Console.WriteLine($"   end touch    : {ends}");
+        Console.WriteLine($"   hardest hit  : {hardestHit:F2} m/s");
+
+        SampleRunner.Expect(begins > 0, "a falling ball touches the ground");
+        SampleRunner.Expect(ends > 0, "a bouncing ball leaves it again");
+        SampleRunner.Expect(hardestHit > 1.0f, "the first impact is above the hit threshold");
+    }
+}
+
+/// <summary>
+/// A sensor: geometry that reports overlaps without pushing anything.
+/// </summary>
+internal static class SensorSample
+{
+    public static void Run()
+    {
+        using var world = new PhysicsWorld(WorldSettings.Default with
+        {
+            Gravity = new Vector3(0.0f, -10.0f, 0.0f),
+        });
+
+        // A trigger volume. Density is zero because a sensor still contributes
+        // mass to its body if it has any, which is rarely what a trigger wants.
+        Body trigger = world.CreateBody(BodyDefinition.Static(new Vector3(0.0f, 5.0f, 0.0f)));
+        trigger.AddBox(new Box(new Vector3(2.0f, 0.5f, 2.0f)), ShapeDefinition.Default with
+        {
+            IsSensor = true,
+            EnableSensorEvents = true,
+            Density = 0.0f,
+        });
+
+        // The visitor needs sensor events enabled too.
+        Body ball = world.CreateBody(BodyDefinition.Dynamic(new Vector3(0.0f, 15.0f, 0.0f)));
+        ball.AddSphere(new Sphere(0.5f), ShapeDefinition.Default with
+        {
+            EnableSensorEvents = true,
+        });
+
+        int entered = 0;
+        int left = 0;
+
+        for (int i = 0; i < 180; i++)
+        {
+            world.Step(1.0f / 60.0f);
+
+            WorldEvents events = world.Events;
+            entered += events.SensorBegins.Count;
+            left += events.SensorEnds.Count;
+        }
+
+        Console.WriteLine($"   entered      : {entered}");
+        Console.WriteLine($"   left         : {left}");
+        Console.WriteLine($"   ball ended at: y = {ball.Position.Y:F2}");
+
+        SampleRunner.Expect(entered == 1, "the ball passes into the trigger once");
+        SampleRunner.Expect(left == 1, "and out the other side");
+
+        // The decisive part: a sensor never pushes back, so the ball keeps falling.
+        SampleRunner.Expect(ball.Position.Y < 0.0f, "a sensor does not stop anything");
+    }
+}
+
+/// <summary>
+/// Several shapes on one body, which is how a compound object is built at run time.
+/// </summary>
+internal static class CompoundShapeSample
+{
+    public static void Run()
+    {
+        using var world = new PhysicsWorld(WorldSettings.Default with
+        {
+            Gravity = new Vector3(0.0f, -10.0f, 0.0f),
+        });
+
+        Body ground = world.CreateBody(BodyDefinition.Static(new Vector3(0.0f, -0.5f, 0.0f)));
+        ground.AddBox(new Box(new Vector3(50.0f, 0.5f, 50.0f)));
+
+        // A dumbbell: a bar with a weight at each end. Attaching several shapes
+        // to one body is all a run-time compound is; the baked compound type is
+        // for large static geometry.
+        Body dumbbell = world.CreateBody(BodyDefinition.Dynamic(new Vector3(0.0f, 5.0f, 0.0f)));
+
+        // Each attachment moves the centre of mass, so the mass update is
+        // deferred and done once at the end.
+        var deferred = ShapeDefinition.Default with { UpdateBodyMass = false };
+
+        dumbbell.AddBox(new Box(new Vector3(1.0f, 0.1f, 0.1f)), deferred);
+        dumbbell.AddSphere(new Sphere(new Vector3(-1.0f, 0.0f, 0.0f), 0.4f), deferred);
+        dumbbell.AddSphere(new Sphere(new Vector3(1.0f, 0.0f, 0.0f), 0.4f), deferred);
+
+        dumbbell.RecomputeMass();
+
+        Console.WriteLine($"   shapes       : {dumbbell.ShapeCount}");
+        Console.WriteLine($"   mass         : {dumbbell.Mass:F1} kg");
+        Console.WriteLine($"   local centre : {dumbbell.LocalCenterOfMass}");
+
+        SampleRunner.Expect(dumbbell.ShapeCount == 3, "all three shapes are attached");
+        SampleRunner.Expect(dumbbell.Mass > 0.0f, "the deferred mass update ran");
+
+        // The weights are symmetric, so the centre of mass stays at the origin.
+        SampleRunner.Expect(
+            MathF.Abs(dumbbell.LocalCenterOfMass.X) < 0.01f,
+            "a symmetric compound has a centred mass");
+
+        // Walking the shapes without allocating.
+        Span<Shape> shapes = stackalloc Shape[dumbbell.ShapeCount];
+        int count = dumbbell.GetShapes(shapes);
+
+        foreach (Shape shape in shapes[..count])
+        {
+            shape.Friction = 0.8f;
+        }
+
+        SampleRunner.Expect(count == 3, "the shape handles come back");
+
+        for (int i = 0; i < 180; i++)
+        {
+            world.Step(1.0f / 60.0f);
+        }
+
+        Console.WriteLine($"   resting at   : y = {dumbbell.Position.Y:F3}");
+
+        SampleRunner.Expect(dumbbell.Position.Y > 0.0f, "the dumbbell rests on the ground");
+    }
+}
+
+/// <summary>
+/// Continuous collision: what stops a fast body from passing through a thin wall.
+/// </summary>
+internal static class ContinuousCollisionSample
+{
+    public static void Run()
+    {
+        // A thin wall and a very fast body. In one sixtieth of a second at
+        // 400 m/s the body moves more than six metres, so without continuous
+        // collision it would simply appear on the other side.
+        const float Speed = 400.0f;
+
+        Console.WriteLine($"   speed        : {Speed} m/s, wall 0.1 m thick");
+        Console.WriteLine($"   travel/step  : {Speed / 60.0f:F2} m");
+
+        float withCcd = RunTrial(bullet: true);
+        float withoutCcd = RunTrial(bullet: false);
+
+        Console.WriteLine($"   as a bullet  : stopped at x = {withCcd:F2}");
+        Console.WriteLine($"   not a bullet : ended at   x = {withoutCcd:F2}");
+
+        SampleRunner.Expect(withCcd < 5.0f, "a bullet body is stopped by the wall");
+    }
+
+    private static float RunTrial(bool bullet)
+    {
+        using var world = new PhysicsWorld(WorldSettings.Default with
+        {
+            Gravity = Vector3.Zero,
+            EnableContinuous = true,
+        });
+
+        Body wall = world.CreateBody(BodyDefinition.Static(new Vector3(5.0f, 0.0f, 0.0f)));
+        wall.AddBox(new Box(new Vector3(0.05f, 10.0f, 10.0f)));
+
+        Body projectile = world.CreateBody(BodyDefinition.Dynamic(Vector3.Zero) with
+        {
+            LinearVelocity = new Vector3(400.0f, 0.0f, 0.0f),
+            IsBullet = bullet,
+        });
+        projectile.AddSphere(new Sphere(0.1f));
+
+        for (int i = 0; i < 30; i++)
+        {
+            world.Step(1.0f / 60.0f);
+        }
+
+        return projectile.Position.X;
+    }
+}
+
+/// <summary>
+/// A kinematic character: moved by the application, not by the solver.
+/// </summary>
+/// <remarks>
+/// A full character controller uses the mover plane solver, which this binding
+/// does not yet wrap. This shows the kinematic half: a capsule driven by
+/// velocity, so that contacts still push other bodies correctly, which a
+/// teleport would not.
+/// </remarks>
+internal static class CharacterControllerSample
+{
+    private struct FindGround : IRaycastCallback
+    {
+        public Body Self;
+        public float Distance;
+        public bool Found;
+
+        public RaycastAction OnHit(in RaycastHit hit)
+        {
+            if (hit.Shape.Body == Self)
+            {
+                return RaycastAction.Ignore;
+            }
+
+            Found = true;
+            Distance = hit.Fraction;
+
+            return RaycastAction.ClipTo(hit.Fraction);
+        }
+    }
+
+    public static void Run()
+    {
+        using var world = new PhysicsWorld(WorldSettings.Default with
+        {
+            Gravity = new Vector3(0.0f, -10.0f, 0.0f),
+        });
+
+        Body ground = world.CreateBody(BodyDefinition.Static(new Vector3(0.0f, -0.5f, 0.0f)));
+        ground.AddBox(new Box(new Vector3(50.0f, 0.5f, 50.0f)));
+
+        // A box in the way, to be pushed.
+        Body crate = world.CreateBody(BodyDefinition.Dynamic(new Vector3(3.0f, 0.5f, 0.0f)));
+        crate.AddBox(Box.Cube(0.5f), ShapeDefinition.Default with { Density = 50.0f });
+
+        // A capsule, because it slides over small steps instead of catching on
+        // them. Contact recycling is off: it is a performance win in general but
+        // can cause ghost collisions, which are very visible on a character.
+        Body character = world.CreateBody(BodyDefinition.Kinematic(new Vector3(0.0f, 0.9f, 0.0f)) with
+        {
+            EnableContactRecycling = false,
+        });
+        character.AddCapsule(Capsule.Upright(height: 1.8f, radius: 0.3f));
+
+        const float TimeStep = 1.0f / 60.0f;
+        Vector3 walk = new(2.0f, 0.0f, 0.0f);
+
+        for (int i = 0; i < 180; i++)
+        {
+            // Driving a kinematic body with a velocity rather than teleporting it
+            // is what lets it push dynamic bodies out of the way.
+            character.LinearVelocity = walk;
+
+            world.Step(TimeStep);
+        }
+
+        var probe = new FindGround { Self = character };
+        world.CastRay(character.Position, new Vector3(0.0f, -2.0f, 0.0f), ref probe);
+
+        Console.WriteLine($"   character at : {character.Position}");
+        Console.WriteLine($"   crate at     : {crate.Position}");
+        Console.WriteLine($"   ground below : {(probe.Found ? $"{probe.Distance * 2.0f:F2} m" : "not found")}");
+
+        SampleRunner.Expect(character.Position.X > 5.0f, "the character walked forward");
+        SampleRunner.Expect(probe.Found, "the ground probe finds the floor");
+
+        // The decisive part: a kinematic body pushes dynamic ones without being
+        // pushed back.
+        SampleRunner.Expect(crate.Position.X > 3.5f, "the character pushed the crate along");
+    }
+}
