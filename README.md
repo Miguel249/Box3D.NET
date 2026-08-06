@@ -202,6 +202,56 @@ rather than being the path of least resistance. `LayeringTests` enforces the
 rule over the built assembly by reflection, because a rule like this decays
 quietly — one convenient property and nothing fails.
 
+### Ownership follows Box3D, and it is not uniform
+
+Most geometry is a value: attaching a sphere or a box copies it and there is
+nothing to manage. Three kinds are not, and the difference is load-bearing:
+
+| | Copied on attach? | Disposable |
+| --- | --- | --- |
+| `Sphere`, `Capsule`, `Box` | Yes, by value | No |
+| `ConvexHull` | Yes, interned in the world | Yes, freely |
+| `CollisionMesh` | **No, borrowed** | **After the world** |
+| `HeightField` | **No, borrowed** | **After the world** |
+
+```csharp
+using var terrain = HeightField.FromHeights(heights, 256, 256, scale);
+
+using (var world = new PhysicsWorld())
+{
+    world.CreateStaticBody().AddHeightField(terrain);
+    Simulate(world);
+}
+// World first, terrain second. A shape holds a borrowed pointer into it.
+```
+
+Like `PhysicsWorld`, none of these has a finalizer. Freeing a mesh that a live
+shape still points at is a use-after-free inside the solver, and a finalizer
+runs whenever the runtime chooses. Leaking until exit is a bug you can see.
+
+### The character mover is primitives, not a controller
+
+```csharp
+var gather = new GatherPlanes { Planes = buffer };
+world.CollideCapsule(capsule, position, ref gather);
+
+Span<CollisionPlane> planes = buffer.AsSpan(0, gather.Count);
+
+PlaneSolverResult result = CharacterMover.SolvePlanes(velocity * dt, planes);
+position += result.Translation;
+velocity = CharacterMover.ClipVelocity(velocity, planes);
+```
+
+That is the whole engine-side problem: find the planes, satisfy them, clip the
+velocity. What counts as ground, how high a jump goes, whether a slope is
+climbable — that is game design, and every game answers it differently. Wrapping
+an opinion about it here would be inventing policy Box3D deliberately left to
+the caller.
+
+`CharacterControllerSample` builds a complete controller on these three calls in
+about eighty lines, with gravity, jumping, ground detection, slope limits and
+wall sliding. Copy it and change the parts that are yours.
+
 ### User data is an identifier, not a reference
 
 `body.UserData` is a `ulong`. The alternative, pinning a managed object with a

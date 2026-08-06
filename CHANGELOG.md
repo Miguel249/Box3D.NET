@@ -38,6 +38,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nothing, plus `CastRayClosest` for the common case.
 - `WorldEvents`, exposing contact, sensor and body-move events as `ref struct`
   views over engine memory with struct enumerators.
+- `ConvexHull`, `CollisionMesh` and `HeightField`: the heavy geometry, with
+  explicit ownership. Hulls are copied into the world and may be disposed at
+  once; meshes and height fields are borrowed and must outlive their shapes.
+- `Body.AddHull`, `AddMesh` and `AddHeightField`. The latter two reject
+  non-static bodies, which Box3D only checks with an assertion that release
+  builds compile out.
+- The character mover primitives: `PhysicsWorld.CollideCapsule`,
+  `CharacterMover.SolvePlanes` and `CharacterMover.ClipVelocity`, plus
+  `PhysicsWorld.CastCapsule`. A complete kinematic controller built on them is
+  in the samples; the policy it encodes stays out of the library.
+- `Body.UserData`, `Shape.UserData`, `Joint.UserData` and
+  `PhysicsWorld.UserData`.
+- `Body.World`, `Shape.World` and `Joint.World`, returning a `WorldReference`.
+- `CreateDynamicBody`, `CreateStaticBody` and `CreateKinematicBody`.
 - All nine joint types — revolute, prismatic, distance, spherical, weld, wheel,
   motor, parallel and filter — each with its own handle and definition type
   covering limits, motors and springs.
@@ -85,9 +99,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Known limitations
 
-- The character mover plane solver, debug draw, meshes, height fields and baked
-  compounds are only reachable through `Box3D.NET.Native`.
+- Baked compound shapes and debug draw are only reachable through
+  `Box3D.NET.Native`.
+- The cylinder and cone hulls stand on the origin rather than being centred on
+  it, and a height field grows from its body origin in positive x and z. Both
+  follow Box3D and are documented rather than corrected.
 - Single precision only. Box3D's large-world mode changes the ABI and would need
   a separate package.
-
 [Unreleased]: https://github.com/box3d-net/Box3D.NET/commits/main
