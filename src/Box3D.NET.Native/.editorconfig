@@ -1,0 +1,50 @@
+# This project is a deliberate, literal mirror of the Box3D C API. Its
+# identifiers are the C identifiers - b3World_Step, b3BodyDef, b3_dynamicBody -
+# so that every declaration can be diffed against include/box3d/*.h by eye, and
+# so that anyone reading Box3D's own documentation finds the same names here.
+#
+# The .NET naming and design guidelines apply to the public Box3D.NET surface,
+# which is where they buy something. Suppressing them is scoped to this project
+# only.
+
+[*.cs]
+
+# CA1707: identifiers should not contain underscores
+dotnet_diagnostic.CA1707.severity = none
+
+# IDE1006: naming rule violation
+dotnet_diagnostic.IDE1006.severity = none
+
+# CA1051: do not declare visible instance fields. These structs are ABI layouts;
+# properties would change nothing observable and cost an accessor.
+dotnet_diagnostic.CA1051.severity = none
+
+# CA1720: identifier contains type name, as in b3Shape_GetSphere.
+dotnet_diagnostic.CA1720.severity = none
+
+# CA1028: enum storage should be Int32. The C declaration dictates the width.
+dotnet_diagnostic.CA1028.severity = none
+
+# CA1069: duplicate enum values. b3HexColor has genuine synonyms such as
+# aqua/cyan and fuchsia/magenta, which are kept because Box3D defines them.
+dotnet_diagnostic.CA1069.severity = none
+
+# CA1711: identifiers should not have incorrect suffix, as in the *Delegate and
+# *Flags names carried over from the header.
+dotnet_diagnostic.CA1711.severity = none
+
+# CA1815: override equals on value types. Most of these are plain ABI records
+# with no meaningful identity; the id types do implement equality.
+dotnet_diagnostic.CA1815.severity = none
+
+# CA1401: P/Invokes should not be visible. Exposing them is the entire point of
+# this assembly.
+dotnet_diagnostic.CA1401.severity = none
+
+# CA2101: specify marshalling for string arguments. Strings cross this boundary
+# as byte* holding UTF-8, never as System.String, so there is nothing to specify.
+dotnet_diagnostic.CA2101.severity = none
+
+# CA1819: properties should not return arrays. Not applicable to the fixed
+# buffers and pointers used here.
+dotnet_diagnostic.CA1819.severity = none
