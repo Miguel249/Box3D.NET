@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The low-level binding. This assembly is a mirror of the Box3D C API and
+    deliberately contains no abstraction: no wrapper classes, no lifetime
+    management, no convenience overloads. Consumers who want an idiomatic
+    surface use the Box3D.NET package, which is built on top of this one.
+  -->
+
+  <PropertyGroup>
+    <AssemblyName>Box3D.NET.Native</AssemblyName>
+    <RootNamespace>Box3D.Native</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackageId>Box3D.NET.Native</PackageId>
+    <Description>Low-level P/Invoke bindings for Box3D, the 3D physics engine by Erin Catto. This package mirrors the C API one-to-one. For an idiomatic C# surface, use the Box3D.NET package instead.</Description>
+    <!-- Required by LibraryImport: the source generator emits the marshalling stubs. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+</Project>

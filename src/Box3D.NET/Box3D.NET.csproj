@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The idiomatic C# surface. This is the package almost everyone should use.
+    It depends on Box3D.NET.Native for the actual interop and never exposes a
+    C-shaped name of its own.
+  -->
+
+  <PropertyGroup>
+    <AssemblyName>Box3D.NET</AssemblyName>
+    <RootNamespace>Box3D</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackageId>Box3D.NET</PackageId>
+    <Description>An idiomatic, allocation-free C# wrapper for Box3D, the 3D physics engine by Erin Catto. Targets .NET 8+, works with NativeAOT and trimming, and ships native binaries for Windows, Linux and macOS.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Box3D.NET.Native\Box3D.NET.Native.csproj" />
+  </ItemGroup>
+
+</Project>

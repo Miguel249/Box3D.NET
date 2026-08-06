@@ -1,0 +1,72 @@
+<Project>
+
+  <!--
+    Settings shared by every project in the repository.
+
+    Projects opt in to packaging by setting IsPackable; the test and sample
+    projects leave it off. Anything specific to a single project belongs in
+    that project's .csproj, not here.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <!--
+    Quality gates. Documentation warnings are errors on purpose: every public
+    type and member in this library is required to carry XML documentation.
+  -->
+  <PropertyGroup>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+  <!--
+    Trimming and NativeAOT. IsAotCompatible turns on the AOT and trim
+    analyzers, which fail the build on reflection patterns that would break
+    under NativeAOT. The binding layer must stay clean for these to hold.
+  -->
+  <PropertyGroup Condition="'$(IsPackable)' == 'true'">
+    <IsTrimmable>true</IsTrimmable>
+    <IsAotCompatible>true</IsAotCompatible>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- Package metadata. -->
+  <PropertyGroup>
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <Authors>Box3D.NET contributors</Authors>
+    <Company>Box3D.NET</Company>
+    <Product>Box3D.NET</Product>
+    <Copyright>Copyright (c) 2026 Box3D.NET contributors</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/box3d-net/Box3D.NET</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/box3d-net/Box3D.NET</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>box3d;physics;3d;simulation;rigid-body;collision;gamedev;native;interop</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+  </PropertyGroup>
+
+  <!-- Symbols and SourceLink, so stack traces from the package step into real source. -->
+  <PropertyGroup>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IsPackable)' == 'true'">
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+
+</Project>

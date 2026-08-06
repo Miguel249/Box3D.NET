@@ -1,0 +1,51 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+indent_style = space
+trim_trailing_whitespace = true
+
+[*.{cs,csproj,props,targets}]
+indent_size = 4
+
+[*.{json,yml,yaml,md}]
+indent_size = 2
+
+[*.cs]
+# Language conventions
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_style_var_for_built_in_types = false:silent
+csharp_style_var_when_type_is_apparent = true:silent
+csharp_prefer_braces = true:warning
+dotnet_sort_system_directives_first = true
+csharp_using_directive_placement = outside_namespace:warning
+
+# Readability rules that are not worth failing a build over
+dotnet_diagnostic.IDE0055.severity = suggestion
+dotnet_diagnostic.IDE0290.severity = suggestion
+
+#
+# The native binding layer is a deliberate, literal mirror of the Box3D C API.
+# Its identifiers are the C identifiers (b3World_Step, b3BodyDef, b3_dynamicBody)
+# so that every declaration can be diffed against include/box3d/*.h by eye.
+# The .NET naming guidelines apply to the public Box3D.NET surface, not here.
+#
+[src/Box3D.NET.Native/**/*.cs]
+# CA1707: identifiers should not contain underscores
+dotnet_diagnostic.CA1707.severity = none
+# IDE1006: naming rule violation
+dotnet_diagnostic.IDE1006.severity = none
+# CA1051: do not declare visible instance fields - the structs are ABI layouts
+dotnet_diagnostic.CA1051.severity = none
+# CA1720: identifier contains type name (b3Shape_GetSphere and friends)
+dotnet_diagnostic.CA1720.severity = none
+# CA1028: enum storage should be Int32 - the C enums dictate the width
+dotnet_diagnostic.CA1028.severity = none
+# CA1069: duplicate enum values are present in b3HexColor (aqua/cyan, fuchsia/magenta)
+dotnet_diagnostic.CA1069.severity = none
+
+[src/Box3D.NET.Tests/**/*.cs]
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA1034.severity = none

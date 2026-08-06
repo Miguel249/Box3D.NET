@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>Box3D.NET.Samples</AssemblyName>
+    <RootNamespace>Box3D.Samples</RootNamespace>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <!-- The samples double as a NativeAOT smoke test for the whole stack. -->
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Box3D.NET\Box3D.NET.csproj" />
+  </ItemGroup>
+
+</Project>

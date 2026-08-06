@@ -1,0 +1,40 @@
+# Build output
+bin/
+obj/
+artifacts/
+[Bb]uild/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+
+# Native build trees
+external/**/build/
+native-build/
+runtimes/
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Test and coverage output
+TestResults/
+*.trx
+*.coverage
+coverage*.json
+coverage*.xml
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+!packages/build/
+
+# OS noise
+.DS_Store
+Thumbs.db
