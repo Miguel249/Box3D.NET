@@ -8,6 +8,12 @@
     <!-- The samples double as a NativeAOT smoke test for the whole stack. -->
     <PublishAot>true</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <!--
+      Built against net8.0, the oldest runtime the library supports, but run on
+      whatever runtime is present so that the samples work on a machine that has
+      only a newer one installed.
+    -->
+    <RollForward>LatestMajor</RollForward>
   </PropertyGroup>
 
   <ItemGroup>

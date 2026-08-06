@@ -193,29 +193,42 @@ internal static class ContinuousCollisionSample
 {
     public static void Run()
     {
-        // A thin wall and a very fast body. In one sixtieth of a second at
-        // 400 m/s the body moves more than six metres, so without continuous
-        // collision it would simply appear on the other side.
+        // A thin wall and a very fast body. At 400 m/s the projectile covers more
+        // than six metres per step, so a solver that only tested the shapes where
+        // they end up would find them on opposite sides of a wall a tenth of a
+        // metre thick and report no collision at all.
         const float Speed = 400.0f;
 
         Console.WriteLine($"   speed        : {Speed} m/s, wall 0.1 m thick");
         Console.WriteLine($"   travel/step  : {Speed / 60.0f:F2} m");
 
-        float withCcd = RunTrial(bullet: true);
-        float withoutCcd = RunTrial(bullet: false);
+        float swept = RunTrial(continuousCollision: true);
+        float tunnelled = RunTrial(continuousCollision: false);
 
-        Console.WriteLine($"   as a bullet  : stopped at x = {withCcd:F2}");
-        Console.WriteLine($"   not a bullet : ended at   x = {withoutCcd:F2}");
+        Console.WriteLine($"   continuous on : stopped at x = {swept:F2}");
+        Console.WriteLine($"   continuous off: ended at   x = {tunnelled:F2}");
 
-        SampleRunner.Expect(withCcd < 5.0f, "a bullet body is stopped by the wall");
+        SampleRunner.Expect(swept < 5.0f, "continuous collision stops the projectile at the wall");
+        SampleRunner.Expect(tunnelled > 5.0f, "without it the projectile passes straight through");
+
+        // Worth being precise about what the IsBullet flag does, because the
+        // name suggests it is what stopped the projectile above, and it is not.
+        //
+        // A fast dynamic body is always swept against *static* geometry, which
+        // is the case here. IsBullet additionally sweeps it against dynamic and
+        // kinematic bodies, and is the expensive option: bullets are swept after
+        // everything else has moved, and are not swept against each other. Use
+        // it for pinball tables and dynamic containers, not for gunfire - for a
+        // projectile that must not miss, cast a ray along its path instead.
+        Console.WriteLine("   note          : static geometry is swept regardless; IsBullet adds dynamic targets");
     }
 
-    private static float RunTrial(bool bullet)
+    private static float RunTrial(bool continuousCollision)
     {
         using var world = new PhysicsWorld(WorldSettings.Default with
         {
             Gravity = Vector3.Zero,
-            EnableContinuous = true,
+            EnableContinuous = continuousCollision,
         });
 
         Body wall = world.CreateBody(BodyDefinition.Static(new Vector3(5.0f, 0.0f, 0.0f)));
@@ -224,7 +237,6 @@ internal static class ContinuousCollisionSample
         Body projectile = world.CreateBody(BodyDefinition.Dynamic(Vector3.Zero) with
         {
             LinearVelocity = new Vector3(400.0f, 0.0f, 0.0f),
-            IsBullet = bullet,
         });
         projectile.AddSphere(new Sphere(0.1f));
 

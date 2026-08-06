@@ -31,6 +31,11 @@ param(
     # Build a macOS binary containing both x86_64 and arm64 slices.
     [switch] $MacUniversal,
 
+    # The CMake generator to use. Left empty, CMake picks its default, which is
+    # Visual Studio on a machine that has it. Set this to build with another
+    # toolchain, for example: -Generator Ninja with gcc or clang on PATH.
+    [string] $Generator,
+
     # Remove the CMake build tree before configuring.
     [switch] $Clean
 )
@@ -51,17 +56,24 @@ if (-not (Get-Command cmake -ErrorAction SilentlyContinue)) {
 
 # ------------------------------------------------------------- platform facts
 
+# The canonical file name is the one the package ships and the one .NET resolves
+# first. The search patterns are wider than that because the name depends on the
+# toolchain: MSVC emits box3d.dll while MinGW emits libbox3d.dll for the same
+# target. Whatever is produced is staged under the canonical name.
 if ($IsWindows -or $env:OS -eq 'Windows_NT') {
     $platform = 'windows'
     $libraryName = 'box3d.dll'
+    $searchPatterns = @('box3d.dll', 'libbox3d.dll')
 }
 elseif ($IsMacOS) {
     $platform = 'macos'
     $libraryName = 'libbox3d.dylib'
+    $searchPatterns = @('libbox3d.dylib', 'box3d.dylib')
 }
 else {
     $platform = 'linux'
     $libraryName = 'libbox3d.so'
+    $searchPatterns = @('libbox3d.so', 'box3d.so')
 }
 
 if (-not $Rid) {
@@ -129,8 +141,18 @@ if ($platform -eq 'macos') {
     $cmakeArgs += '-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0'
 }
 
-if ($platform -eq 'windows') {
-    # Single-config generators ignore CMAKE_BUILD_TYPE; Visual Studio needs the
+if ($Generator) {
+    $cmakeArgs += @('-G', $Generator)
+}
+
+# The architecture flag is a Visual Studio generator feature. Passing it to any
+# other generator is a hard error, so it is only added when Visual Studio is
+# actually in play: either explicitly requested, or left to CMake's default on
+# Windows, which is Visual Studio wherever it is installed.
+$usingVisualStudio = $platform -eq 'windows' -and (-not $Generator -or $Generator -like 'Visual Studio*')
+
+if ($usingVisualStudio) {
+    # Single-config generators ignore CMAKE_BUILD_TYPE; Visual Studio takes the
     # configuration at build time instead, which is passed below.
     if ($Rid -eq 'win-arm64') {
         $cmakeArgs += @('-A', 'ARM64')
@@ -138,6 +160,15 @@ if ($platform -eq 'windows') {
     elseif ($Rid -eq 'win-x64') {
         $cmakeArgs += @('-A', 'x64')
     }
+}
+elseif ($platform -eq 'windows') {
+    # Building on Windows with GCC or Clang instead of MSVC. Those link their own
+    # runtime support library dynamically by default, which leaves the DLL
+    # depending on libgcc_s_seh-1.dll and libwinpthread-1.dll sitting in the
+    # toolchain directory. That dependency is invisible until the library fails
+    # to load on a machine without the toolchain, which is every machine that
+    # installs the package. Link them in statically so the result stands alone.
+    $cmakeArgs += '-DCMAKE_SHARED_LINKER_FLAGS=-static-libgcc -static -Wl,--exclude-libs,ALL'
 }
 
 Write-Host "`n> cmake $($cmakeArgs -join ' ')"
@@ -157,12 +188,17 @@ if ($LASTEXITCODE -ne 0) { throw "CMake build failed with exit code $LASTEXITCOD
 
 # ---------------------------------------------------------------------- stage
 
-$built = Get-ChildItem -Path $BuildDir -Recurse -Filter $libraryName -File |
-    Sort-Object LastWriteTime -Descending |
-    Select-Object -First 1
+$built = $null
+foreach ($pattern in $searchPatterns) {
+    $built = Get-ChildItem -Path $BuildDir -Recurse -Filter $pattern -File |
+        Sort-Object LastWriteTime -Descending |
+        Select-Object -First 1
+
+    if ($built) { break }
+}
 
 if (-not $built) {
-    throw "Build succeeded but $libraryName was not found under $BuildDir"
+    throw "Build succeeded but none of $($searchPatterns -join ', ') was found under $BuildDir"
 }
 
 New-Item -ItemType Directory -Force $OutputDir | Out-Null
