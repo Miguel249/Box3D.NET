@@ -65,6 +65,33 @@ public readonly record struct Shape
     /// <summary>Gets the body this shape is attached to.</summary>
     public Body Body => new(B3.b3Shape_GetBody(NativeId));
 
+    /// <summary>Gets the world this shape belongs to.</summary>
+    public WorldReference World => new(B3.b3Shape_GetWorld(NativeId));
+
+    /// <summary>
+    /// Gets or sets the application identifier attached to this shape.
+    /// </summary>
+    /// <remarks>
+    /// Separate from the body's identifier, which is what makes it useful:
+    /// a body can carry the entity id while each of its shapes carries which
+    /// part of that entity it is, so a hit can be attributed to the head rather
+    /// than merely to the character. See <see cref="Box3D.UserData"/>.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// head.UserData = (ulong)HitZone.Head;
+    /// torso.UserData = (ulong)HitZone.Torso;
+    ///
+    /// RaycastHit hit = world.RaycastClosest(muzzle, aim * range);
+    /// float damage = (HitZone)hit.Shape.UserData == HitZone.Head ? 100 : 25;
+    /// </code>
+    /// </example>
+    public unsafe ulong UserData
+    {
+        get => Box3D.UserData.FromPointer(B3.b3Shape_GetUserData(NativeId));
+        set => B3.b3Shape_SetUserData(NativeId, Box3D.UserData.ToPointer(value));
+    }
+
     /// <summary>Gets a value indicating whether this shape reports overlaps instead of colliding.</summary>
     public bool IsSensor => B3.b3Shape_IsSensor(NativeId);
 

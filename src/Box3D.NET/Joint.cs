@@ -250,6 +250,23 @@ public readonly record struct Joint
     /// <summary>Gets the second attached body.</summary>
     public Body BodyB => new(B3.b3Joint_GetBodyB(NativeId));
 
+    /// <summary>Gets the world this joint belongs to.</summary>
+    public WorldReference World => new(B3.b3Joint_GetWorld(NativeId));
+
+    /// <summary>
+    /// Gets or sets the application identifier attached to this joint.
+    /// </summary>
+    /// <remarks>
+    /// Joint events report this alongside the joint, so it is the way to find
+    /// out which door or which rope exceeded its threshold without a lookup.
+    /// See <see cref="Box3D.UserData"/>.
+    /// </remarks>
+    public unsafe ulong UserData
+    {
+        get => Box3D.UserData.FromPointer(B3.b3Joint_GetUserData(NativeId));
+        set => B3.b3Joint_SetUserData(NativeId, Box3D.UserData.ToPointer(value));
+    }
+
     /// <summary>Gets or sets a value indicating whether the two attached bodies may collide.</summary>
     public bool CollideConnected
     {

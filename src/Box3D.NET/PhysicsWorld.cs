@@ -124,6 +124,31 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
     /// <summary>Gets a value indicating whether this world has been disposed.</summary>
     public bool IsDisposed => _disposed;
 
+    /// <summary>
+    /// Gets a reference identifying this world, for comparing against the
+    /// <c>World</c> of a body, shape or joint.
+    /// </summary>
+    public WorldReference Reference => new(_id);
+
+    /// <summary>
+    /// Gets or sets the application identifier attached to this world.
+    /// </summary>
+    /// <remarks>See <see cref="Box3D.UserData"/>.</remarks>
+    public ulong UserData
+    {
+        get
+        {
+            ThrowIfDisposed();
+            return Box3D.UserData.FromPointer(B3.b3World_GetUserData(_id));
+        }
+
+        set
+        {
+            ThrowIfDisposed();
+            B3.b3World_SetUserData(_id, Box3D.UserData.ToPointer(value));
+        }
+    }
+
     /// <summary>Gets or sets the gravity vector, usually in metres per second squared.</summary>
     public Vector3 Gravity
     {
@@ -284,6 +309,59 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
     /// <returns>The new body.</returns>
     public Body CreateBody(BodyType type, Vector3 position = default) =>
         CreateBody(BodyDefinition.Default with { Type = type, Position = position });
+
+    /*
+     * The three shorthands below exist because they are what the first five
+     * minutes with this library look like. Reaching CreateBody through a
+     * BodyDefinition is the right shape once a body needs damping or motion
+     * locks, and it is needless ceremony when it does not.
+     */
+
+    /// <summary>Creates a fully simulated body that responds to forces and collisions.</summary>
+    /// <param name="position">The initial world position of the body origin.</param>
+    /// <param name="rotation">The initial world rotation, or null for none.</param>
+    /// <returns>The new body, with no shapes attached yet.</returns>
+    /// <remarks>
+    /// Shorthand for <c>CreateBody(BodyDefinition.Dynamic(position, rotation))</c>.
+    /// Use the definition overload when you need anything beyond a pose.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// Body crate = world.CreateDynamicBody(new Vector3(0.0f, 10.0f, 0.0f));
+    /// crate.AddBox(Box.Cube(0.5f));
+    /// </code>
+    /// </example>
+    public Body CreateDynamicBody(Vector3 position = default, Quaternion? rotation = null) =>
+        CreateBody(BodyDefinition.Dynamic(position, rotation));
+
+    /// <summary>Creates an immovable body, for level geometry.</summary>
+    /// <param name="position">The initial world position of the body origin.</param>
+    /// <param name="rotation">The initial world rotation, or null for none.</param>
+    /// <returns>The new body, with no shapes attached yet.</returns>
+    /// <example>
+    /// <code>
+    /// Body ground = world.CreateStaticBody(new Vector3(0.0f, -0.5f, 0.0f));
+    /// ground.AddBox(new Box(new Vector3(50.0f, 0.5f, 50.0f)));
+    /// </code>
+    /// </example>
+    public Body CreateStaticBody(Vector3 position = default, Quaternion? rotation = null) =>
+        CreateBody(BodyDefinition.Static(position, rotation));
+
+    /// <summary>
+    /// Creates a body the application moves itself, which pushes dynamic bodies
+    /// without being pushed back.
+    /// </summary>
+    /// <param name="position">The initial world position of the body origin.</param>
+    /// <param name="rotation">The initial world rotation, or null for none.</param>
+    /// <returns>The new body, with no shapes attached yet.</returns>
+    /// <remarks>
+    /// Drive it with <see cref="Body.LinearVelocity"/> or
+    /// <see cref="Body.MoveTowards"/> rather than
+    /// <see cref="Body.SetTransform"/>, so that contacts push other bodies
+    /// correctly.
+    /// </remarks>
+    public Body CreateKinematicBody(Vector3 position = default, Quaternion? rotation = null) =>
+        CreateBody(BodyDefinition.Kinematic(position, rotation));
 
     // ------------------------------------------------------------- queries
 

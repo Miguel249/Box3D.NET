@@ -154,6 +154,36 @@ public readonly record struct Body
         set => B3.b3Body_SetMotionLocks(NativeId, value.ToNative());
     }
 
+    /// <summary>
+    /// Gets or sets the application identifier attached to this body.
+    /// </summary>
+    /// <remarks>
+    /// An entity id or an array index, not an object reference. See
+    /// <see cref="Box3D.UserData"/> for why, and for the pattern this exists to
+    /// support: getting from a contact event or a ray cast back to whatever your
+    /// game calls this body.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// body.UserData = entityId;
+    /// // ...
+    /// ulong entity = hit.Shape.Body.UserData;
+    /// </code>
+    /// </example>
+    public unsafe ulong UserData
+    {
+        get => Box3D.UserData.FromPointer(B3.b3Body_GetUserData(NativeId));
+        set => B3.b3Body_SetUserData(NativeId, Box3D.UserData.ToPointer(value));
+    }
+
+    /// <summary>Gets the world this body belongs to.</summary>
+    /// <remarks>
+    /// Returns the native world handle wrapped in a value, not the
+    /// <see cref="PhysicsWorld"/> instance that created it. Use it to compare
+    /// which world a body came from.
+    /// </remarks>
+    public WorldReference World => new(B3.b3Body_GetWorld(NativeId));
+
     /// <summary>Gets the number of shapes attached to this body.</summary>
     public int ShapeCount => B3.b3Body_GetShapeCount(NativeId);
 
