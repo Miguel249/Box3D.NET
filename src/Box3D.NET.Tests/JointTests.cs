@@ -14,6 +14,7 @@ namespace Box3D.Tests;
 /// limit that is set but never enforced, or a motor that reports a speed it is
 /// not driving, would pass a round-trip test and fail in a game.
 /// </remarks>
+[Collection(NativeCollection.Name)]
 public class JointTests : IDisposable
 {
     private readonly PhysicsWorld _world;

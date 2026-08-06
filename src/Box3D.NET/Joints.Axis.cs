@@ -61,7 +61,7 @@ public readonly record struct RevoluteJointDefinition
     public float MotorSpeed { get; init; }
 
     /// <summary>Gets the engine defaults, with no bodies attached.</summary>
-    public static RevoluteJointDefinition Default => FromNative(B3.b3DefaultRevoluteJointDef());
+    public static RevoluteJointDefinition Default => FromNative(NativeDefaults.RevoluteJoint);
 
     /// <summary>
     /// Creates a hinge between two bodies about a world-space axis.
@@ -84,7 +84,7 @@ public readonly record struct RevoluteJointDefinition
 
     internal b3RevoluteJointDef ToNative()
     {
-        b3RevoluteJointDef def = B3.b3DefaultRevoluteJointDef();
+        b3RevoluteJointDef def = NativeDefaults.RevoluteJoint;
 
         def.@base = Base.ToNative();
         def.targetAngle = TargetAngle;
@@ -268,7 +268,7 @@ public readonly record struct PrismaticJointDefinition
     public float MotorSpeed { get; init; }
 
     /// <summary>Gets the engine defaults, with no bodies attached.</summary>
-    public static PrismaticJointDefinition Default => FromNative(B3.b3DefaultPrismaticJointDef());
+    public static PrismaticJointDefinition Default => FromNative(NativeDefaults.PrismaticJoint);
 
     /// <summary>
     /// Creates a slider between two bodies along a world-space direction.
@@ -324,7 +324,7 @@ public readonly record struct PrismaticJointDefinition
 
     internal b3PrismaticJointDef ToNative()
     {
-        b3PrismaticJointDef def = B3.b3DefaultPrismaticJointDef();
+        b3PrismaticJointDef def = NativeDefaults.PrismaticJoint;
 
         def.@base = Base.ToNative();
         def.enableSpring = SpringEnabled;

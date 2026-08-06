@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>Box3D.NET.Benchmarks</AssemblyName>
+    <RootNamespace>Box3D.Benchmarks</RootNamespace>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <!--
+      Benchmarks must run in Release. BenchmarkDotNet refuses a Debug build
+      anyway, but this makes running it from the IDE do the right thing.
+    -->
+    <Configuration Condition="'$(Configuration)' == ''">Release</Configuration>
+    <Optimize>true</Optimize>
+    <ServerGarbageCollector>false</ServerGarbageCollector>
+
+    <!-- Built against net8.0 but run on whatever runtime is installed. -->
+    <RollForward>LatestMajor</RollForward>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" Version="0.14.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Box3D.NET\Box3D.NET.csproj" />
+    <ProjectReference Include="..\Box3D.NET.Native\Box3D.NET.Native.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -86,7 +86,7 @@ public readonly record struct WorldSettings
     public int WorkerCount { get; init; }
 
     /// <summary>Gets the engine's default settings.</summary>
-    public static WorldSettings Default => FromNative(B3.b3DefaultWorldDef());
+    public static WorldSettings Default => FromNative(NativeDefaults.World);
 
     /// <summary>
     /// Gets the largest value <see cref="WorkerCount"/> may take.
@@ -100,7 +100,7 @@ public readonly record struct WorldSettings
 
     internal unsafe b3WorldDef ToNative()
     {
-        b3WorldDef def = B3.b3DefaultWorldDef();
+        b3WorldDef def = NativeDefaults.World;
 
         def.gravity = Gravity;
         def.restitutionThreshold = RestitutionThreshold;

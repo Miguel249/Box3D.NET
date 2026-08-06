@@ -129,11 +129,11 @@ public readonly record struct ShapeDefinition
     public bool InvokeContactCreation { get; init; }
 
     /// <summary>Gets the engine's default shape definition.</summary>
-    public static ShapeDefinition Default => FromNative(B3.b3DefaultShapeDef());
+    public static ShapeDefinition Default => FromNative(NativeDefaults.Shape);
 
     internal unsafe b3ShapeDef ToNative(byte* name)
     {
-        b3ShapeDef def = B3.b3DefaultShapeDef();
+        b3ShapeDef def = NativeDefaults.Shape;
 
         def.name = name;
         def.density = Density;

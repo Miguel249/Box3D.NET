@@ -1,0 +1,18 @@
+# BenchmarkDotNet owns the lifecycle of a benchmark class. It constructs the
+# instance, calls [GlobalSetup], runs the measurements and calls [GlobalCleanup],
+# and it never calls Dispose. Implementing IDisposable here would satisfy the
+# analyzer while adding a method nothing invokes, which is worse than the
+# warning it silences.
+
+[*.cs]
+
+# CA1001: types that own disposable fields should be disposable. [GlobalCleanup]
+# is the disposal mechanism in this project.
+dotnet_diagnostic.CA1001.severity = none
+
+# CA1822: member does not access instance data and can be marked static.
+# Benchmark methods must be instance methods for the runner to find them.
+dotnet_diagnostic.CA1822.severity = none
+
+# CA1515: types can be made internal. BenchmarkDotNet discovers public types.
+dotnet_diagnostic.CA1515.severity = none

@@ -246,13 +246,29 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
     {
         ThrowIfDisposed();
 
+        // Naming a body is a debugging aid that almost nothing uses, and stack
+        // space is zeroed on entry, so reserving the name buffer unconditionally
+        // charged every body creation for a 128-byte memset it did not need.
+        if (definition.Name is null)
+        {
+            b3BodyDef def = definition.ToNative(null);
+            return new Body(B3.b3CreateBody(_id, &def));
+        }
+
+        return CreateNamedBody(definition);
+    }
+
+    // Kept out of the common path so its stack frame is not paid for by callers
+    // who never name a body.
+    private Body CreateNamedBody(BodyDefinition definition)
+    {
         Span<byte> scratch = stackalloc byte[128];
         Utf8Buffer name = new(definition.Name, scratch);
         try
         {
             fixed (byte* namePtr = name.Span)
             {
-                b3BodyDef def = definition.ToNative(name.IsNull ? null : namePtr);
+                b3BodyDef def = definition.ToNative(namePtr);
                 return new Body(B3.b3CreateBody(_id, &def));
             }
         }
@@ -542,7 +558,7 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
     {
         ThrowIfDisposed();
 
-        b3ExplosionDef def = B3.b3DefaultExplosionDef();
+        b3ExplosionDef def = NativeDefaults.Explosion;
         def.position = center;
         def.radius = radius;
         def.impulsePerArea = impulsePerArea;

@@ -17,3 +17,7 @@ dotnet_diagnostic.CA1515.severity = none
 # CA1861: prefer static readonly arrays over constant array arguments. Inline
 # data in theories is clearer written out at the call site.
 dotnet_diagnostic.CA1861.severity = none
+
+# CA1711: identifiers should not have an incorrect suffix. NativeCollection is
+# an xUnit collection definition, and Collection is exactly what it is.
+dotnet_diagnostic.CA1711.severity = none

@@ -1,0 +1,327 @@
+// Validating benchmarks:
+// ***** BenchmarkRunner: Start   *****
+// ***** Found 3 benchmark(s) in total *****
+// ***** Building 1 exe(s) in Parallel: Start   *****
+// start dotnet  restore /p:UseSharedCompilation=false /p:BuildInParallel=false /m:1 /p:Deterministic=true /p:Optimize=true /p:IntermediateOutputPath="C:\Users\Miguel\Desktop\Proyectos\Box3D.NET\src\Box3D.NET.Benchmarks\bin\Release\net8.0\49563b98-6b3b-4145-a32d-73ff9fc26725\obj\Release\net10.0/" /p:OutDir="C:\Users\Miguel\Desktop\Proyectos\Box3D.NET\src\Box3D.NET.Benchmarks\bin\Release\net8.0\49563b98-6b3b-4145-a32d-73ff9fc26725\bin\Release\net10.0/" /p:OutputPath="C:\Users\Miguel\Desktop\Proyectos\Box3D.NET\src\Box3D.NET.Benchmarks\bin\Release\net8.0\49563b98-6b3b-4145-a32d-73ff9fc26725\bin\Release\net10.0/" in C:\Users\Miguel\Desktop\Proyectos\Box3D.NET\src\Box3D.NET.Benchmarks\bin\Release\net8.0\49563b98-6b3b-4145-a32d-73ff9fc26725
+// command took 0.86 sec and exited with 0
+// start dotnet  build -c Release --no-restore /p:UseSharedCompilation=false /p:BuildInParallel=false /m:1 /p:Deterministic=true /p:Optimize=true /p:IntermediateOutputPath="C:\Users\Miguel\Desktop\Proyectos\Box3D.NET\src\Box3D.NET.Benchmarks\bin\Release\net8.0\49563b98-6b3b-4145-a32d-73ff9fc26725\obj\Release\net10.0/" /p:OutDir="C:\Users\Miguel\Desktop\Proyectos\Box3D.NET\src\Box3D.NET.Benchmarks\bin\Release\net8.0\49563b98-6b3b-4145-a32d-73ff9fc26725\bin\Release\net10.0/" /p:OutputPath="C:\Users\Miguel\Desktop\Proyectos\Box3D.NET\src\Box3D.NET.Benchmarks\bin\Release\net8.0\49563b98-6b3b-4145-a32d-73ff9fc26725\bin\Release\net10.0/" --output "C:\Users\Miguel\Desktop\Proyectos\Box3D.NET\src\Box3D.NET.Benchmarks\bin\Release\net8.0\49563b98-6b3b-4145-a32d-73ff9fc26725\bin\Release\net10.0/" in C:\Users\Miguel\Desktop\Proyectos\Box3D.NET\src\Box3D.NET.Benchmarks\bin\Release\net8.0\49563b98-6b3b-4145-a32d-73ff9fc26725
+// command took 6.96 sec and exited with 0
+// ***** Done, took 00:00:07 (7.86 sec)   *****
+// Found 3 benchmarks:
+//   BodyCreationBenchmarks.'1000 bodies + spheres (native)': Job-YLGDQJ(InvocationCount=1, IterationCount=5, LaunchCount=1, UnrollFactor=1, WarmupCount=3)
+//   BodyCreationBenchmarks.'1000 bodies + spheres (wrapper)': Job-YLGDQJ(InvocationCount=1, IterationCount=5, LaunchCount=1, UnrollFactor=1, WarmupCount=3)
+//   BodyCreationBenchmarks.'1000 bodies + spheres (wrapper, defaults inline)': Job-YLGDQJ(InvocationCount=1, IterationCount=5, LaunchCount=1, UnrollFactor=1, WarmupCount=3)
+
+Setup power plan (GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c FriendlyName: Alto rendimiento)
+// **************************
+// Benchmark: BodyCreationBenchmarks.'1000 bodies + spheres (native)': Job-YLGDQJ(InvocationCount=1, IterationCount=5, LaunchCount=1, UnrollFactor=1, WarmupCount=3)
+// *** Execute ***
+// Launch: 1 / 1
+// Execute: dotnet 49563b98-6b3b-4145-a32d-73ff9fc26725.dll --anonymousPipes 2016 1888 --benchmarkName Box3D.Benchmarks.BodyCreationBenchmarks.CreateNative --job "InvocationCount=1, IterationCount=5, LaunchCount=1, UnrollFactor=1, WarmupCount=3" --benchmarkId 0 in C:\Users\Miguel\Desktop\Proyectos\Box3D.NET\src\Box3D.NET.Benchmarks\bin\Release\net8.0\49563b98-6b3b-4145-a32d-73ff9fc26725\bin\Release\net10.0
+// BeforeAnythingElse
+
+// Benchmark Process Environment Information:
+// BenchmarkDotNet v0.14.0
+// Runtime=.NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+// GC=Concurrent Workstation
+// HardwareIntrinsics=AVX-512F+CD+BW+DQ+VL+VBMI,AES,BMI1,BMI2,FMA,LZCNT,PCLMUL,POPCNT VectorSize=256
+// Job: Job-IFRBZE(InvocationCount=1, IterationCount=5, LaunchCount=1, UnrollFactor=1, WarmupCount=3)
+
+OverheadJitting  1: 1 op, 169800.00 ns, 169.8000 us/op
+WorkloadJitting  1: 1 op, 1328700.00 ns, 1.3287 ms/op
+
+OverheadWarmup   1: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadWarmup   2: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadWarmup   3: 1 op, 300.00 ns, 300.0000 ns/op
+OverheadWarmup   4: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadWarmup   5: 1 op, 200.00 ns, 200.0000 ns/op
+
+OverheadActual   1: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadActual   2: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadActual   3: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadActual   4: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadActual   5: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadActual   6: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadActual   7: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadActual   8: 1 op, 0.00 ns, 0.0000 ns/op
+OverheadActual   9: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadActual  10: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadActual  11: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadActual  12: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadActual  13: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadActual  14: 1 op, 0.00 ns, 0.0000 ns/op
+OverheadActual  15: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadActual  16: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadActual  17: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadActual  18: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadActual  19: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadActual  20: 1 op, 100.00 ns, 100.0000 ns/op
+
+WorkloadWarmup   1: 1 op, 707800.00 ns, 707.8000 us/op
+WorkloadWarmup   2: 1 op, 917300.00 ns, 917.3000 us/op
+WorkloadWarmup   3: 1 op, 909800.00 ns, 909.8000 us/op
+
+// BeforeActualRun
+WorkloadActual   1: 1 op, 875600.00 ns, 875.6000 us/op
+WorkloadActual   2: 1 op, 1036900.00 ns, 1.0369 ms/op
+WorkloadActual   3: 1 op, 909300.00 ns, 909.3000 us/op
+WorkloadActual   4: 1 op, 761500.00 ns, 761.5000 us/op
+WorkloadActual   5: 1 op, 723900.00 ns, 723.9000 us/op
+
+// AfterActualRun
+WorkloadResult   1: 1 op, 875500.00 ns, 875.5000 us/op
+WorkloadResult   2: 1 op, 1036800.00 ns, 1.0368 ms/op
+WorkloadResult   3: 1 op, 909200.00 ns, 909.2000 us/op
+WorkloadResult   4: 1 op, 761400.00 ns, 761.4000 us/op
+WorkloadResult   5: 1 op, 723800.00 ns, 723.8000 us/op
+// GC:  0 0 0 400 1
+// Threading:  0 0 1
+
+// AfterAll
+// Benchmark Process 8608 has exited with code 0.
+
+Mean = 861.340 μs, StdErr = 55.760 μs (6.47%), N = 5, StdDev = 124.682 μs
+Min = 723.800 μs, Q1 = 761.400 μs, Median = 875.500 μs, Q3 = 909.200 μs, Max = 1,036.800 μs
+IQR = 147.800 μs, LowerFence = 539.700 μs, UpperFence = 1,130.900 μs
+ConfidenceInterval = [381.233 μs; 1,341.447 μs] (CI 99.9%), Margin = 480.107 μs (55.74% of Mean)
+Skewness = 0.2, Kurtosis = 1.17, MValue = 2
+
+// ** Remained 2 (66.7 %) benchmark(s) to run. Estimated finish 2026-08-06 14:00 (0h 0m from now) **
+Setup power plan (GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c FriendlyName: Alto rendimiento)
+// **************************
+// Benchmark: BodyCreationBenchmarks.'1000 bodies + spheres (wrapper)': Job-YLGDQJ(InvocationCount=1, IterationCount=5, LaunchCount=1, UnrollFactor=1, WarmupCount=3)
+// *** Execute ***
+// Launch: 1 / 1
+// Execute: dotnet 49563b98-6b3b-4145-a32d-73ff9fc26725.dll --anonymousPipes 1916 1908 --benchmarkName Box3D.Benchmarks.BodyCreationBenchmarks.CreateWrapper --job "InvocationCount=1, IterationCount=5, LaunchCount=1, UnrollFactor=1, WarmupCount=3" --benchmarkId 1 in C:\Users\Miguel\Desktop\Proyectos\Box3D.NET\src\Box3D.NET.Benchmarks\bin\Release\net8.0\49563b98-6b3b-4145-a32d-73ff9fc26725\bin\Release\net10.0
+// BeforeAnythingElse
+
+// Benchmark Process Environment Information:
+// BenchmarkDotNet v0.14.0
+// Runtime=.NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+// GC=Concurrent Workstation
+// HardwareIntrinsics=AVX-512F+CD+BW+DQ+VL+VBMI,AES,BMI1,BMI2,FMA,LZCNT,PCLMUL,POPCNT VectorSize=256
+// Job: Job-ANXLWY(InvocationCount=1, IterationCount=5, LaunchCount=1, UnrollFactor=1, WarmupCount=3)
+
+OverheadJitting  1: 1 op, 179700.00 ns, 179.7000 us/op
+WorkloadJitting  1: 1 op, 4423600.00 ns, 4.4236 ms/op
+
+OverheadWarmup   1: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadWarmup   2: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadWarmup   3: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadWarmup   4: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadWarmup   5: 1 op, 200.00 ns, 200.0000 ns/op
+
+OverheadActual   1: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadActual   2: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadActual   3: 1 op, 300.00 ns, 300.0000 ns/op
+OverheadActual   4: 1 op, 300.00 ns, 300.0000 ns/op
+OverheadActual   5: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadActual   6: 1 op, 0.00 ns, 0.0000 ns/op
+OverheadActual   7: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadActual   8: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadActual   9: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadActual  10: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadActual  11: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadActual  12: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadActual  13: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadActual  14: 1 op, 0.00 ns, 0.0000 ns/op
+OverheadActual  15: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadActual  16: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadActual  17: 1 op, 0.00 ns, 0.0000 ns/op
+OverheadActual  18: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadActual  19: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadActual  20: 1 op, 200.00 ns, 200.0000 ns/op
+
+WorkloadWarmup   1: 1 op, 977900.00 ns, 977.9000 us/op
+WorkloadWarmup   2: 1 op, 1265200.00 ns, 1.2652 ms/op
+WorkloadWarmup   3: 1 op, 947800.00 ns, 947.8000 us/op
+
+// BeforeActualRun
+WorkloadActual   1: 1 op, 1168100.00 ns, 1.1681 ms/op
+WorkloadActual   2: 1 op, 1179900.00 ns, 1.1799 ms/op
+WorkloadActual   3: 1 op, 1110000.00 ns, 1.1100 ms/op
+WorkloadActual   4: 1 op, 1119300.00 ns, 1.1193 ms/op
+WorkloadActual   5: 1 op, 1097200.00 ns, 1.0972 ms/op
+
+// AfterActualRun
+WorkloadResult   1: 1 op, 1168000.00 ns, 1.1680 ms/op
+WorkloadResult   2: 1 op, 1179800.00 ns, 1.1798 ms/op
+WorkloadResult   3: 1 op, 1109900.00 ns, 1.1099 ms/op
+WorkloadResult   4: 1 op, 1119200.00 ns, 1.1192 ms/op
+WorkloadResult   5: 1 op, 1097100.00 ns, 1.0971 ms/op
+// GC:  0 0 0 400 1
+// Threading:  0 0 1
+
+// AfterAll
+// Benchmark Process 22972 has exited with code 0.
+
+Mean = 1.135 ms, StdErr = 0.016 ms (1.45%), N = 5, StdDev = 0.037 ms
+Min = 1.097 ms, Q1 = 1.110 ms, Median = 1.119 ms, Q3 = 1.168 ms, Max = 1.180 ms
+IQR = 0.058 ms, LowerFence = 1.023 ms, UpperFence = 1.255 ms
+ConfidenceInterval = [0.993 ms; 1.276 ms] (CI 99.9%), Margin = 0.142 ms (12.48% of Mean)
+Skewness = 0.22, Kurtosis = 0.85, MValue = 2
+
+// ** Remained 1 (33.3 %) benchmark(s) to run. Estimated finish 2026-08-06 14:00 (0h 0m from now) **
+Setup power plan (GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c FriendlyName: Alto rendimiento)
+// **************************
+// Benchmark: BodyCreationBenchmarks.'1000 bodies + spheres (wrapper, defaults inline)': Job-YLGDQJ(InvocationCount=1, IterationCount=5, LaunchCount=1, UnrollFactor=1, WarmupCount=3)
+// *** Execute ***
+// Launch: 1 / 1
+// Execute: dotnet 49563b98-6b3b-4145-a32d-73ff9fc26725.dll --anonymousPipes 2072 1408 --benchmarkName Box3D.Benchmarks.BodyCreationBenchmarks.CreateWrapperInlineDefaults --job "InvocationCount=1, IterationCount=5, LaunchCount=1, UnrollFactor=1, WarmupCount=3" --benchmarkId 2 in C:\Users\Miguel\Desktop\Proyectos\Box3D.NET\src\Box3D.NET.Benchmarks\bin\Release\net8.0\49563b98-6b3b-4145-a32d-73ff9fc26725\bin\Release\net10.0
+// BeforeAnythingElse
+
+// Benchmark Process Environment Information:
+// BenchmarkDotNet v0.14.0
+// Runtime=.NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+// GC=Concurrent Workstation
+// HardwareIntrinsics=AVX-512F+CD+BW+DQ+VL+VBMI,AES,BMI1,BMI2,FMA,LZCNT,PCLMUL,POPCNT VectorSize=256
+// Job: Job-TBRMBV(InvocationCount=1, IterationCount=5, LaunchCount=1, UnrollFactor=1, WarmupCount=3)
+
+OverheadJitting  1: 1 op, 174200.00 ns, 174.2000 us/op
+WorkloadJitting  1: 1 op, 4702900.00 ns, 4.7029 ms/op
+
+OverheadWarmup   1: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadWarmup   2: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadWarmup   3: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadWarmup   4: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadWarmup   5: 1 op, 300.00 ns, 300.0000 ns/op
+
+OverheadActual   1: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadActual   2: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadActual   3: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadActual   4: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadActual   5: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadActual   6: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadActual   7: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadActual   8: 1 op, 0.00 ns, 0.0000 ns/op
+OverheadActual   9: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadActual  10: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadActual  11: 1 op, 0.00 ns, 0.0000 ns/op
+OverheadActual  12: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadActual  13: 1 op, 0.00 ns, 0.0000 ns/op
+OverheadActual  14: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadActual  15: 1 op, 0.00 ns, 0.0000 ns/op
+OverheadActual  16: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadActual  17: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadActual  18: 1 op, 200.00 ns, 200.0000 ns/op
+OverheadActual  19: 1 op, 100.00 ns, 100.0000 ns/op
+OverheadActual  20: 1 op, 100.00 ns, 100.0000 ns/op
+
+WorkloadWarmup   1: 1 op, 1108300.00 ns, 1.1083 ms/op
+WorkloadWarmup   2: 1 op, 1131900.00 ns, 1.1319 ms/op
+WorkloadWarmup   3: 1 op, 1444500.00 ns, 1.4445 ms/op
+
+// BeforeActualRun
+WorkloadActual   1: 1 op, 1249100.00 ns, 1.2491 ms/op
+WorkloadActual   2: 1 op, 1494100.00 ns, 1.4941 ms/op
+WorkloadActual   3: 1 op, 1164500.00 ns, 1.1645 ms/op
+WorkloadActual   4: 1 op, 1433700.00 ns, 1.4337 ms/op
+WorkloadActual   5: 1 op, 1566300.00 ns, 1.5663 ms/op
+
+// AfterActualRun
+WorkloadResult   1: 1 op, 1249000.00 ns, 1.2490 ms/op
+WorkloadResult   2: 1 op, 1494000.00 ns, 1.4940 ms/op
+WorkloadResult   3: 1 op, 1164400.00 ns, 1.1644 ms/op
+WorkloadResult   4: 1 op, 1433600.00 ns, 1.4336 ms/op
+WorkloadResult   5: 1 op, 1566200.00 ns, 1.5662 ms/op
+// GC:  0 0 0 400 1
+// Threading:  0 0 1
+
+// AfterAll
+// Benchmark Process 11028 has exited with code 0.
+
+Mean = 1.381 ms, StdErr = 0.076 ms (5.47%), N = 5, StdDev = 0.169 ms
+Min = 1.164 ms, Q1 = 1.249 ms, Median = 1.434 ms, Q3 = 1.494 ms, Max = 1.566 ms
+IQR = 0.245 ms, LowerFence = 0.881 ms, UpperFence = 1.861 ms
+ConfidenceInterval = [0.731 ms; 2.032 ms] (CI 99.9%), Margin = 0.651 ms (47.09% of Mean)
+Skewness = -0.19, Kurtosis = 0.95, MValue = 2
+
+// ** Remained 0 (0.0 %) benchmark(s) to run. Estimated finish 2026-08-06 14:00 (0h 0m from now) **
+Successfully reverted power plan (GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c FriendlyName: Alto rendimiento)
+// ***** BenchmarkRunner: Finish  *****
+
+// * Export *
+  BenchmarkDotNet.Artifacts\results\Box3D.Benchmarks.BodyCreationBenchmarks-report.csv
+  BenchmarkDotNet.Artifacts\results\Box3D.Benchmarks.BodyCreationBenchmarks-report-github.md
+  BenchmarkDotNet.Artifacts\results\Box3D.Benchmarks.BodyCreationBenchmarks-report.html
+
+// * Detailed results *
+BodyCreationBenchmarks.'1000 bodies + spheres (native)': Job-YLGDQJ(InvocationCount=1, IterationCount=5, LaunchCount=1, UnrollFactor=1, WarmupCount=3)
+Runtime = .NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI; GC = Concurrent Workstation
+Mean = 861.340 μs, StdErr = 55.760 μs (6.47%), N = 5, StdDev = 124.682 μs
+Min = 723.800 μs, Q1 = 761.400 μs, Median = 875.500 μs, Q3 = 909.200 μs, Max = 1,036.800 μs
+IQR = 147.800 μs, LowerFence = 539.700 μs, UpperFence = 1,130.900 μs
+ConfidenceInterval = [381.233 μs; 1,341.447 μs] (CI 99.9%), Margin = 480.107 μs (55.74% of Mean)
+Skewness = 0.2, Kurtosis = 1.17, MValue = 2
+-------------------- Histogram --------------------
+[720.800 μs ;   912.200 μs) | @@@@
+[912.200 μs ; 1,132.500 μs) | @
+---------------------------------------------------
+
+BodyCreationBenchmarks.'1000 bodies + spheres (wrapper)': Job-YLGDQJ(InvocationCount=1, IterationCount=5, LaunchCount=1, UnrollFactor=1, WarmupCount=3)
+Runtime = .NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI; GC = Concurrent Workstation
+Mean = 1.135 ms, StdErr = 0.016 ms (1.45%), N = 5, StdDev = 0.037 ms
+Min = 1.097 ms, Q1 = 1.110 ms, Median = 1.119 ms, Q3 = 1.168 ms, Max = 1.180 ms
+IQR = 0.058 ms, LowerFence = 1.023 ms, UpperFence = 1.255 ms
+ConfidenceInterval = [0.993 ms; 1.276 ms] (CI 99.9%), Margin = 0.142 ms (12.48% of Mean)
+Skewness = 0.22, Kurtosis = 0.85, MValue = 2
+-------------------- Histogram --------------------
+[1.080 ms ; 1.146 ms) | @@@
+[1.146 ms ; 1.208 ms) | @@
+---------------------------------------------------
+
+BodyCreationBenchmarks.'1000 bodies + spheres (wrapper, defaults inline)': Job-YLGDQJ(InvocationCount=1, IterationCount=5, LaunchCount=1, UnrollFactor=1, WarmupCount=3)
+Runtime = .NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI; GC = Concurrent Workstation
+Mean = 1.381 ms, StdErr = 0.076 ms (5.47%), N = 5, StdDev = 0.169 ms
+Min = 1.164 ms, Q1 = 1.249 ms, Median = 1.434 ms, Q3 = 1.494 ms, Max = 1.566 ms
+IQR = 0.245 ms, LowerFence = 0.881 ms, UpperFence = 1.861 ms
+ConfidenceInterval = [0.731 ms; 2.032 ms] (CI 99.9%), Margin = 0.651 ms (47.09% of Mean)
+Skewness = -0.19, Kurtosis = 0.95, MValue = 2
+-------------------- Histogram --------------------
+[1.077 ms ; 1.370 ms) | @@
+[1.370 ms ; 1.630 ms) | @@@
+---------------------------------------------------
+
+// * Summary *
+
+BenchmarkDotNet v0.14.0, Windows 11 (10.0.26100.8875)
+Unknown processor
+.NET SDK 10.0.302
+  [Host]     : .NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+  Job-YLGDQJ : .NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+
+Job=Job-YLGDQJ  InvocationCount=1  IterationCount=5  
+LaunchCount=1  UnrollFactor=1  WarmupCount=3  
+
+| Method                                             | Mean       | Ratio | Allocated | Alloc Ratio |
+|--------------------------------------------------- |-----------:|------:|----------:|------------:|
+| '1000 bodies + spheres (native)'                   |   861.3 μs |  1.02 |         - |          NA |
+| '1000 bodies + spheres (wrapper)'                  | 1,134.8 μs |  1.34 |         - |          NA |
+| '1000 bodies + spheres (wrapper, defaults inline)' | 1,381.4 μs |  1.63 |         - |          NA |
+
+// * Warnings *
+MinIterationTime
+  BodyCreationBenchmarks.'1000 bodies + spheres (native)': InvocationCount=1, IterationCount=5, LaunchCount=1, UnrollFactor=1, WarmupCount=3                   -> The minimum observed iteration time is 723.9μs which is very small. It's recommended to increase it to at least 100ms using more operations.
+  BodyCreationBenchmarks.'1000 bodies + spheres (wrapper)': InvocationCount=1, IterationCount=5, LaunchCount=1, UnrollFactor=1, WarmupCount=3                  -> The minimum observed iteration time is 1.097ms which is very small. It's recommended to increase it to at least 100ms using more operations.
+  BodyCreationBenchmarks.'1000 bodies + spheres (wrapper, defaults inline)': InvocationCount=1, IterationCount=5, LaunchCount=1, UnrollFactor=1, WarmupCount=3 -> The minimum observed iteration time is 1.165ms which is very small. It's recommended to increase it to at least 100ms using more operations.
+
+// * Hints *
+HideColumnsAnalyser
+  Summary -> Hidden columns: Error, StdDev, RatioSD
+
+// * Legends *
+  Mean        : Arithmetic mean of all measurements
+  Ratio       : Mean of the ratio distribution ([Current]/[Baseline])
+  Allocated   : Allocated memory per single operation (managed only, inclusive, 1KB = 1024B)
+  Alloc Ratio : Allocated memory ratio distribution ([Current]/[Baseline])
+  1 μs        : 1 Microsecond (0.000001 sec)
+
+// * Diagnostic Output - MemoryDiagnoser *
+
+
+// ***** BenchmarkRunner: End *****
+Run time: 00:00:00 (0.83 sec), executed benchmarks: 3
+
+Global total time: 00:00:08 (8.82 sec), executed benchmarks: 3
+// * Artifacts cleanup *
+Artifacts cleanup is finished

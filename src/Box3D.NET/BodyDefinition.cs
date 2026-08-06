@@ -210,7 +210,7 @@ public readonly record struct BodyDefinition
     /// Gets the engine's default definition, which describes a static body at
     /// the origin.
     /// </summary>
-    public static BodyDefinition Default => FromNative(B3.b3DefaultBodyDef());
+    public static BodyDefinition Default => FromNative(NativeDefaults.Body);
 
     /// <summary>Creates a definition for a static body.</summary>
     /// <param name="position">The world position.</param>
@@ -255,7 +255,7 @@ public readonly record struct BodyDefinition
     /// </summary>
     internal unsafe b3BodyDef ToNative(byte* name)
     {
-        b3BodyDef def = B3.b3DefaultBodyDef();
+        b3BodyDef def = NativeDefaults.Body;
 
         def.type = (b3BodyType)Type;
         def.position = Position;

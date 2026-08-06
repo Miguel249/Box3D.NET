@@ -159,14 +159,14 @@ public readonly record struct JointDefinition
         {
             // Every b3Default*JointDef fills in the same base, so any of them
             // serves as the source of the shared defaults.
-            b3RevoluteJointDef def = B3.b3DefaultRevoluteJointDef();
+            b3RevoluteJointDef def = NativeDefaults.RevoluteJoint;
             return FromNative(def.@base);
         }
     }
 
     internal unsafe b3JointDef ToNative()
     {
-        b3RevoluteJointDef template = B3.b3DefaultRevoluteJointDef();
+        b3RevoluteJointDef template = NativeDefaults.RevoluteJoint;
         b3JointDef def = template.@base;
 
         def.bodyIdA = BodyA.NativeId;

@@ -166,56 +166,48 @@ public readonly record struct Body
 
     // ------------------------------------------------------------- geometry
 
+    /*
+     * The three Add methods differ only in which geometry they hand to which
+     * creation function, so they funnel into AddShape through a function
+     * pointer. That removes the triplicated name handling, and more importantly
+     * it puts the naming decision in one place.
+     *
+     * The naming decision matters: the previous version reserved 128 bytes of
+     * stack unconditionally, and stack space is zeroed on entry, so attaching a
+     * shape paid for a 128-byte memset whether or not it had a name. Names are
+     * a debugging aid that almost nothing sets, so the common path now touches
+     * no stack buffer at all.
+     */
+
     /// <summary>Attaches a sphere to this body.</summary>
     /// <param name="sphere">The sphere, in body-local space.</param>
     /// <param name="definition">The shape settings, or null for the defaults.</param>
     /// <returns>The new shape.</returns>
+    /// <example>
+    /// <code>
+    /// body.AddSphere(new Sphere(0.5f));
+    /// body.AddSphere(new Sphere(0.5f), ShapeDefinition.Default with { Density = 2000.0f });
+    /// </code>
+    /// </example>
     public unsafe Shape AddSphere(Sphere sphere, ShapeDefinition? definition = null)
     {
-        ShapeDefinition settings = definition ?? ShapeDefinition.Default;
-
-        Span<byte> scratch = stackalloc byte[128];
-        Utf8Buffer name = new(settings.Name, scratch);
-        try
-        {
-            fixed (byte* namePtr = name.Span)
-            {
-                b3ShapeDef def = settings.ToNative(name.IsNull ? null : namePtr);
-                b3Sphere native = sphere.ToNative();
-
-                return new Shape(B3.b3CreateSphereShape(NativeId, &def, &native));
-            }
-        }
-        finally
-        {
-            name.Dispose();
-        }
+        b3Sphere native = sphere.ToNative();
+        return AddShape(definition, &native, &CreateSphere);
     }
 
     /// <summary>Attaches a capsule to this body.</summary>
     /// <param name="capsule">The capsule, in body-local space.</param>
     /// <param name="definition">The shape settings, or null for the defaults.</param>
     /// <returns>The new shape.</returns>
+    /// <example>
+    /// <code>
+    /// body.AddCapsule(Capsule.Upright(height: 1.8f, radius: 0.3f));
+    /// </code>
+    /// </example>
     public unsafe Shape AddCapsule(Capsule capsule, ShapeDefinition? definition = null)
     {
-        ShapeDefinition settings = definition ?? ShapeDefinition.Default;
-
-        Span<byte> scratch = stackalloc byte[128];
-        Utf8Buffer name = new(settings.Name, scratch);
-        try
-        {
-            fixed (byte* namePtr = name.Span)
-            {
-                b3ShapeDef def = settings.ToNative(name.IsNull ? null : namePtr);
-                b3Capsule native = capsule.ToNative();
-
-                return new Shape(B3.b3CreateCapsuleShape(NativeId, &def, &native));
-            }
-        }
-        finally
-        {
-            name.Dispose();
-        }
+        b3Capsule native = capsule.ToNative();
+        return AddShape(definition, &native, &CreateCapsule);
     }
 
     /// <summary>Attaches a box to this body.</summary>
@@ -226,20 +218,58 @@ public readonly record struct Body
     /// The box is a convex hull underneath, but it is self-contained, so nothing
     /// needs to be released afterwards.
     /// </remarks>
+    /// <example>
+    /// <code>
+    /// body.AddBox(Box.Cube(0.5f));
+    /// body.AddBox(new Box(new Vector3(50.0f, 0.5f, 50.0f)));
+    /// </code>
+    /// </example>
     public unsafe Shape AddBox(Box box, ShapeDefinition? definition = null)
+    {
+        b3BoxHull hull = box.ToNativeHull();
+        return AddShape(definition, &hull.@base, &CreateHull);
+    }
+
+    private static unsafe b3ShapeId CreateSphere(b3BodyId body, b3ShapeDef* def, void* geometry) =>
+        B3.b3CreateSphereShape(body, def, (b3Sphere*)geometry);
+
+    private static unsafe b3ShapeId CreateCapsule(b3BodyId body, b3ShapeDef* def, void* geometry) =>
+        B3.b3CreateCapsuleShape(body, def, (b3Capsule*)geometry);
+
+    private static unsafe b3ShapeId CreateHull(b3BodyId body, b3ShapeDef* def, void* geometry) =>
+        B3.b3CreateHullShape(body, def, (b3HullData*)geometry);
+
+    private unsafe Shape AddShape(
+        ShapeDefinition? definition,
+        void* geometry,
+        delegate*<b3BodyId, b3ShapeDef*, void*, b3ShapeId> create)
     {
         ShapeDefinition settings = definition ?? ShapeDefinition.Default;
 
+        if (settings.Name is null)
+        {
+            b3ShapeDef def = settings.ToNative(null);
+            return new Shape(create(NativeId, &def, geometry));
+        }
+
+        return AddNamedShape(settings, geometry, create);
+    }
+
+    // Kept out of the common path so that its stack frame is not paid for by
+    // callers who never name a shape.
+    private unsafe Shape AddNamedShape(
+        ShapeDefinition settings,
+        void* geometry,
+        delegate*<b3BodyId, b3ShapeDef*, void*, b3ShapeId> create)
+    {
         Span<byte> scratch = stackalloc byte[128];
         Utf8Buffer name = new(settings.Name, scratch);
         try
         {
             fixed (byte* namePtr = name.Span)
             {
-                b3ShapeDef def = settings.ToNative(name.IsNull ? null : namePtr);
-                b3BoxHull hull = box.ToNativeHull();
-
-                return new Shape(B3.b3CreateHullShape(NativeId, &def, &hull.@base));
+                b3ShapeDef def = settings.ToNative(namePtr);
+                return new Shape(create(NativeId, &def, geometry));
             }
         }
         finally

@@ -69,7 +69,7 @@ public readonly record struct DistanceJointDefinition
     public float MotorSpeed { get; init; }
 
     /// <summary>Gets the engine defaults, with no bodies attached.</summary>
-    public static DistanceJointDefinition Default => FromNative(B3.b3DefaultDistanceJointDef());
+    public static DistanceJointDefinition Default => FromNative(NativeDefaults.DistanceJoint);
 
     /// <summary>
     /// Connects a point on one body to a point on another, taking the current
@@ -101,7 +101,7 @@ public readonly record struct DistanceJointDefinition
 
     internal b3DistanceJointDef ToNative()
     {
-        b3DistanceJointDef def = B3.b3DefaultDistanceJointDef();
+        b3DistanceJointDef def = NativeDefaults.DistanceJoint;
 
         def.@base = Base.ToNative();
         def.length = Length;
@@ -306,7 +306,7 @@ public readonly record struct SphericalJointDefinition
     public Vector3 MotorVelocity { get; init; }
 
     /// <summary>Gets the engine defaults, with no bodies attached.</summary>
-    public static SphericalJointDefinition Default => FromNative(B3.b3DefaultSphericalJointDef());
+    public static SphericalJointDefinition Default => FromNative(NativeDefaults.SphericalJoint);
 
     /// <summary>Pins two bodies together at a shared world-space point.</summary>
     /// <param name="bodyA">The first body.</param>
@@ -331,7 +331,7 @@ public readonly record struct SphericalJointDefinition
 
     internal b3SphericalJointDef ToNative()
     {
-        b3SphericalJointDef def = B3.b3DefaultSphericalJointDef();
+        b3SphericalJointDef def = NativeDefaults.SphericalJoint;
 
         def.@base = Base.ToNative();
         def.enableSpring = SpringEnabled;

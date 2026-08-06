@@ -73,7 +73,7 @@ public readonly record struct PhysicsMaterial
 
     /// <summary>Gets the default material: moderate friction and no bounce.</summary>
     /// <remarks>The values come from Box3D, so they track the engine's own defaults.</remarks>
-    public static PhysicsMaterial Default => FromNative(B3.b3DefaultSurfaceMaterial());
+    public static PhysicsMaterial Default => FromNative(NativeDefaults.SurfaceMaterial);
 
     internal b3SurfaceMaterial ToNative() => new()
     {

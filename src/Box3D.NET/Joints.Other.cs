@@ -44,7 +44,7 @@ public readonly record struct WeldJointDefinition
     public float AngularDampingRatio { get; init; }
 
     /// <summary>Gets the engine defaults, with no bodies attached.</summary>
-    public static WeldJointDefinition Default => FromNative(B3.b3DefaultWeldJointDef());
+    public static WeldJointDefinition Default => FromNative(NativeDefaults.WeldJoint);
 
     /// <summary>Welds two bodies together at a shared world-space point.</summary>
     /// <param name="bodyA">The first body.</param>
@@ -63,7 +63,7 @@ public readonly record struct WeldJointDefinition
 
     internal b3WeldJointDef ToNative()
     {
-        b3WeldJointDef def = B3.b3DefaultWeldJointDef();
+        b3WeldJointDef def = NativeDefaults.WeldJoint;
 
         def.@base = Base.ToNative();
         def.linearHertz = LinearHertz;
@@ -215,7 +215,7 @@ public readonly record struct WheelJointDefinition
     public float UpperSteeringLimit { get; init; }
 
     /// <summary>Gets the engine defaults, with no bodies attached.</summary>
-    public static WheelJointDefinition Default => FromNative(B3.b3DefaultWheelJointDef());
+    public static WheelJointDefinition Default => FromNative(NativeDefaults.WheelJoint);
 
     /// <summary>Mounts a wheel on a chassis.</summary>
     /// <param name="chassis">The chassis body.</param>
@@ -241,7 +241,7 @@ public readonly record struct WheelJointDefinition
 
     internal b3WheelJointDef ToNative()
     {
-        b3WheelJointDef def = B3.b3DefaultWheelJointDef();
+        b3WheelJointDef def = NativeDefaults.WheelJoint;
 
         def.@base = Base.ToNative();
         def.enableSuspensionSpring = SuspensionEnabled;
@@ -451,11 +451,11 @@ public readonly record struct MotorJointDefinition
     public float MaxSpringTorque { get; init; }
 
     /// <summary>Gets the engine defaults, with no bodies attached.</summary>
-    public static MotorJointDefinition Default => FromNative(B3.b3DefaultMotorJointDef());
+    public static MotorJointDefinition Default => FromNative(NativeDefaults.MotorJoint);
 
     internal b3MotorJointDef ToNative()
     {
-        b3MotorJointDef def = B3.b3DefaultMotorJointDef();
+        b3MotorJointDef def = NativeDefaults.MotorJoint;
 
         def.@base = Base.ToNative();
         def.linearVelocity = LinearVelocity;
@@ -601,11 +601,11 @@ public readonly record struct ParallelJointDefinition
     public float MaxTorque { get; init; }
 
     /// <summary>Gets the engine defaults, with no bodies attached.</summary>
-    public static ParallelJointDefinition Default => FromNative(B3.b3DefaultParallelJointDef());
+    public static ParallelJointDefinition Default => FromNative(NativeDefaults.ParallelJoint);
 
     internal b3ParallelJointDef ToNative()
     {
-        b3ParallelJointDef def = B3.b3DefaultParallelJointDef();
+        b3ParallelJointDef def = NativeDefaults.ParallelJoint;
 
         def.@base = Base.ToNative();
         def.hertz = Hertz;
@@ -694,7 +694,7 @@ public readonly record struct FilterJointDefinition
     /// <summary>Gets the engine defaults, with no bodies attached.</summary>
     public static FilterJointDefinition Default => new()
     {
-        Base = JointDefinition.FromNative(B3.b3DefaultFilterJointDef().@base),
+        Base = JointDefinition.FromNative(NativeDefaults.FilterJoint.@base),
     };
 
     /// <summary>Stops two bodies from colliding with each other.</summary>
@@ -708,7 +708,7 @@ public readonly record struct FilterJointDefinition
 
     internal b3FilterJointDef ToNative()
     {
-        b3FilterJointDef def = B3.b3DefaultFilterJointDef();
+        b3FilterJointDef def = NativeDefaults.FilterJoint;
         def.@base = Base.ToNative();
 
         return def;

@@ -22,6 +22,7 @@ namespace Box3D.Tests;
 /// <see cref="NativeFactAttribute"/>.
 /// </para>
 /// </remarks>
+[Collection(NativeCollection.Name)]
 public unsafe class NativeInteropTests
 {
     [NativeFact]
