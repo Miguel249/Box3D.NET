@@ -2,7 +2,7 @@
 <html lang='en'>
 <head>
 <meta charset='utf-8' />
-<title>Box3D.Benchmarks.OverheadBenchmarks-20260806-140629</title>
+<title>Box3D.Benchmarks.OverheadBenchmarks-20260806-144521</title>
 
 <style type="text/css">
 	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
@@ -17,20 +17,21 @@ BenchmarkDotNet v0.14.0, Windows 11 (10.0.26100.8875)
 Unknown processor
 .NET SDK 10.0.302
   [Host]     : .NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
-  Job-NMASDA : .NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
+  Job-MGIMIG : .NET 10.0.10 (10.0.1026.32716), X64 RyuJIT AVX-512F+CD+BW+DQ+VL+VBMI
 </code></pre>
-<pre><code>Job=Job-NMASDA  IterationCount=15  WarmupCount=5  
+<pre><code>Job=Job-MGIMIG  IterationCount=20  WarmupCount=6  
 </code></pre>
 
 <table>
-<thead><tr><th>Method              </th><th>Mean</th><th>Ratio</th><th>Allocated</th><th>Alloc Ratio</th>
+<thead><tr><th>Method                            </th><th>Mean</th><th>Ratio</th><th>Allocated</th><th>Alloc Ratio</th>
 </tr>
-</thead><tbody><tr><td>&#39;Read position (native)&#39;</td><td>7.892 ns</td><td>1.00</td><td>-</td><td>NA</td>
-</tr><tr><td>&#39;Read position (wrapper)&#39;</td><td>7.886 ns</td><td>1.00</td><td>-</td><td>NA</td>
-</tr><tr><td>&#39;Write velocity (native)&#39;</td><td>6.044 ns</td><td>0.77</td><td>-</td><td>NA</td>
-</tr><tr><td>&#39;Write velocity (wrapper)&#39;</td><td>6.155 ns</td><td>0.78</td><td>-</td><td>NA</td>
-</tr><tr><td>&#39;Apply force (native)&#39;</td><td>6.192 ns</td><td>0.78</td><td>-</td><td>NA</td>
-</tr><tr><td>&#39;Apply force (wrapper)&#39;</td><td>6.691 ns</td><td>0.85</td><td>-</td><td>NA</td>
+</thead><tbody><tr><td>&#39;Read position (native)&#39;</td><td>7.897 ns</td><td>1.00</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Read position (wrapper)&#39;</td><td>8.104 ns</td><td>1.03</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Write velocity (native)&#39;</td><td>6.396 ns</td><td>0.81</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Write velocity (wrapper)&#39;</td><td>6.651 ns</td><td>0.84</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Write velocity (native + finite check)&#39;</td><td>6.508 ns</td><td>0.82</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Apply force (native)&#39;</td><td>6.273 ns</td><td>0.79</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Apply force (wrapper)&#39;</td><td>6.776 ns</td><td>0.86</td><td>-</td><td>NA</td>
 </tr></tbody></table>
 </body>
 </html>

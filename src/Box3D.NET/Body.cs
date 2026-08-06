@@ -82,14 +82,24 @@ public readonly record struct Body
     public Vector3 LinearVelocity
     {
         get => B3.b3Body_GetLinearVelocity(NativeId);
-        set => B3.b3Body_SetLinearVelocity(NativeId, value);
+
+        set
+        {
+            Validate.Finite(value);
+            B3.b3Body_SetLinearVelocity(NativeId, value);
+        }
     }
 
     /// <summary>Gets or sets the angular velocity, in radians per second.</summary>
     public Vector3 AngularVelocity
     {
         get => B3.b3Body_GetAngularVelocity(NativeId);
-        set => B3.b3Body_SetAngularVelocity(NativeId, value);
+
+        set
+        {
+            Validate.Finite(value);
+            B3.b3Body_SetAngularVelocity(NativeId, value);
+        }
     }
 
     /// <summary>Gets the mass, usually in kilograms.</summary>
@@ -489,21 +499,31 @@ public readonly record struct Body
     /// effects such as thrust. For an instantaneous change use
     /// <see cref="ApplyImpulseToCenter"/>.
     /// </remarks>
-    public void ApplyForceToCenter(Vector3 force, bool wake = true) =>
+    public void ApplyForceToCenter(Vector3 force, bool wake = true)
+    {
+        Validate.Finite(force);
         B3.b3Body_ApplyForceToCenter(NativeId, force, wake);
+    }
 
     /// <summary>Applies a force at a world-space point, producing torque if it is off-centre.</summary>
     /// <param name="force">The force, in newtons.</param>
     /// <param name="point">The point of application, in world space.</param>
     /// <param name="wake">Whether to wake the body first.</param>
-    public void ApplyForce(Vector3 force, Vector3 point, bool wake = true) =>
+    public void ApplyForce(Vector3 force, Vector3 point, bool wake = true)
+    {
+        Validate.Finite(force);
+        Validate.Finite(point);
         B3.b3Body_ApplyForce(NativeId, force, point, wake);
+    }
 
     /// <summary>Applies a torque, changing angular velocity without moving the body.</summary>
     /// <param name="torque">The torque, in newton-metres.</param>
     /// <param name="wake">Whether to wake the body first.</param>
-    public void ApplyTorque(Vector3 torque, bool wake = true) =>
+    public void ApplyTorque(Vector3 torque, bool wake = true)
+    {
+        Validate.Finite(torque);
         B3.b3Body_ApplyTorque(NativeId, torque, wake);
+    }
 
     /// <summary>Changes the velocity immediately, with no rotation.</summary>
     /// <param name="impulse">The impulse, in newton-seconds.</param>
@@ -513,21 +533,31 @@ public readonly record struct Body
     /// works better as a force, which the sub-stepping solver handles more
     /// smoothly.
     /// </remarks>
-    public void ApplyImpulseToCenter(Vector3 impulse, bool wake = true) =>
+    public void ApplyImpulseToCenter(Vector3 impulse, bool wake = true)
+    {
+        Validate.Finite(impulse);
         B3.b3Body_ApplyLinearImpulseToCenter(NativeId, impulse, wake);
+    }
 
     /// <summary>Changes the velocity immediately at a world-space point, adding spin if it is off-centre.</summary>
     /// <param name="impulse">The impulse, in newton-seconds.</param>
     /// <param name="point">The point of application, in world space.</param>
     /// <param name="wake">Whether to wake the body first.</param>
-    public void ApplyImpulse(Vector3 impulse, Vector3 point, bool wake = true) =>
+    public void ApplyImpulse(Vector3 impulse, Vector3 point, bool wake = true)
+    {
+        Validate.Finite(impulse);
+        Validate.Finite(point);
         B3.b3Body_ApplyLinearImpulse(NativeId, impulse, point, wake);
+    }
 
     /// <summary>Changes the angular velocity immediately.</summary>
     /// <param name="impulse">The angular impulse, in kilogram metres squared per second.</param>
     /// <param name="wake">Whether to wake the body first.</param>
-    public void ApplyAngularImpulse(Vector3 impulse, bool wake = true) =>
+    public void ApplyAngularImpulse(Vector3 impulse, bool wake = true)
+    {
+        Validate.Finite(impulse);
         B3.b3Body_ApplyAngularImpulse(NativeId, impulse, wake);
+    }
 
     // ------------------------------------------------------------- movement
 
@@ -540,8 +570,15 @@ public readonly record struct Body
     /// belongs, or driving a kinematic body with
     /// <see cref="MoveTowards"/> or a velocity.
     /// </remarks>
-    public void SetTransform(Vector3 position, Quaternion? rotation = null) =>
-        B3.b3Body_SetTransform(NativeId, position, rotation ?? Rotation);
+    public void SetTransform(Vector3 position, Quaternion? rotation = null)
+    {
+        Validate.Finite(position);
+
+        Quaternion orientation = rotation ?? Rotation;
+        Validate.Finite(orientation);
+
+        B3.b3Body_SetTransform(NativeId, position, orientation);
+    }
 
     /// <summary>
     /// Sets the velocity needed to arrive at a target pose after one time step.

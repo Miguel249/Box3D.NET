@@ -87,12 +87,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   construction and conversion, which removed two P/Invokes per body creation.
 - Creating a body or shape no longer reserves a name buffer it does not need.
 
+- Non-finite input is rejected on every path that reaches the solver: body and
+  world creation, velocities, forces, impulses, teleports, gravity, shapes, ray
+  casts and the time step. Measured at 0.11 ns per check.
+
 ### Fixed
 
 - The XML documentation and the AOT and trim analyzers were configured under a
   condition that always evaluated false, so none of them ever ran. Everything
   depending on `IsPackable` moved to `Directory.Build.targets`, and CI now
   asserts the gates directly instead of inferring them from a green build.
+- Sphere, capsule and box constructors accepted an infinite extent, and
+  `World.Step` accepted an infinite time step. `ThrowIfNegativeOrZero` passes
+  an infinity through, since it is neither negative nor zero. Found by fuzzing.
 - Tests that read the process-wide allocated byte count ran in parallel with
   tests that allocated, so the leak checks were measuring other threads. Tests
   touching the native library now share a non-parallel collection.

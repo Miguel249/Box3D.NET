@@ -19,13 +19,33 @@ difference is the wrapper and nothing else.
 
 | Operation | Native | Wrapper | Ratio | Allocated |
 | --- | ---: | ---: | ---: | ---: |
-| Read body position | 7.892 ns | 7.886 ns | **1.00** | 0 B |
-| Write linear velocity | 6.044 ns | 6.155 ns | **1.02** | 0 B |
-| Apply force to centre | 6.192 ns | 6.691 ns | **1.08** | 0 B |
+| Read body position | 7.897 ns | 8.104 ns | **1.03** | 0 B |
+| Write linear velocity | 6.396 ns | 6.651 ns | **1.04** | 0 B |
+| Apply force to centre | 6.273 ns | 6.776 ns | **1.08** | 0 B |
 
-Reading a position through `body.Position` costs the same as calling
-`b3Body_GetPosition` by hand. The property is a direct call with no marshalling,
-so there is nothing left to remove.
+Reading a position through `body.Position` costs what calling
+`b3Body_GetPosition` by hand costs. The property is a direct call with no
+marshalling, so there is nothing left to remove.
+
+## What the input validation costs
+
+The wrapper rejects NaN and infinity on every path that can reach the solver.
+This is not free, so it was priced before it went in: the benchmark runs the
+native call twice, once plain and once with the same finite check written out by
+hand.
+
+| | Time | Difference |
+| --- | ---: | ---: |
+| Write velocity, native | 6.396 ns | — |
+| Write velocity, native + finite check | 6.508 ns | **+0.11 ns** |
+
+A tenth of a nanosecond, or under two percent of the call. What it buys:
+Box3D validates its own inputs with assertions that release builds compile out,
+so a single NaN is accepted in silence and then spreads. Measured directly —
+setting one body's velocity to NaN and stepping thirty times left a second body,
+twenty metres away and never touched, reading `(NaN, NaN, NaN)`. There is no way
+to remove it from a world afterwards. `FuzzTests` pins both halves of this: that
+the contamination is real, and that the guards stop it.
 
 ## Spatial queries
 

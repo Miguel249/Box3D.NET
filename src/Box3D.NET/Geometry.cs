@@ -26,6 +26,10 @@ public readonly record struct Sphere
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="radius"/> is not positive.</exception>
     public Sphere(Vector3 center, float radius)
     {
+        // Finiteness is checked separately: ThrowIfNegativeOrZero passes an
+        // infinity straight through, since it is neither negative nor zero.
+        Validate.Finite(center);
+        Validate.Finite(radius);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(radius);
 
         Center = center;
@@ -72,6 +76,9 @@ public readonly record struct Capsule
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="radius"/> is not positive.</exception>
     public Capsule(Vector3 start, Vector3 end, float radius)
     {
+        Validate.Finite(start);
+        Validate.Finite(end);
+        Validate.Finite(radius);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(radius);
 
         Start = start;
@@ -106,6 +113,8 @@ public readonly record struct Capsule
     /// </exception>
     public static Capsule Upright(float height, float radius)
     {
+        Validate.Finite(height);
+        Validate.Finite(radius);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(radius);
 
         // The two caps account for 2 * radius of the total height, so the
@@ -152,6 +161,11 @@ public readonly record struct Box
     /// <exception cref="ArgumentOutOfRangeException">A component of <paramref name="halfExtents"/> is not positive.</exception>
     public Box(Vector3 halfExtents, Vector3 center = default)
     {
+        // Checked before the comparison below, which a NaN would pass: every
+        // comparison against NaN is false, so a NaN extent would sail through.
+        Validate.Finite(halfExtents);
+        Validate.Finite(center);
+
         if (halfExtents.X <= 0.0f || halfExtents.Y <= 0.0f || halfExtents.Z <= 0.0f)
         {
             throw new ArgumentOutOfRangeException(

@@ -161,6 +161,7 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
         set
         {
             ThrowIfDisposed();
+            Validate.Finite(value);
             B3.b3World_SetGravity(_id, value);
         }
     }
@@ -251,6 +252,11 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
     public void Step(float timeStep, int subStepCount = 4)
     {
         ThrowIfDisposed();
+
+        // Finiteness first: an infinite step is neither negative nor zero, so
+        // the guards below would let it through and it would integrate every
+        // body to infinity in one call.
+        Validate.Finite(timeStep);
         ArgumentOutOfRangeException.ThrowIfNegative(timeStep);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(subStepCount);
 
@@ -270,6 +276,11 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
     public Body CreateBody(BodyDefinition definition)
     {
         ThrowIfDisposed();
+
+        Validate.Finite(definition.Position);
+        Validate.Finite(definition.Rotation);
+        Validate.Finite(definition.LinearVelocity);
+        Validate.Finite(definition.AngularVelocity);
 
         // Naming a body is a debugging aid that almost nothing uses, and stack
         // space is zeroed on entry, so reserving the name buffer unconditionally
@@ -493,6 +504,8 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
         where TCallback : struct, IRaycastCallback
     {
         ThrowIfDisposed();
+        Validate.Finite(origin);
+        Validate.Finite(translation);
 
         RaycastContext context = new()
         {
@@ -533,6 +546,8 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
     public RaycastHit RaycastClosest(Vector3 origin, Vector3 translation, QueryFilter? filter = null)
     {
         ThrowIfDisposed();
+        Validate.Finite(origin);
+        Validate.Finite(translation);
 
         b3RayResult result = B3.b3World_CastRayClosest(
             _id,
