@@ -8,7 +8,7 @@ the 3D physics engine by Erin Catto.
 **[Getting started](docs/getting-started.md)** ·
 **[Architecture](docs/architecture.md)** ·
 **[Benchmarks](docs/benchmarks.md)** ·
-**[API reference](https://box3d-net.github.io/Box3D.NET/)**
+**[API reference](https://Miguel249.github.io/Box3D.NET/)**
 
 > **Status: pre-release.** The native binding is complete, and the high-level API
 > covers worlds, bodies, shapes, queries, events and all nine joint types. The
@@ -325,7 +325,7 @@ checked-in output does not match what the script produces.
 | [Getting started](docs/getting-started.md) | From nothing to a simulation, and the handful of things that will otherwise trip you up. |
 | [Architecture](docs/architecture.md) | Layers, ownership and the frame loop, with diagrams. |
 | [Benchmarks](docs/benchmarks.md) | What the wrapper costs, measured. |
-| [API reference](https://box3d-net.github.io/Box3D.NET/) | Every public type, generated from the XML documentation. |
+| [API reference](https://Miguel249.github.io/Box3D.NET/) | Every public type, generated from the XML documentation. |
 
 The reference site is rebuilt from source on every push, so it cannot drift from
 the code. Build it locally with:
@@ -340,7 +340,7 @@ dotnet docfx docs/docfx.json --serve
 Requires the .NET 8 SDK or later, CMake 3.22 or later, and a C compiler.
 
 ```sh
-git clone --recursive https://github.com/box3d-net/Box3D.NET
+git clone --recursive https://github.com/Miguel249/Box3D.NET
 cd Box3D.NET
 
 # Build the native library for this machine.

@@ -44,8 +44,8 @@
     <Product>Box3D.NET</Product>
     <Copyright>Copyright (c) 2026 Box3D.NET contributors</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/box3d-net/Box3D.NET</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/box3d-net/Box3D.NET</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/Miguel249/Box3D.NET</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Miguel249/Box3D.NET</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>box3d;physics;3d;simulation;rigid-body;collision;gamedev;native;interop</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>

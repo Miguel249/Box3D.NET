@@ -124,4 +124,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   follow Box3D and are documented rather than corrected.
 - Single precision only. Box3D's large-world mode changes the ABI and would need
   a separate package.
-[Unreleased]: https://github.com/box3d-net/Box3D.NET/commits/main
+[Unreleased]: https://github.com/Miguel249/Box3D.NET/commits/main
