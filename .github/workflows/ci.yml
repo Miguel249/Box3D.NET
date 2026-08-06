@@ -124,6 +124,32 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      # The quality gates were once disabled by a condition that silently
+      # evaluated to false, which cost nothing at build time and quietly stopped
+      # the XML documentation and the AOT analyzers from running at all. A green
+      # build is not evidence that they are on, so they are asserted directly.
+      - name: Verify the quality gates are actually enabled
+        shell: pwsh
+        run: |
+          $failed = $false
+          foreach ($project in @('src/Box3D.NET/Box3D.NET.csproj', 'src/Box3D.NET.Native/Box3D.NET.Native.csproj')) {
+              $json = dotnet msbuild $project `
+                  -getProperty:GenerateDocumentationFile `
+                  -getProperty:IsAotCompatible `
+                  -getProperty:IsTrimmable `
+                  -getProperty:TreatWarningsAsErrors | ConvertFrom-Json
+
+              foreach ($gate in 'GenerateDocumentationFile', 'IsAotCompatible', 'IsTrimmable', 'TreatWarningsAsErrors') {
+                  $value = $json.Properties.$gate
+                  if ($value -ne 'true') {
+                      Write-Host "::error::$project has $gate = '$value', expected 'true'"
+                      $failed = $true
+                  }
+              }
+              Write-Host "$project : gates verified"
+          }
+          if ($failed) { throw 'One or more quality gates are disabled.' }
+
       - name: Verify formatting
         run: dotnet format --verify-no-changes --severity warn
 

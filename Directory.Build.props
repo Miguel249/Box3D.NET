@@ -29,15 +29,12 @@
   </PropertyGroup>
 
   <!--
-    Trimming and NativeAOT. IsAotCompatible turns on the AOT and trim
-    analyzers, which fail the build on reflection patterns that would break
-    under NativeAOT. The binding layer must stay clean for these to hold.
+    Anything that has to react to IsPackable lives in Directory.Build.targets,
+    not here. This file is imported at the top of every project, before the
+    project body has had a chance to set IsPackable, so a condition on it here
+    always reads empty. That mistake silently disabled the XML documentation
+    and the AOT analyzers for the entire repository.
   -->
-  <PropertyGroup Condition="'$(IsPackable)' == 'true'">
-    <IsTrimmable>true</IsTrimmable>
-    <IsAotCompatible>true</IsAotCompatible>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-  </PropertyGroup>
 
   <!-- Package metadata. -->
   <PropertyGroup>
@@ -64,9 +61,5 @@
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
-
-  <ItemGroup Condition="'$(IsPackable)' == 'true'">
-    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" Visible="false" />
-  </ItemGroup>
 
 </Project>

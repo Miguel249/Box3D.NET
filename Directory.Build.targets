@@ -1,6 +1,43 @@
 <Project>
 
   <!--
+    Everything that depends on IsPackable belongs here rather than in
+    Directory.Build.props.
+
+    .props is imported at the top of a project, before the project body runs, so
+    a condition on IsPackable there is evaluated against an empty value and never
+    fires. .targets is imported at the bottom, once the project has declared
+    itself. Getting this wrong is silent: the build stays green and simply stops
+    generating documentation and stops running the analyzers.
+  -->
+
+  <PropertyGroup Condition="'$(IsPackable)' == 'true'">
+    <!--
+      Documentation is a build gate, not a nicety. With TreatWarningsAsErrors on,
+      this turns an undocumented public member into a failed build.
+    -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!--
+      IsAotCompatible switches on the AOT and trim analyzers, which fail the
+      build on reflection and dynamic-code patterns that would break under
+      NativeAOT. It also implies IsTrimmable.
+    -->
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+
+    <!--
+      The package must carry its own documentation rather than pointing at a
+      repository the reader may not be able to reach.
+    -->
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IsPackable)' == 'true'">
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+
+  <!--
     Wiring between the native Box3D binary and the .NET build.
 
     tools/build-native.ps1 stages each platform's library under
