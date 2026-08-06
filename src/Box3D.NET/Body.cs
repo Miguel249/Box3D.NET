@@ -260,6 +260,142 @@ public readonly record struct Body
         return AddShape(definition, &hull.@base, &CreateHull);
     }
 
+    /// <summary>Attaches a convex hull to this body.</summary>
+    /// <param name="hull">The hull. It is copied, so it may be disposed afterwards.</param>
+    /// <param name="definition">The shape settings, or null for the defaults.</param>
+    /// <returns>The new shape.</returns>
+    /// <exception cref="ObjectDisposedException"><paramref name="hull"/> has been disposed.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="hull"/> is null.</exception>
+    /// <example>
+    /// <code>
+    /// using var rock = ConvexHull.Rock(0.5f);
+    /// body.AddHull(rock);
+    /// </code>
+    /// </example>
+    public unsafe Shape AddHull(ConvexHull hull, ShapeDefinition? definition = null)
+    {
+        ArgumentNullException.ThrowIfNull(hull);
+
+        return AddShape(definition, hull.NativeHull, &CreateHull);
+    }
+
+    /// <summary>Attaches a triangle mesh to this body, which must be static.</summary>
+    /// <param name="mesh">
+    /// The mesh. It is <b>not</b> copied, so it must outlive this shape.
+    /// </param>
+    /// <param name="scale">
+    /// The scale to apply, or null for none. May be non-uniform and may have
+    /// negative components, which mirrors the mesh.
+    /// </param>
+    /// <param name="definition">The shape settings, or null for the defaults.</param>
+    /// <returns>The new shape.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="mesh"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException"><paramref name="mesh"/> has been disposed.</exception>
+    /// <exception cref="InvalidOperationException">This body is not static.</exception>
+    /// <remarks>
+    /// Box3D only generates mesh contacts against static bodies. Attaching one to
+    /// a dynamic or kinematic body would trip an assertion in a debug build of
+    /// the engine and be silently accepted in a release build, so it is rejected
+    /// here instead.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// using var terrain = CollisionMesh.FromTriangles(vertices, indices);
+    ///
+    /// Body level = world.CreateStaticBody();
+    /// level.AddMesh(terrain);
+    /// </code>
+    /// </example>
+    public unsafe Shape AddMesh(CollisionMesh mesh, Vector3? scale = null, ShapeDefinition? definition = null)
+    {
+        ArgumentNullException.ThrowIfNull(mesh);
+        RequireStatic(nameof(mesh), "Triangle meshes");
+
+        ShapeDefinition settings = definition ?? ShapeDefinition.Default;
+        Vector3 meshScale = scale ?? Vector3.One;
+
+        if (settings.Name is null)
+        {
+            b3ShapeDef def = settings.ToNative(null);
+            return new Shape(B3.b3CreateMeshShape(NativeId, &def, mesh.NativeMesh, meshScale));
+        }
+
+        Span<byte> scratch = stackalloc byte[128];
+        Utf8Buffer name = new(settings.Name, scratch);
+        try
+        {
+            fixed (byte* namePtr = name.Span)
+            {
+                b3ShapeDef def = settings.ToNative(namePtr);
+                return new Shape(B3.b3CreateMeshShape(NativeId, &def, mesh.NativeMesh, meshScale));
+            }
+        }
+        finally
+        {
+            name.Dispose();
+        }
+    }
+
+    /// <summary>Attaches a height field to this body, which must be static.</summary>
+    /// <param name="heightField">
+    /// The height field. It is <b>not</b> copied, so it must outlive this shape.
+    /// </param>
+    /// <param name="definition">The shape settings, or null for the defaults.</param>
+    /// <returns>The new shape.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="heightField"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException"><paramref name="heightField"/> has been disposed.</exception>
+    /// <exception cref="InvalidOperationException">This body is not static.</exception>
+    /// <example>
+    /// <code>
+    /// using var terrain = HeightField.FromHeights(heights, 256, 256, new Vector3(1.0f, 100.0f, 1.0f));
+    ///
+    /// Body ground = world.CreateStaticBody();
+    /// ground.AddHeightField(terrain);
+    /// </code>
+    /// </example>
+    public unsafe Shape AddHeightField(HeightField heightField, ShapeDefinition? definition = null)
+    {
+        ArgumentNullException.ThrowIfNull(heightField);
+        RequireStatic(nameof(heightField), "Height fields");
+
+        ShapeDefinition settings = definition ?? ShapeDefinition.Default;
+
+        if (settings.Name is null)
+        {
+            b3ShapeDef def = settings.ToNative(null);
+            return new Shape(B3.b3CreateHeightFieldShape(NativeId, &def, heightField.NativeHeightField));
+        }
+
+        Span<byte> scratch = stackalloc byte[128];
+        Utf8Buffer name = new(settings.Name, scratch);
+        try
+        {
+            fixed (byte* namePtr = name.Span)
+            {
+                b3ShapeDef def = settings.ToNative(namePtr);
+                return new Shape(B3.b3CreateHeightFieldShape(NativeId, &def, heightField.NativeHeightField));
+            }
+        }
+        finally
+        {
+            name.Dispose();
+        }
+    }
+
+    private void RequireStatic(string parameterName, string what)
+    {
+        if (Type != BodyType.Static)
+        {
+            throw new InvalidOperationException(
+                $"{what} may only be attached to static bodies, and this body is {Type}. " +
+                "Box3D generates contacts for them against static geometry only. For a moving " +
+                "object, use a convex hull or several primitive shapes instead.")
+            {
+                Data = { [nameof(parameterName)] = parameterName },
+            };
+        }
+    }
+
     private static unsafe b3ShapeId CreateSphere(b3BodyId body, b3ShapeDef* def, void* geometry) =>
         B3.b3CreateSphereShape(body, def, (b3Sphere*)geometry);
 

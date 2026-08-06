@@ -19,6 +19,8 @@ SampleRunner.Run("Contact events", ContactEventsSample.Run);
 SampleRunner.Run("Sensor trigger", SensorSample.Run);
 SampleRunner.Run("Compound body", CompoundShapeSample.Run);
 SampleRunner.Run("Continuous collision", ContinuousCollisionSample.Run);
+SampleRunner.Run("Height field terrain", HeightFieldSample.Run);
+SampleRunner.Run("Triangle mesh", MeshSample.Run);
 SampleRunner.Run("Character controller", CharacterControllerSample.Run);
 SampleRunner.Run("Entities and user data", EntitySample.Run);
 SampleRunner.Run("Hinged door", HingedDoorSample.Run);
