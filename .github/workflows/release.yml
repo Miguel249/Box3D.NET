@@ -1,0 +1,131 @@
+name: Release
+
+# Publishing is driven by a version tag. Pushing v1.2.3 builds the native
+# library for every supported platform, packs it together with the managed
+# assemblies, and publishes to NuGet.
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish, without the leading v (for example 1.2.3)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  native:
+    name: native (${{ matrix.rid }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { os: windows-latest,   rid: win-x64 }
+          - { os: windows-11-arm,   rid: win-arm64 }
+          - { os: ubuntu-latest,    rid: linux-x64 }
+          - { os: ubuntu-24.04-arm, rid: linux-arm64 }
+          - { os: macos-14,         rid: osx-x64 }
+          - { os: macos-14,         rid: osx-arm64 }
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build Box3D
+        shell: pwsh
+        run: ./tools/build-native.ps1 -Rid ${{ matrix.rid }} -Configuration Release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.rid }}
+          path: runtimes/${{ matrix.rid }}/native/
+          if-no-files-found: error
+
+  publish:
+    name: publish
+    needs: native
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Resolve the version
+        id: version
+        shell: pwsh
+        run: |
+          $version = if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+              '${{ inputs.version }}'
+          } else {
+              '${{ github.ref_name }}' -replace '^v', ''
+          }
+          if ($version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') {
+              throw "Not a semantic version: $version"
+          }
+          Write-Host "publishing $version"
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Collect every native runtime
+        uses: actions/download-artifact@v4
+        with:
+          pattern: native-*
+          path: ./artifacts/native
+
+      - name: Stage the runtimes
+        shell: pwsh
+        run: |
+          foreach ($dir in Get-ChildItem ./artifacts/native -Directory) {
+              $rid = $dir.Name -replace '^native-', ''
+              $target = "runtimes/$rid/native"
+              New-Item -ItemType Directory -Force $target | Out-Null
+              Copy-Item "$($dir.FullName)/*" $target -Recurse -Force
+          }
+
+      # Every platform must be present. Shipping a package that silently lacks
+      # one is worse than not shipping, because it fails at the user's run time.
+      - name: Verify every runtime is present
+        shell: pwsh
+        run: |
+          $required = @('win-x64', 'win-arm64', 'linux-x64', 'linux-arm64', 'osx-x64', 'osx-arm64')
+          $missing = $required | Where-Object { -not (Get-ChildItem "runtimes/$_/native" -File -ErrorAction SilentlyContinue) }
+          if ($missing) {
+              throw "No native library staged for: $($missing -join ', ')"
+          }
+          Write-Host "All $($required.Count) runtimes present."
+
+      - name: Pack
+        run: >
+          dotnet pack
+          --configuration Release
+          --output ./artifacts/packages
+          -p:Version=${{ steps.version.outputs.version }}
+
+      - name: Publish to NuGet
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: >
+          dotnet nuget push "./artifacts/packages/*.nupkg"
+          --source https://api.nuget.org/v3/index.json
+          --api-key "$NUGET_API_KEY"
+          --skip-duplicate
+
+      - name: Attach the packages to the release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./artifacts/packages/*
+          generate_release_notes: true

@@ -1,0 +1,223 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  # Builds Box3D itself, once per target platform. The sources come from the
+  # submodule and are never modified; only the resulting shared library is
+  # published as an artifact for the jobs below.
+  native:
+    name: native (${{ matrix.rid }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest,   rid: win-x64 }
+          - { os: windows-11-arm,   rid: win-arm64 }
+          - { os: ubuntu-latest,    rid: linux-x64 }
+          - { os: ubuntu-24.04-arm, rid: linux-arm64 }
+          - { os: macos-14,         rid: osx-x64 }
+          - { os: macos-14,         rid: osx-arm64 }
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build Box3D
+        shell: pwsh
+        run: ./tools/build-native.ps1 -Rid ${{ matrix.rid }} -Configuration Release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.rid }}
+          path: runtimes/${{ matrix.rid }}/native/
+          if-no-files-found: error
+          retention-days: 7
+
+  # Runs the managed test suite against the real native library. The layout and
+  # math tests would pass without one; the interop tests are the ones that
+  # actually prove the binding, so this job fails if any test is skipped.
+  test:
+    name: test (${{ matrix.rid }})
+    needs: native
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, rid: win-x64 }
+          - { os: ubuntu-latest,  rid: linux-x64 }
+          - { os: macos-14,       rid: osx-arm64 }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-${{ matrix.rid }}
+          path: runtimes/${{ matrix.rid }}/native/
+
+      - name: Build
+        run: dotnet build --configuration Release
+
+      - name: Test
+        run: >
+          dotnet test
+          --configuration Release
+          --no-build
+          --logger "trx;LogFileName=test-results.trx"
+          --results-directory ./artifacts/test-results
+
+      # A skipped interop test means the native library failed to load, which
+      # would otherwise look like a green build.
+      - name: Fail if any test was skipped
+        shell: pwsh
+        run: |
+          $trx = Get-ChildItem ./artifacts/test-results -Filter *.trx -Recurse | Select-Object -First 1
+          [xml] $results = Get-Content $trx.FullName
+          $counters = $results.TestRun.ResultSummary.Counters
+          Write-Host "total=$($counters.total) passed=$($counters.passed) failed=$($counters.failed) skipped=$($counters.notExecuted)"
+          if ([int]$counters.notExecuted -gt 0) {
+              throw "$($counters.notExecuted) test(s) were skipped. On CI the native library is always staged, so a skip means it failed to load."
+          }
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.rid }}
+          path: ./artifacts/test-results/
+          retention-days: 7
+
+  # Verifies formatting and that the generated bindings match the submodule.
+  # A hand-edited Generated/*.g.cs would be silently overwritten on the next
+  # regeneration, so the check exists to catch that before it happens.
+  lint:
+    name: format and generated sources
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Verify formatting
+        run: dotnet format --verify-no-changes --severity warn
+
+      - name: Regenerate the bindings
+        shell: pwsh
+        run: ./tools/generate-bindings.ps1
+
+      - name: Verify the generated bindings are up to date
+        shell: pwsh
+        run: |
+          $diff = git status --porcelain src/Box3D.NET.Native/Generated
+          if ($diff) {
+              Write-Host $diff
+              git diff -- src/Box3D.NET.Native/Generated
+              throw "The generated bindings differ from what tools/generate-bindings.ps1 produces. Re-run it and commit the result."
+          }
+          Write-Host "Generated bindings are up to date."
+
+  # Confirms the whole stack survives NativeAOT, which the samples project is
+  # configured for. This is the check that would catch a reflection dependency
+  # or a marshalling pattern the AOT compiler cannot handle.
+  aot:
+    name: NativeAOT
+    needs: native
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Install the native toolchain
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-linux-x64
+          path: runtimes/linux-x64/native/
+
+      - name: Publish the samples with NativeAOT
+        run: >
+          dotnet publish src/Box3D.NET.Samples/Box3D.NET.Samples.csproj
+          --configuration Release
+          --runtime linux-x64
+          -p:PublishAot=true
+
+      - name: Run the published samples
+        run: |
+          cp runtimes/linux-x64/native/libbox3d.so \
+             src/Box3D.NET.Samples/bin/Release/net8.0/linux-x64/publish/
+          ./src/Box3D.NET.Samples/bin/Release/net8.0/linux-x64/publish/Box3D.NET.Samples
+
+  # Produces the packages that a release would publish, with every platform's
+  # native library inside, and keeps them as an artifact for inspection.
+  pack:
+    name: pack
+    needs: [native, test, lint]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Collect every native runtime
+        uses: actions/download-artifact@v4
+        with:
+          pattern: native-*
+          path: ./artifacts/native
+
+      # download-artifact places each artifact in its own folder named after
+      # the artifact, so native-win-x64/box3d.dll becomes
+      # runtimes/win-x64/native/box3d.dll.
+      - name: Stage the runtimes
+        shell: pwsh
+        run: |
+          foreach ($dir in Get-ChildItem ./artifacts/native -Directory) {
+              $rid = $dir.Name -replace '^native-', ''
+              $target = "runtimes/$rid/native"
+              New-Item -ItemType Directory -Force $target | Out-Null
+              Copy-Item "$($dir.FullName)/*" $target -Recurse -Force
+              Write-Host "staged $rid"
+          }
+          Get-ChildItem runtimes -Recurse -File | ForEach-Object { $_.FullName.Replace((Get-Location).Path, '') }
+
+      - name: Pack
+        run: dotnet pack --configuration Release --output ./artifacts/packages
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: ./artifacts/packages/
+          retention-days: 14

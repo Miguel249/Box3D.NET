@@ -1,0 +1,19 @@
+# Test names read as sentences - Vector3_matches_b3Vec3 - which is worth more
+# here than conforming to the method naming guidelines. The tests also mirror
+# C identifiers when asserting on them.
+
+[*.cs]
+
+# CA1707: identifiers should not contain underscores
+dotnet_diagnostic.CA1707.severity = none
+
+# CA1034: nested types should not be visible. Test fixtures and theory data
+# classes are naturally nested.
+dotnet_diagnostic.CA1034.severity = none
+
+# CA1515: types can be made internal. Test classes must be public for the runner.
+dotnet_diagnostic.CA1515.severity = none
+
+# CA1861: prefer static readonly arrays over constant array arguments. Inline
+# data in theories is clearer written out at the call site.
+dotnet_diagnostic.CA1861.severity = none

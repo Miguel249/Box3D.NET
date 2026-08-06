@@ -41,7 +41,7 @@ public static class Box3DLibrary
 /// </remarks>
 /// <example>
 /// <code>
-/// b3BodyDef def = Box3D.b3DefaultBodyDef();
+/// b3BodyDef def = B3.b3DefaultBodyDef();
 /// def.isBullet = true;              // implicit conversion from bool
 /// if (def.enableSleep) { /* ... */ } // implicit conversion to bool
 /// </code>

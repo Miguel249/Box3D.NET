@@ -7,6 +7,12 @@
     <IsTestProject>true</IsTestProject>
     <!-- Tests reach into unmanaged memory to verify struct layouts. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!--
+      The library targets net8.0, which is the oldest runtime it supports. The
+      tests exercise that same assembly but should run on whatever runtime the
+      machine or CI image happens to have, rather than forcing a .NET 8 install.
+    -->
+    <RollForward>LatestMajor</RollForward>
   </PropertyGroup>
 
   <ItemGroup>

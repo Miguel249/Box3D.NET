@@ -1,0 +1,64 @@
+<Project>
+
+  <!--
+    Wiring between the native Box3D binary and the .NET build.
+
+    tools/build-native.ps1 stages each platform's library under
+    runtimes/<rid>/native/, which is the layout NuGet resolves at run time.
+    This file does two things with that folder:
+
+      1. Packs every staged runtime into Box3D.NET.Native, so that installing
+         the package on any supported platform just works.
+      2. Copies the current machine's runtime next to the output of executable
+         projects, so tests and samples run from a plain "dotnet test" without
+         a package restore in between.
+
+    The folder is deliberately not in source control: it is build output. A
+    clone therefore has no native binary until build-native.ps1 has run, and
+    the tests that need one skip themselves rather than fail.
+  -->
+
+  <PropertyGroup>
+    <Box3DRuntimesDir>$(MSBuildThisFileDirectory)runtimes\</Box3DRuntimesDir>
+  </PropertyGroup>
+
+  <!-- Pack every staged runtime into the native package. -->
+  <ItemGroup Condition="'$(PackageId)' == 'Box3D.NET.Native' AND Exists('$(Box3DRuntimesDir)')">
+    <None Include="$(Box3DRuntimesDir)**\*"
+          Pack="true"
+          PackagePath="runtimes\%(RecursiveDir)"
+          Visible="false" />
+  </ItemGroup>
+
+  <!--
+    Copy the host runtime next to the build output.
+
+    NativeRuntimeIdentifier resolves to the RID of the machine doing the build.
+    If nothing has been staged for it the copy is simply skipped; the projects
+    still build, and only the tests that call into the library are affected.
+  -->
+  <Target Name="CopyBox3DNativeRuntime"
+          BeforeTargets="PrepareForRun"
+          Condition="'$(OutputType)' == 'Exe' OR '$(IsTestProject)' == 'true'">
+
+    <PropertyGroup>
+      <_Box3DHostRid Condition="'$(_Box3DHostRid)' == ''">$(NETCoreSdkPortableRuntimeIdentifier)</_Box3DHostRid>
+      <_Box3DHostRid Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</_Box3DHostRid>
+      <_Box3DNativeDir>$(Box3DRuntimesDir)$(_Box3DHostRid)\native\</_Box3DNativeDir>
+    </PropertyGroup>
+
+    <ItemGroup Condition="Exists('$(_Box3DNativeDir)')">
+      <_Box3DNativeFile Include="$(_Box3DNativeDir)*" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(_Box3DNativeFile)"
+          DestinationFolder="$(OutDir)"
+          SkipUnchangedFiles="true"
+          Condition="'@(_Box3DNativeFile)' != ''" />
+
+    <Message Importance="normal"
+             Condition="'@(_Box3DNativeFile)' == ''"
+             Text="No native Box3D runtime staged for $(_Box3DHostRid). Run tools/build-native.ps1 to build it; tests needing the native library will be skipped." />
+  </Target>
+
+</Project>

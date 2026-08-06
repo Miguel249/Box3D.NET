@@ -193,7 +193,7 @@ public static unsafe partial class B3
     /// <returns>The equivalent quaternion.</returns>
     [LibraryImport(Box3DLibrary.Name)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    public static partial Quaternion b3MakeQuatFromMatrix(in b3Matrix3 m);
+    public static partial Quaternion b3MakeQuatFromMatrix(b3Matrix3* m);
 
     /// <summary>Computes the shortest rotation taking one unit vector to another.</summary>
     /// <param name="v1">The starting unit vector.</param>
