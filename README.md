@@ -10,15 +10,12 @@ the 3D physics engine by Erin Catto.
 > [changelog](CHANGELOG.md).
 
 ```csharp
-using var world = new PhysicsWorld(WorldSettings.Default with
-{
-    Gravity = new Vector3(0.0f, -9.81f, 0.0f),
-});
+using var world = new PhysicsWorld();
 
-Body ground = world.CreateBody(BodyDefinition.Static(new Vector3(0.0f, -0.5f, 0.0f)));
+Body ground = world.CreateStaticBody(new Vector3(0.0f, -0.5f, 0.0f));
 ground.AddBox(new Box(new Vector3(50.0f, 0.5f, 50.0f)));
 
-Body ball = world.CreateBody(BodyDefinition.Dynamic(new Vector3(0.0f, 10.0f, 0.0f)));
+Body ball = world.CreateDynamicBody(new Vector3(0.0f, 10.0f, 0.0f));
 ball.AddSphere(new Sphere(0.5f));
 
 for (int frame = 0; frame < 120; frame++)
@@ -26,7 +23,50 @@ for (int frame = 0; frame < 120; frame++)
     world.Step(1.0f / 60.0f);
 }
 
-Console.WriteLine(ball.Position);
+Console.WriteLine(ball.Position);   // resting on the ground
+```
+
+That is the whole API for a first simulation: a world, some bodies, shapes on
+them, and a step. Everything else is opt-in.
+
+## The next five minutes
+
+```csharp
+// Tune the world when the defaults are not what you want.
+using var world = new PhysicsWorld(WorldSettings.Default with
+{
+    Gravity = new Vector3(0.0f, -9.81f, 0.0f),
+    WorkerCount = 4,
+});
+
+// Link physics objects to your own game state with an entity id or an index.
+ball.UserData = entityId;
+
+// Push transforms into your game from one contiguous array of what moved.
+world.Step(1.0f / 60.0f);
+
+foreach (BodyMoveEvent moved in world.Events.BodyMoves)
+{
+    ref Transform t = ref transforms[moved.Body.UserData];
+    t.Position = moved.Position;
+    t.Rotation = moved.Rotation;
+}
+
+// Shoot something.
+RaycastHit hit = world.RaycastClosest(muzzle, aim * 100.0f);
+if (hit.Hit)
+{
+    Damage(hit.Shape.Body.UserData, hit.Point, hit.Normal);
+}
+
+// Hang a door on a hinge that stops at ninety degrees.
+world.CreateRevoluteJoint(
+    RevoluteJointDefinition.Hinge(frame, door, hingePoint, Vector3.UnitY) with
+    {
+        LimitsEnabled = true,
+        LowerAngle = 0.0f,
+        UpperAngle = MathF.PI * 0.5f,
+    });
 ```
 
 ## Goals
@@ -140,6 +180,41 @@ that wrong and the joint starts out violated and snaps on the first step.
 `RevoluteJointDefinition.Hinge` and `Joint.FramesFromWorldAnchor` do that
 calculation from a world-space anchor and axis.
 
+### The layers are sealed, with one marked door
+
+`Box3D.NET` never names a `Box3D.NET.Native` type in public API. If it did,
+every consumer touching a handle would take a compile-time dependency on the C
+ABI, and the two packages could no longer version independently.
+
+Going down a level is still supported, because a thin wrapper should not be a
+ceiling — Box3D exports around 580 functions and the idiomatic surface does not
+cover all of them:
+
+```csharp
+using Box3D.Interop;
+
+b3BodyId raw = body.ToNativeId();
+B3.b3Body_SetName(raw, name);
+```
+
+Importing that namespace is the point: the coupling is visible in your source
+rather than being the path of least resistance. `LayeringTests` enforces the
+rule over the built assembly by reflection, because a rule like this decays
+quietly — one convenient property and nothing fails.
+
+### User data is an identifier, not a reference
+
+`body.UserData` is a `ulong`. The alternative, pinning a managed object with a
+`GCHandle`, reads better in object-oriented code and loses on every other axis:
+the handle must be freed when the body is destroyed, a body can be destroyed by
+destroying its world, so the world would have to track every handle it issued —
+and a missed one is a leak the GC cannot see.
+
+An integer costs nothing, cannot leak, and is what engines actually want back
+out of a contact event: an entity id or an array index. Shapes carry their own,
+separate from the body's, which is what lets a hit be attributed to the head
+rather than merely to the character.
+
 ### Runtime marshalling is disabled
 
 The native assembly is compiled with `DisableRuntimeMarshalling`. Every P/Invoke
@@ -194,6 +269,27 @@ binary and then fails if anything was skipped.
 | `LayoutTests` | The size and layout of every public struct, against values derived from the C declarations. Runs without a native binary. |
 | `MathTests` | The math ported from the `B3_INLINE` functions, by algebraic identity and by agreement with `System.Numerics`. |
 | `NativeInteropTests` | The binding against the real library: default definitions come back intact, bodies fall, rays hit, and `b3GetByteCount` returns to its starting value after worlds and hulls are destroyed. |
+| `JointTests` | Joint behaviour, not round trips: limits actually hold, motors actually lift, filter joints actually let bodies through. |
+| `LayeringTests` | That no `Box3D.NET.Native` type reaches the public surface, checked by reflection over the built assembly. |
+| `UserDataTests` | Identifiers survive the round trip through the native `void*`, including the top bit, and come back from events and queries. |
+
+Tests that call into Box3D share a non-parallel xUnit collection. The library
+keeps process-wide state — the allocated byte count, the live world count — so a
+leak test running beside another class that creates worlds is measuring noise.
+
+## Performance
+
+Measured, not asserted. See [docs/benchmarks.md](docs/benchmarks.md).
+
+| | Native | Wrapper | Allocated |
+| --- | ---: | ---: | ---: |
+| Read a body position | 7.892 ns | 7.886 ns | 0 B |
+| Ray cast, closest hit over 200 shapes | — | 166.6 ns | 0 B |
+| Ray cast with a struct callback | — | 163.2 ns | 0 B |
+| Create 1000 bodies with spheres | 710.6 µs | 799.3 µs | 0 B |
+
+Reading a position through the wrapper costs what calling the C function costs.
+Queries allocate nothing, including the callback forms.
 
 ## License
 

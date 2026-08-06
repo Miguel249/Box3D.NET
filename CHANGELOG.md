@@ -62,6 +62,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ray casts, contact events, sensors, compound bodies, continuous collision, a
   kinematic character, a hinged door, a hanging chain and a wheeled vehicle.
 
+### Changed
+
+- `PhysicsWorld.Id`, `Body.Id`, `Shape.Id` and the joint `Id` properties are
+  now internal. Conversions live in the new `Box3D.Interop` namespace, so the
+  idiomatic surface no longer names a native type. **Breaking.**
+- Spatial queries renamed to `Raycast` and `RaycastClosest`, matching the
+  `RaycastHit` and `IRaycastCallback` types they already used. **Breaking.**
+- Engine defaults are read once into a cache rather than on every definition
+  construction and conversion, which removed two P/Invokes per body creation.
+- Creating a body or shape no longer reserves a name buffer it does not need.
+
+### Fixed
+
+- The XML documentation and the AOT and trim analyzers were configured under a
+  condition that always evaluated false, so none of them ever ran. Everything
+  depending on `IsPackable` moved to `Directory.Build.targets`, and CI now
+  asserts the gates directly instead of inferring them from a green build.
+- Tests that read the process-wide allocated byte count ran in parallel with
+  tests that allocated, so the leak checks were measuring other threads. Tests
+  touching the native library now share a non-parallel collection.
+
 ### Known limitations
 
 - The character mover plane solver, debug draw, meshes, height fields and baked
