@@ -1,0 +1,74 @@
+{
+  "$schema": "https://raw.githubusercontent.com/dotnet/docfx/main/schemas/docfx.schema.json",
+  "metadata": [
+    {
+      "src": [
+        {
+          "src": "../src",
+          "files": [
+            "Box3D.NET/Box3D.NET.csproj",
+            "Box3D.NET.Native/Box3D.NET.Native.csproj"
+          ]
+        }
+      ],
+      "dest": "api",
+      "outputFormat": "apiPage",
+      "memberLayout": "separatePages",
+      "namespaceLayout": "nested",
+      "enumSortOrder": "declaringOrder",
+      "properties": {
+        "TargetFramework": "net8.0",
+        "Configuration": "Release"
+      }
+    }
+  ],
+  "build": {
+    "content": [
+      {
+        "files": [
+          "api/**.yml",
+          "api/index.md"
+        ]
+      },
+      {
+        "files": [
+          "*.md",
+          "toc.yml"
+        ],
+        "exclude": [
+          "docfx.json"
+        ]
+      }
+    ],
+    "resource": [
+      {
+        "src": "..",
+        "files": [
+          "assets/**"
+        ]
+      }
+    ],
+    "output": "_site",
+    "template": [
+      "default",
+      "modern"
+    ],
+    "globalMetadata": {
+      "_appName": "Box3D.NET",
+      "_appTitle": "Box3D.NET",
+      "_appLogoPath": "assets/icon.png",
+      "_appFaviconPath": "assets/icon.png",
+      "_enableSearch": true,
+      "_disableContribution": false,
+      "_gitContribute": {
+        "repo": "https://github.com/box3d-net/Box3D.NET",
+        "branch": "main"
+      },
+      "pdf": false
+    },
+    "markdownEngineName": "markdig",
+    "postProcessors": [
+      "ExtractSearchIndex"
+    ]
+  }
+}

@@ -1,0 +1,78 @@
+name: Documentation
+
+# The site is rebuilt on every push to main and published to GitHub Pages, so
+# the reference can never drift from the code it documents.
+#
+# One-time setup in the repository: Settings, Pages, Source = GitHub Actions.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'docs/**'
+      - 'assets/**'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never cancel a publish half-way, and never run two at once.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      # DocFX reads the compiled assemblies and their XML documentation, so the
+      # projects have to build first. The native library is not needed: nothing
+      # is executed, only reflected over.
+      - name: Restore tools
+        run: dotnet tool restore
+
+      - name: Build
+        run: dotnet build src/Box3D.NET/Box3D.NET.csproj --configuration Release
+
+      - name: Generate the icon
+        shell: pwsh
+        run: |
+          # System.Drawing is Windows-only, so on Linux the committed icon is
+          # used as-is. This step exists to fail loudly if it is missing rather
+          # than publishing a site with a broken logo.
+          if (-not (Test-Path assets/icon.png)) {
+              throw 'assets/icon.png is missing. Run tools/generate-icon.ps1 on Windows and commit it.'
+          }
+
+      - name: Build the site
+        run: dotnet docfx docs/docfx.json --warningsAsErrors
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/_site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

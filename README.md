@@ -1,7 +1,14 @@
+<img src="assets/icon.png" width="96" align="right" alt="" />
+
 # Box3D.NET
 
 An idiomatic, allocation-free C# binding for [Box3D](https://github.com/erincatto/box3d),
 the 3D physics engine by Erin Catto.
+
+**[Getting started](docs/getting-started.md)** ·
+**[Architecture](docs/architecture.md)** ·
+**[Benchmarks](docs/benchmarks.md)** ·
+**[API reference](https://box3d-net.github.io/Box3D.NET/)**
 
 > **Status: pre-release.** The native binding is complete, and the high-level API
 > covers worlds, bodies, shapes, queries, events and all nine joint types. The
@@ -310,6 +317,23 @@ way. A mistyped parameter in a hand-written binding does not fail to compile; it
 corrupts the stack at run time. Generating removes that class of bug and reduces
 a Box3D upgrade to re-running the script and reading the diff. CI fails if the
 checked-in output does not match what the script produces.
+
+## Documentation
+
+| | |
+| --- | --- |
+| [Getting started](docs/getting-started.md) | From nothing to a simulation, and the handful of things that will otherwise trip you up. |
+| [Architecture](docs/architecture.md) | Layers, ownership and the frame loop, with diagrams. |
+| [Benchmarks](docs/benchmarks.md) | What the wrapper costs, measured. |
+| [API reference](https://box3d-net.github.io/Box3D.NET/) | Every public type, generated from the XML documentation. |
+
+The reference site is rebuilt from source on every push, so it cannot drift from
+the code. Build it locally with:
+
+```sh
+dotnet tool restore
+dotnet docfx docs/docfx.json --serve
+```
 
 ## Building
 

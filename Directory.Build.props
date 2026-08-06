@@ -49,6 +49,7 @@
     <RepositoryType>git</RepositoryType>
     <PackageTags>box3d;physics;3d;simulation;rigid-body;collision;gamedev;native;interop</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
   </PropertyGroup>
 

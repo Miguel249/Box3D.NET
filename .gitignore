@@ -38,3 +38,9 @@ packages/
 # OS noise
 .DS_Store
 Thumbs.db
+
+# Documentation site output. docs/api holds generated YAML alongside a
+# hand-written index.md, so only the generated half is ignored.
+docs/_site/
+docs/api/*.yml
+docs/api/.manifest
