@@ -23,6 +23,7 @@ SampleRunner.Run("Height field terrain", HeightFieldSample.Run);
 SampleRunner.Run("Triangle mesh", MeshSample.Run);
 SampleRunner.Run("Character controller", CharacterControllerSample.Run);
 SampleRunner.Run("Entities and user data", EntitySample.Run);
+SampleRunner.Run("Debug draw", DebugDrawSample.Run);
 SampleRunner.Run("Hinged door", HingedDoorSample.Run);
 SampleRunner.Run("Chain", ChainSample.Run);
 SampleRunner.Run("Vehicle", VehicleSample.Run);

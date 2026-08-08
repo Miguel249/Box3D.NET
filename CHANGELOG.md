@@ -5,6 +5,35 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Debug draw reaches managed code. `IDebugDrawer` receives the primitives Box3D
+  emits — segments, points, spheres, capsules, bounding boxes, oriented boxes,
+  transforms and labels — and `PhysicsWorld.Draw` feeds them to it. The drawer
+  is a value type taken by `ref`, reached through function pointers rather than
+  delegates, so a drawn frame allocates nothing; a sample asserts that. Nothing
+  here knows about any renderer.
+- `abi/native-layout.json` records the size, alignment and every field offset of
+  all 92 Box3D structs, as reported by the C compiler. `AbiTests` holds the
+  managed mirrors to it and CI regenerates it, so a submodule bump that moves a
+  field fails the build instead of silently reading the wrong bytes.
+  `tools/dump-abi.ps1` produces the file.
+- Packages are validated against the last published version at pack time, so a
+  member removed or a signature changed is caught before it reaches a consumer
+  rather than after.
+
+### Known limitations
+
+- `DebugDrawOptions.DrawShapes` draws nothing yet. Box3D does not emit shape
+  geometry as primitives: it asks the application to build a drawable once,
+  through callbacks on the world definition, and then hands back that opaque
+  handle to be drawn at a transform. Surfacing those callbacks means putting a
+  managed object on `WorldSettings`, which is currently a pure value type, so it
+  is a deliberate design decision rather than an oversight. Everything else
+  debug draw emits works today.
+
 ## [0.1.0] - 2026-08-07
 
 ### Added
@@ -130,11 +159,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Known limitations
 
-- Baked compound shapes and debug draw are only reachable through
-  `Box3D.NET.Native`.
+- Baked compound shapes are only reachable through `Box3D.NET.Native`. So was
+  debug draw at the time of this release; see Unreleased.
 - The cylinder and cone hulls stand on the origin rather than being centred on
   it, and a height field grows from its body origin in positive x and z. Both
   follow Box3D and are documented rather than corrected.
 - Single precision only. Box3D's large-world mode changes the ABI and would need
   a separate package.
+[Unreleased]: https://github.com/Miguel249/Box3D.NET/compare/v0.1.0...main
 [0.1.0]: https://github.com/Miguel249/Box3D.NET/releases/tag/v0.1.0

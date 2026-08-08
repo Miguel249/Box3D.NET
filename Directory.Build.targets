@@ -39,6 +39,22 @@
       repository the reader may not be able to reach.
     -->
     <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <!--
+      Compare every pack against the last published package.
+
+      Once a version is on nuget.org it cannot be withdrawn, only delisted, so a
+      member quietly removed or a signature quietly changed is permanent for
+      anyone who already depends on it. This downloads the baseline from
+      nuget.org at pack time and fails the build on a change that would break a
+      consumer, across every target framework and runtime the package ships.
+
+      Bump the baseline when a version ships. Breaking changes are allowed
+      before 1.0, but they should be a decision recorded in the changelog rather
+      than something discovered by a consumer.
+    -->
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <PackageValidationBaselineVersion>0.1.0</PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(IsPackable)' == 'true'">
