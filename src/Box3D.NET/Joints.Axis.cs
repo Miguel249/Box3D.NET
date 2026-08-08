@@ -133,85 +133,89 @@ public readonly record struct RevoluteJoint
     /// </remarks>
     internal b3JointId NativeId { get; }
 
+    // Reached through here rather than through NativeId so that a stale handle
+    // is rejected instead of being indexed into a freed slot. See Validate.
+    private b3JointId Id => Validate.Handle(NativeId);
+
     /// <summary>Gets the generic handle, carrying what every joint has in common.</summary>
     public Joint AsJoint => new(NativeId);
 
     /// <summary>Gets the current angle relative to the target angle, in radians.</summary>
-    public float Angle => B3.b3RevoluteJoint_GetAngle(NativeId);
+    public float Angle => B3.b3RevoluteJoint_GetAngle(Id);
 
     /// <summary>Gets or sets the angle treated as zero by the limits, in radians.</summary>
     public float TargetAngle
     {
-        get => B3.b3RevoluteJoint_GetTargetAngle(NativeId);
-        set => B3.b3RevoluteJoint_SetTargetAngle(NativeId, value);
+        get => B3.b3RevoluteJoint_GetTargetAngle(Id);
+        set => B3.b3RevoluteJoint_SetTargetAngle(Id, value);
     }
 
     /// <summary>Gets or sets a value indicating whether the angular spring is enabled.</summary>
     public bool SpringEnabled
     {
-        get => B3.b3RevoluteJoint_IsSpringEnabled(NativeId);
-        set => B3.b3RevoluteJoint_EnableSpring(NativeId, value);
+        get => B3.b3RevoluteJoint_IsSpringEnabled(Id);
+        set => B3.b3RevoluteJoint_EnableSpring(Id, value);
     }
 
     /// <summary>Gets or sets the spring stiffness in cycles per second.</summary>
     public float Hertz
     {
-        get => B3.b3RevoluteJoint_GetSpringHertz(NativeId);
-        set => B3.b3RevoluteJoint_SetSpringHertz(NativeId, value);
+        get => B3.b3RevoluteJoint_GetSpringHertz(Id);
+        set => B3.b3RevoluteJoint_SetSpringHertz(Id, value);
     }
 
     /// <summary>Gets or sets the spring damping ratio.</summary>
     public float DampingRatio
     {
-        get => B3.b3RevoluteJoint_GetSpringDampingRatio(NativeId);
-        set => B3.b3RevoluteJoint_SetSpringDampingRatio(NativeId, value);
+        get => B3.b3RevoluteJoint_GetSpringDampingRatio(Id);
+        set => B3.b3RevoluteJoint_SetSpringDampingRatio(Id, value);
     }
 
     /// <summary>Gets or sets a value indicating whether the angle limits are enforced.</summary>
     public bool LimitsEnabled
     {
-        get => B3.b3RevoluteJoint_IsLimitEnabled(NativeId);
-        set => B3.b3RevoluteJoint_EnableLimit(NativeId, value);
+        get => B3.b3RevoluteJoint_IsLimitEnabled(Id);
+        set => B3.b3RevoluteJoint_EnableLimit(Id, value);
     }
 
     /// <summary>Gets the lower angle limit in radians.</summary>
-    public float LowerAngle => B3.b3RevoluteJoint_GetLowerLimit(NativeId);
+    public float LowerAngle => B3.b3RevoluteJoint_GetLowerLimit(Id);
 
     /// <summary>Gets the upper angle limit in radians.</summary>
-    public float UpperAngle => B3.b3RevoluteJoint_GetUpperLimit(NativeId);
+    public float UpperAngle => B3.b3RevoluteJoint_GetUpperLimit(Id);
 
     /// <summary>Gets or sets a value indicating whether the motor is enabled.</summary>
     public bool MotorEnabled
     {
-        get => B3.b3RevoluteJoint_IsMotorEnabled(NativeId);
-        set => B3.b3RevoluteJoint_EnableMotor(NativeId, value);
+        get => B3.b3RevoluteJoint_IsMotorEnabled(Id);
+        set => B3.b3RevoluteJoint_EnableMotor(Id, value);
     }
 
     /// <summary>Gets or sets the speed the motor drives towards, in radians per second.</summary>
     public float MotorSpeed
     {
-        get => B3.b3RevoluteJoint_GetMotorSpeed(NativeId);
-        set => B3.b3RevoluteJoint_SetMotorSpeed(NativeId, value);
+        get => B3.b3RevoluteJoint_GetMotorSpeed(Id);
+        set => B3.b3RevoluteJoint_SetMotorSpeed(Id, value);
     }
 
     /// <summary>Gets or sets the maximum torque the motor may apply, in newton-metres.</summary>
     public float MaxMotorTorque
     {
-        get => B3.b3RevoluteJoint_GetMaxMotorTorque(NativeId);
-        set => B3.b3RevoluteJoint_SetMaxMotorTorque(NativeId, value);
+        get => B3.b3RevoluteJoint_GetMaxMotorTorque(Id);
+        set => B3.b3RevoluteJoint_SetMaxMotorTorque(Id, value);
     }
 
     /// <summary>Gets the torque the motor is currently applying, in newton-metres.</summary>
-    public float MotorTorque => B3.b3RevoluteJoint_GetMotorTorque(NativeId);
+    public float MotorTorque => B3.b3RevoluteJoint_GetMotorTorque(Id);
 
     /// <summary>Sets both angle limits.</summary>
     /// <param name="lower">The lower limit in radians. At least minus 0.99 pi.</param>
     /// <param name="upper">The upper limit in radians. At most 0.99 pi.</param>
-    public void SetLimits(float lower, float upper) => B3.b3RevoluteJoint_SetLimits(NativeId, lower, upper);
+    public void SetLimits(float lower, float upper) => B3.b3RevoluteJoint_SetLimits(Id, lower, upper);
 
     /// <summary>Destroys this joint.</summary>
     /// <param name="wakeBodies">Whether to wake the attached bodies.</param>
-    public void Destroy(bool wakeBodies = true) => B3.b3DestroyJoint(NativeId, wakeBodies);
+    public void Destroy(bool wakeBodies = true) => B3.b3DestroyJoint(Id, wakeBodies);
 }
 
 /// <summary>
@@ -373,86 +377,90 @@ public readonly record struct PrismaticJoint
     /// </remarks>
     internal b3JointId NativeId { get; }
 
+    // Reached through here rather than through NativeId so that a stale handle
+    // is rejected instead of being indexed into a freed slot. See Validate.
+    private b3JointId Id => Validate.Handle(NativeId);
+
     /// <summary>Gets the generic handle, carrying what every joint has in common.</summary>
     public Joint AsJoint => new(NativeId);
 
     /// <summary>Gets the current translation along the slide axis, usually in metres.</summary>
-    public float Translation => B3.b3PrismaticJoint_GetTranslation(NativeId);
+    public float Translation => B3.b3PrismaticJoint_GetTranslation(Id);
 
     /// <summary>Gets the current speed along the slide axis, usually in metres per second.</summary>
-    public float Speed => B3.b3PrismaticJoint_GetSpeed(NativeId);
+    public float Speed => B3.b3PrismaticJoint_GetSpeed(Id);
 
     /// <summary>Gets or sets a value indicating whether the spring is enabled.</summary>
     public bool SpringEnabled
     {
-        get => B3.b3PrismaticJoint_IsSpringEnabled(NativeId);
-        set => B3.b3PrismaticJoint_EnableSpring(NativeId, value);
+        get => B3.b3PrismaticJoint_IsSpringEnabled(Id);
+        set => B3.b3PrismaticJoint_EnableSpring(Id, value);
     }
 
     /// <summary>Gets or sets the spring stiffness in cycles per second.</summary>
     public float Hertz
     {
-        get => B3.b3PrismaticJoint_GetSpringHertz(NativeId);
-        set => B3.b3PrismaticJoint_SetSpringHertz(NativeId, value);
+        get => B3.b3PrismaticJoint_GetSpringHertz(Id);
+        set => B3.b3PrismaticJoint_SetSpringHertz(Id, value);
     }
 
     /// <summary>Gets or sets the spring damping ratio.</summary>
     public float DampingRatio
     {
-        get => B3.b3PrismaticJoint_GetSpringDampingRatio(NativeId);
-        set => B3.b3PrismaticJoint_SetSpringDampingRatio(NativeId, value);
+        get => B3.b3PrismaticJoint_GetSpringDampingRatio(Id);
+        set => B3.b3PrismaticJoint_SetSpringDampingRatio(Id, value);
     }
 
     /// <summary>Gets or sets the translation the spring drives towards.</summary>
     public float TargetTranslation
     {
-        get => B3.b3PrismaticJoint_GetTargetTranslation(NativeId);
-        set => B3.b3PrismaticJoint_SetTargetTranslation(NativeId, value);
+        get => B3.b3PrismaticJoint_GetTargetTranslation(Id);
+        set => B3.b3PrismaticJoint_SetTargetTranslation(Id, value);
     }
 
     /// <summary>Gets or sets a value indicating whether the translation limits are enforced.</summary>
     public bool LimitsEnabled
     {
-        get => B3.b3PrismaticJoint_IsLimitEnabled(NativeId);
-        set => B3.b3PrismaticJoint_EnableLimit(NativeId, value);
+        get => B3.b3PrismaticJoint_IsLimitEnabled(Id);
+        set => B3.b3PrismaticJoint_EnableLimit(Id, value);
     }
 
     /// <summary>Gets the lower translation limit.</summary>
-    public float LowerTranslation => B3.b3PrismaticJoint_GetLowerLimit(NativeId);
+    public float LowerTranslation => B3.b3PrismaticJoint_GetLowerLimit(Id);
 
     /// <summary>Gets the upper translation limit.</summary>
-    public float UpperTranslation => B3.b3PrismaticJoint_GetUpperLimit(NativeId);
+    public float UpperTranslation => B3.b3PrismaticJoint_GetUpperLimit(Id);
 
     /// <summary>Gets or sets a value indicating whether the motor is enabled.</summary>
     public bool MotorEnabled
     {
-        get => B3.b3PrismaticJoint_IsMotorEnabled(NativeId);
-        set => B3.b3PrismaticJoint_EnableMotor(NativeId, value);
+        get => B3.b3PrismaticJoint_IsMotorEnabled(Id);
+        set => B3.b3PrismaticJoint_EnableMotor(Id, value);
     }
 
     /// <summary>Gets or sets the speed the motor drives towards, in metres per second.</summary>
     public float MotorSpeed
     {
-        get => B3.b3PrismaticJoint_GetMotorSpeed(NativeId);
-        set => B3.b3PrismaticJoint_SetMotorSpeed(NativeId, value);
+        get => B3.b3PrismaticJoint_GetMotorSpeed(Id);
+        set => B3.b3PrismaticJoint_SetMotorSpeed(Id, value);
     }
 
     /// <summary>Gets or sets the maximum force the motor may apply, in newtons.</summary>
     public float MaxMotorForce
     {
-        get => B3.b3PrismaticJoint_GetMaxMotorForce(NativeId);
-        set => B3.b3PrismaticJoint_SetMaxMotorForce(NativeId, value);
+        get => B3.b3PrismaticJoint_GetMaxMotorForce(Id);
+        set => B3.b3PrismaticJoint_SetMaxMotorForce(Id, value);
     }
 
     /// <summary>Gets the force the motor is currently applying, in newtons.</summary>
-    public float MotorForce => B3.b3PrismaticJoint_GetMotorForce(NativeId);
+    public float MotorForce => B3.b3PrismaticJoint_GetMotorForce(Id);
 
     /// <summary>Sets both translation limits.</summary>
     /// <param name="lower">The lower limit.</param>
     /// <param name="upper">The upper limit.</param>
-    public void SetLimits(float lower, float upper) => B3.b3PrismaticJoint_SetLimits(NativeId, lower, upper);
+    public void SetLimits(float lower, float upper) => B3.b3PrismaticJoint_SetLimits(Id, lower, upper);
 
     /// <summary>Destroys this joint.</summary>
     /// <param name="wakeBodies">Whether to wake the attached bodies.</param>
-    public void Destroy(bool wakeBodies = true) => B3.b3DestroyJoint(NativeId, wakeBodies);
+    public void Destroy(bool wakeBodies = true) => B3.b3DestroyJoint(Id, wakeBodies);
 }
