@@ -27,6 +27,12 @@ namespace Box3D;
 /// A world is not thread-safe. One thread may step it, and no other thread may
 /// touch it or anything in it while that step is running.
 /// </para>
+/// <para>
+/// Creating and disposing worlds is the exception: those are serialised
+/// process-wide and may be done from any thread. Box3D itself makes no such
+/// promise — its table of worlds is global and unguarded — so this class holds
+/// the mutex the engine asks callers to hold.
+/// </para>
 /// </remarks>
 /// <example>
 /// A ball falling onto the ground:
@@ -68,6 +74,30 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
      * failure than a use-after-free that only shows up under load.
      */
 
+    /*
+     * Creating and destroying a world is guarded process-wide.
+     *
+     * Box3D keeps its worlds in one global table and picks a slot for a new
+     * world by scanning it for a free entry, then marking that entry in use
+     * some thirty lines later, after memsetting the whole struct. Nothing
+     * synchronises the two. Two threads creating a world at the same time can
+     * therefore select the same slot, and the second one zeroes the world the
+     * first is still filling in; the corrupted world then spins forever inside
+     * Step rather than failing outright. The engine's own documentation is
+     * explicit about it: "You will get a race condition if you create or
+     * destroy Box3D worlds from multiple threads. Use a mutex to guard those
+     * operations."
+     *
+     * The lock covers only the two native calls, so it costs nothing where it
+     * would matter: Step, queries and body edits never touch it. Worlds are
+     * long-lived, so the lock is uncontended in any realistic use.
+     *
+     * It cannot guard what it cannot see: code calling b3CreateWorld through
+     * Box3D.NET.Native directly bypasses this, and the caller is then on the
+     * hook for its own synchronisation.
+     */
+    private static readonly object LifetimeLock = new object();
+
     private b3WorldId _id;
     private bool _disposed;
 
@@ -83,10 +113,20 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
     /// The engine refused to create the world, which happens when
     /// <see cref="MaxCount"/> are already live.
     /// </exception>
+    /// <remarks>
+    /// Safe to call from several threads at once: construction and
+    /// <see cref="Dispose"/> are serialised process-wide, because the engine's
+    /// table of worlds is global and unsynchronised. Everything else about a
+    /// world remains single-threaded; see the type documentation.
+    /// </remarks>
     public PhysicsWorld(WorldSettings settings)
     {
         b3WorldDef def = settings.ToNative();
-        _id = B3.b3CreateWorld(&def);
+
+        lock (LifetimeLock)
+        {
+            _id = B3.b3CreateWorld(&def);
+        }
 
         if (_id.IsNull)
         {
@@ -664,7 +704,10 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
     /// <summary>Destroys the world and everything in it.</summary>
     /// <remarks>
     /// Every body, shape and joint handle from this world becomes invalid.
-    /// Calling this twice is harmless.
+    /// Calling this twice is harmless, and disposing two different worlds from
+    /// two threads at once is safe. Disposing a world while another thread is
+    /// inside <see cref="Step(float, int)"/> on that same world is not, and no
+    /// lock here can make it so.
     /// </remarks>
     public void Dispose()
     {
@@ -677,7 +720,11 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
 
         if (!_id.IsNull)
         {
-            B3.b3DestroyWorld(_id);
+            lock (LifetimeLock)
+            {
+                B3.b3DestroyWorld(_id);
+            }
+
             _id = default;
         }
     }

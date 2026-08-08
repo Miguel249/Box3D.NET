@@ -44,6 +44,9 @@ jobs:
   native:
     name: native (${{ matrix.rid }})
     runs-on: ${{ matrix.os }}
+    # A hung release job is worse than a failed one: it holds the tag in limbo
+    # until GitHub's six-hour default kills it. See the note in ci.yml.
+    timeout-minutes: 20
     strategy:
       fail-fast: true
       matrix:
@@ -74,6 +77,7 @@ jobs:
     name: publish
     needs: native
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:

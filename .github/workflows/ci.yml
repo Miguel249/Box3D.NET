@@ -22,6 +22,12 @@ jobs:
   native:
     name: native (${{ matrix.rid }})
     runs-on: ${{ matrix.os }}
+    # Every job here carries a timeout. Without one a job that hangs rather than
+    # fails runs until GitHub's six-hour default, burning the whole budget and
+    # reporting nothing useful. These are roughly ten times the observed
+    # duration, so they only ever fire on a genuine hang; timeout-minutes counts
+    # execution, not the time a job spends queued.
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -56,6 +62,10 @@ jobs:
     name: test (${{ matrix.rid }})
     needs: native
     runs-on: ${{ matrix.os }}
+    # The suite runs in well under two minutes. It is also the job most likely
+    # to hang rather than fail: a threading test that deadlocks or spins inside
+    # the native library takes the runner with it.
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -115,6 +125,7 @@ jobs:
   lint:
     name: format and generated sources
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -128,6 +139,13 @@ jobs:
       # evaluated to false, which cost nothing at build time and quietly stopped
       # the XML documentation and the AOT analyzers from running at all. A green
       # build is not evidence that they are on, so they are asserted directly.
+      #
+      # DocumentationFile is checked alongside the flags, and not because it is
+      # a gate itself. GenerateDocumentationFile is only a request: the SDK turns
+      # it into a path early, before Directory.Build.targets is imported, so the
+      # flag once read 'true' here while the path stayed empty. An empty path
+      # means no CS1591, which means the documentation gate passes without
+      # checking anything. The flag alone cannot tell the two apart.
       - name: Verify the quality gates are actually enabled
         shell: pwsh
         run: |
@@ -135,6 +153,7 @@ jobs:
           foreach ($project in @('src/Box3D.NET/Box3D.NET.csproj', 'src/Box3D.NET.Native/Box3D.NET.Native.csproj')) {
               $json = dotnet msbuild $project `
                   -getProperty:GenerateDocumentationFile `
+                  -getProperty:DocumentationFile `
                   -getProperty:IsAotCompatible `
                   -getProperty:IsTrimmable `
                   -getProperty:TreatWarningsAsErrors | ConvertFrom-Json
@@ -146,6 +165,16 @@ jobs:
                       $failed = $true
                   }
               }
+
+              $docFile = $json.Properties.DocumentationFile
+              if ([string]::IsNullOrWhiteSpace($docFile)) {
+                  Write-Host "::error::$project has GenerateDocumentationFile = true but DocumentationFile is empty, so no documentation is emitted and CS1591 never fires."
+                  $failed = $true
+              }
+              else {
+                  Write-Host "$project : documentation -> $docFile"
+              }
+
               Write-Host "$project : gates verified"
           }
           if ($failed) { throw 'One or more quality gates are disabled.' }
@@ -175,6 +204,7 @@ jobs:
     name: NativeAOT
     needs: native
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -209,6 +239,7 @@ jobs:
     name: pack
     needs: [native, test, lint]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:

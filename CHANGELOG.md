@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.0] - 2026-08-07
 
 ### Added
 
@@ -104,10 +104,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Creating or disposing a world from several threads at once could corrupt the
+  engine's global table of worlds and leave the simulation spinning inside
+  `Step` forever. Box3D picks a slot for a new world without synchronising and
+  asks the caller to hold a mutex; `PhysicsWorld` now holds one across creation
+  and disposal. Stepping, queries and body edits are untouched.
+- The native libraries were packed one directory level too deep, as
+  `runtimes/<rid>/native/<rid>/native/`, where NuGet resolves nothing. The
+  package installed cleanly and then failed on the first call into the engine.
 - The XML documentation and the AOT and trim analyzers were configured under a
   condition that always evaluated false, so none of them ever ran. Everything
   depending on `IsPackable` moved to `Directory.Build.targets`, and CI now
   asserts the gates directly instead of inferring them from a green build.
+  That move fixed the analyzers but not the documentation: the SDK turns
+  `GenerateDocumentationFile` into a path before `Directory.Build.targets` is
+  imported, so the flag read true while the path stayed empty, no `.xml` was
+  emitted and CS1591 never fired. `DocumentationFile` is now set explicitly,
+  and CI asserts the path rather than the flag.
 - Sphere, capsule and box constructors accepted an infinite extent, and
   `World.Step` accepted an infinite time step. `ThrowIfNegativeOrZero` passes
   an infinity through, since it is neither negative nor zero. Found by fuzzing.
@@ -124,4 +137,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   follow Box3D and are documented rather than corrected.
 - Single precision only. Box3D's large-world mode changes the ABI and would need
   a separate package.
-[Unreleased]: https://github.com/Miguel249/Box3D.NET/commits/main
+[0.1.0]: https://github.com/Miguel249/Box3D.NET/releases/tag/v0.1.0

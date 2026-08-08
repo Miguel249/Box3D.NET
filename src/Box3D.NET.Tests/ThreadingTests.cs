@@ -170,7 +170,12 @@ public class ThreadingTests
     public void Creating_and_destroying_worlds_concurrently_is_safe()
     {
         // World creation touches the global world table, which is the one piece
-        // of state every world genuinely shares.
+        // of state every world genuinely shares. Box3D leaves that table
+        // unsynchronised and tells the caller to hold a mutex; PhysicsWorld is
+        // that caller, and serialises creation and disposal internally. This
+        // test is what holds it to that. Without the lock it does not fail, it
+        // hangs: two threads land on the same slot and the resulting world
+        // spins inside Step forever.
         var failures = new ConcurrentBag<Exception>();
 
         Parallel.For(0, 32, _ =>

@@ -15,8 +15,16 @@
     <!--
       Documentation is a build gate, not a nicety. With TreatWarningsAsErrors on,
       this turns an undocumented public member into a failed build.
+
+      DocumentationFile is set here as well, and not left to the SDK. The SDK
+      derives it from GenerateDocumentationFile inside Microsoft.NET.Sdk.targets,
+      which is evaluated before this file is imported, so it reads the flag as
+      empty and leaves DocumentationFile blank. A blank DocumentationFile means
+      the compiler emits no CS1591 at all: the gate silently passes, and the
+      packages ship without IntelliSense. Naming the file here restores both.
     -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DocumentationFile>$(OutputPath)$(AssemblyName).xml</DocumentationFile>
 
     <!--
       IsAotCompatible switches on the AOT and trim analyzers, which fail the
@@ -60,11 +68,19 @@
     <Box3DRuntimesDir>$(MSBuildThisFileDirectory)runtimes\</Box3DRuntimesDir>
   </PropertyGroup>
 
-  <!-- Pack every staged runtime into the native package. -->
+  <!--
+    Pack every staged runtime into the native package.
+
+    PackagePath names the destination file in full, down to the file name. A
+    path ending in a separator would instead be read as a directory, and NuGet
+    would append the item's own recursive path to it, producing a doubled
+    runtimes\win-x64\native\win-x64\native\box3d.dll that resolves at run time
+    on no platform at all. Naming the file explicitly keeps that ambiguity out.
+  -->
   <ItemGroup Condition="'$(PackageId)' == 'Box3D.NET.Native' AND Exists('$(Box3DRuntimesDir)')">
     <None Include="$(Box3DRuntimesDir)**\*"
           Pack="true"
-          PackagePath="runtimes\%(RecursiveDir)"
+          PackagePath="runtimes\%(RecursiveDir)%(Filename)%(Extension)"
           Visible="false" />
   </ItemGroup>
 
