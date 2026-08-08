@@ -27,6 +27,12 @@ public class StepBenchmarks
         _world = new PhysicsWorld(WorldSettings.Default with
         {
             Gravity = new Vector3(0.0f, -10.0f, 0.0f),
+
+            // Sleep off, or this measures nothing. Box3D skips a sleeping body
+            // entirely, so a settled pile steps in roughly the same time
+            // whether it holds 100 bodies or 10,000 — the figure tracks the
+            // sleep check rather than the simulation. See ScaleBenchmarks.
+            EnableSleep = false,
         });
 
         Body ground = _world.CreateBody(BodyDefinition.Static(new Vector3(0.0f, -0.5f, 0.0f)));
