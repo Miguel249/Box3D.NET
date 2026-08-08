@@ -412,7 +412,18 @@ jobs:
           - { os: windows-11-arm,   rid: win-arm64,   aot: false }
           - { os: ubuntu-latest,    rid: linux-x64,   aot: true }
           - { os: ubuntu-24.04-arm, rid: linux-arm64, aot: false }
-          - { os: macos-13,         rid: osx-x64,     aot: false }
+          # osx-x64 runs on the arm64 image, under Rosetta 2, and not by
+          # preference. The Intel macos-13 image is on its way out and a job
+          # asking for one sat queued for over an hour without ever being
+          # picked up, which is worse than a failure: timeout-minutes counts
+          # execution rather than queuing, so nothing ever reports.
+          #
+          # Rosetta is a real execution of the x64 binary against the x64
+          # native library, so the asset resolution and the loader are
+          # genuinely exercised. What it does not prove is behaviour on Intel
+          # silicon, and the platform table says so rather than implying
+          # otherwise.
+          - { os: macos-14,         rid: osx-x64,     aot: false }
           - { os: macos-14,         rid: osx-arm64,   aot: true }
 
     steps:

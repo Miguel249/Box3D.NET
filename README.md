@@ -655,7 +655,7 @@ events, dispose.
 | `win-arm64` | yes | — | yes | — | — |
 | `linux-x64` | yes | yes | yes | yes | yes |
 | `linux-arm64` | yes | — | yes | — | — |
-| `osx-x64` | yes | — | yes | — | — |
+| `osx-x64` | yes | — | under Rosetta | — | — |
 | `osx-arm64` | yes | yes | yes | yes | yes |
 
 A dash is "not verified", not "known broken". Trimming and NativeAOT are checked
@@ -663,6 +663,13 @@ on the three runners where the toolchain is native rather than cross-compiled; a
 cross-compilation failure on the others would say more about the runner than
 about this package, and claiming a platform on that evidence would be worse than
 leaving the cell empty.
+
+`osx-x64` carries its own caveat. GitHub's Intel macOS image is being retired,
+and a job asking for one sat queued for over an hour without being picked up, so
+the x64 package is installed and run on the arm64 image under Rosetta 2 instead.
+That genuinely exercises the package: the x64 asset is resolved, the x64 native
+library is loaded, and the simulation runs. It does not prove behaviour on Intel
+silicon, which is why the cell says what it says rather than "yes".
 
 Requires .NET 8 or later.
 
