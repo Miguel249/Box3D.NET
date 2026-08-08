@@ -23,6 +23,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Packages are validated against the last published version at pack time, so a
   member removed or a signature changed is caught before it reaches a consumer
   rather than after.
+- `BindingSource.Commit` records which Box3D revision the P/Invoke declarations
+  were generated from, which the submodule pointer cannot answer for a package
+  someone downloaded.
+
+### Fixed
+
+- The packages carry `LICENSE` and `THIRD-PARTY-NOTICES.txt`. They redistribute
+  compiled Box3D binaries, and the MIT License requires its notice to accompany
+  any substantial portion of the software, which a redistributed `box3d.dll` is.
+  `PackageLicenseExpression` names this project's licence but puts no file in
+  the package, so the obligation was unmet — while `LICENSE` stated that Box3D's
+  terms accompanied the binaries. They do now.
+- The generator no longer passes through a C type it does not recognise. That
+  was safe for `b3`-prefixed aggregates, which have a verified mirror, and unsafe
+  for anything else: an untaught C keyword was emitted verbatim as a C# type
+  name, which compiles and reads the wrong width.
+- The step benchmarks measured sleeping bodies, and so measured nothing. Box3D
+  skips a body that has stopped moving, and every step benchmark settled its
+  scene first, producing a frame cost that did not respond to body count: 214 ns
+  at 100 bodies and 204 ns at 10,000. With sleep disabled those become 84 µs and
+  9,842 µs.
+- The README described the project as unpublished, and said the character mover,
+  meshes and height fields were reachable only through the low-level layer. None
+  of that had been true for some time.
 
 - Shapes are drawn too, through `IDebugShapeFactory`. Box3D does not emit shape
   geometry as primitives: it asks the application to build a drawable once and

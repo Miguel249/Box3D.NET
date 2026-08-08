@@ -60,6 +60,17 @@
   <ItemGroup Condition="'$(IsPackable)' == 'true'">
     <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" Visible="false" />
     <None Include="$(MSBuildThisFileDirectory)assets\icon.png" Pack="true" PackagePath="\" Visible="false" />
+
+    <!--
+      Box3D's licence travels with the package, because the package carries
+      Box3D's compiled binaries. The MIT License requires its notice to
+      accompany "all copies or substantial portions of the Software", and a
+      redistributed box3d.dll is exactly that. PackageLicenseExpression records
+      this project's own licence and does not put a file in the package, so
+      without this the obligation was unmet — and LICENSE claimed otherwise.
+    -->
+    <None Include="$(MSBuildThisFileDirectory)THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)LICENSE" Pack="true" PackagePath="\" Visible="false" />
   </ItemGroup>
 
   <!--

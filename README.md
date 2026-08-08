@@ -5,16 +5,27 @@
 An idiomatic, allocation-free C# binding for [Box3D](https://github.com/erincatto/box3d),
 the 3D physics engine by Erin Catto.
 
+[![NuGet](https://img.shields.io/nuget/v/Box3D.NET.svg?logo=nuget&label=Box3D.NET)](https://www.nuget.org/packages/Box3D.NET/)
+[![CI](https://github.com/Miguel249/Box3D.NET/actions/workflows/ci.yml/badge.svg)](https://github.com/Miguel249/Box3D.NET/actions/workflows/ci.yml)
+[![.NET](https://img.shields.io/badge/.NET-8.0%2B-512BD4)](https://dotnet.microsoft.com/)
+[![Platforms](https://img.shields.io/badge/platforms-win%20%7C%20linux%20%7C%20macOS-lightgrey)](#platforms)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 **[Getting started](docs/getting-started.md)** ·
 **[Architecture](docs/architecture.md)** ·
 **[Benchmarks](docs/benchmarks.md)** ·
 **[API reference](https://Miguel249.github.io/Box3D.NET/)**
 
-> **Status: pre-release.** The native binding is complete, and the high-level API
-> covers worlds, bodies, shapes, queries, events and all nine joint types. The
-> character mover, debug draw, meshes and height fields are still only reachable
-> through the low-level layer. No package has been published yet. See the
-> [changelog](CHANGELOG.md).
+> **Status: 0.x.** Published and usable. The binding is complete and verified
+> against the C ABI, and the idiomatic layer covers worlds, bodies, shapes,
+> queries, events, all nine joint types, meshes, height fields, the character
+> mover and debug draw. The API may still change between minor versions; every
+> break is recorded in the [changelog](CHANGELOG.md), and packages are validated
+> against the previous release so none happens by accident.
+
+```sh
+dotnet add package Box3D.NET
+```
 
 ```csharp
 using var world = new PhysicsWorld();
@@ -318,6 +329,25 @@ corrupts the stack at run time. Generating removes that class of bug and reduces
 a Box3D upgrade to re-running the script and reading the diff. CI fails if the
 checked-in output does not match what the script produces.
 
+A C type the script has not been taught is a hard error rather than something
+passed through, and `BindingSource.Commit` records which Box3D revision the
+declarations came from, so an assembly can be traced back to its headers.
+
+### The struct layouts are checked against the C compiler
+
+The declarations are generated, but the structs they pass are hand-written
+mirrors, and nothing about C# forces a mirror to match. A field of the wrong
+width, or two fields swapped, compiles and runs: the call succeeds and reads the
+wrong bytes, so a body ends up with its restitution in the friction slot. There
+is no crash to investigate.
+
+`tools/dump-abi.ps1` compiles a program against the real Box3D headers that
+prints `sizeof`, `_Alignof` and `offsetof` for every field, and records the
+answers in [`abi/native-layout.json`](abi/native-layout.json). The test suite
+holds all 92 structs to that file — size, every field offset, blittability, and
+whether a mirror exists at all — and CI regenerates it, so a submodule bump that
+moves a field fails the build instead of shipping.
+
 ## Documentation
 
 | | |
@@ -362,7 +392,9 @@ binary and then fails if anything was skipped.
 
 | Suite | What it protects |
 | --- | --- |
-| `LayoutTests` | The size and layout of every public struct, against values derived from the C declarations. Runs without a native binary. |
+| `AbiTests` | All 92 structs against what the C compiler reports for the same declarations: size, every field offset, blittability, and whether a mirror exists at all. |
+| `LayoutTests` | A core set of sizes against values derived by hand from the C declarations. Narrower than `AbiTests` and kept because it needs neither a native binary nor a C toolchain. |
+| `DebugDrawTests` | That debug draw reaches a managed drawer with usable values, that a shape factory is asked once per shape rather than once per frame, that disposal releases every drawable, and that a drawn frame allocates nothing. |
 | `MathTests` | The math ported from the `B3_INLINE` functions, by algebraic identity and by agreement with `System.Numerics`. |
 | `NativeInteropTests` | The binding against the real library: default definitions come back intact, bodies fall, rays hit, and `b3GetByteCount` returns to its starting value after worlds and hulls are destroyed. |
 | `JointTests` | Joint behaviour, not round trips: limits actually hold, motors actually lift, filter joints actually let bodies through. |
@@ -381,7 +413,23 @@ leak test running beside another class that creates worlds is measuring noise.
 
 ## Performance
 
-Measured, not asserted. See [docs/benchmarks.md](docs/benchmarks.md).
+Measured, not asserted. See [docs/benchmarks.md](docs/benchmarks.md) for method
+and conditions.
+
+A whole frame, both worlds built identically so the only difference is which
+`Step` is called:
+
+| Bodies | C API | Box3D.NET | Ratio | Allocated |
+| ---: | ---: | ---: | ---: | ---: |
+| 100 | 84.01 µs | 86.45 µs | 1.03 | 0 B |
+| 1,000 | 933.94 µs | 911.27 µs | 0.98 | 0 B |
+| 10,000 | 9,842 µs | 9,868 µs | 1.00 | 0 B |
+
+The wrapper's overhead on a step is not measurable. One ratio lands below 1.00,
+which no wrapper can actually achieve — that is the noise floor, and it is what
+the other two should be read against.
+
+Individual calls, where the wrapper is a larger share of a smaller number:
 
 | | Native | Wrapper | Allocated |
 | --- | ---: | ---: | ---: |
@@ -390,10 +438,65 @@ Measured, not asserted. See [docs/benchmarks.md](docs/benchmarks.md).
 | Ray cast with a struct callback | — | 163.2 ns | 0 B |
 | Create 1000 bodies with spheres | 710.6 µs | 799.3 µs | 0 B |
 
-Reading a position through the wrapper costs what calling the C function costs.
-Queries allocate nothing, including the callback forms.
+Queries allocate nothing, including the callback forms, and so does a drawn
+debug frame.
+
+## Platforms
+
+Built and tested in CI on every push. Only what is listed here is claimed; the
+native binary ships in the package for all six.
+
+| Runtime identifier | Native build | Tests |
+| --- | :---: | :---: |
+| `win-x64` | yes | yes |
+| `win-arm64` | yes | — |
+| `linux-x64` | yes | yes |
+| `linux-arm64` | yes | — |
+| `osx-x64` | yes | — |
+| `osx-arm64` | yes | yes |
+
+Requires .NET 8 or later. Works under NativeAOT and trimming, which CI verifies
+by publishing and running the samples ahead-of-time on every push.
+
+## Contributing
+
+Issues and pull requests are welcome. What CI will check, so there are no
+surprises:
+
+```sh
+dotnet build  -c Release          # warnings are errors, documentation included
+dotnet test   -c Release          # every test, on the platform you are on
+dotnet format --verify-no-changes --severity warn
+```
+
+Three checks are easy to trip and worth knowing about in advance:
+
+- **Public members need XML documentation.** It is a build gate, not a warning.
+- **Regenerate after bumping the submodule.** `tools/generate-bindings.ps1` and
+  `tools/dump-abi.ps1` both write files that CI compares against the headers, and
+  a bump without a regenerate fails the build. That is the point of them.
+- **Do not add a benchmark over a settled scene.** Box3D skips sleeping bodies,
+  so it measures nothing. Set `EnableSleep = false`.
+
+Changes to the public API are checked against the last published package
+automatically. A break is allowed before 1.0, but it belongs in the changelog
+rather than in someone's build log.
+
+## Upgrading Box3D
+
+The engine is a pinned, unmodified submodule.
+
+```sh
+git -C external/box3d checkout <commit>
+pwsh tools/generate-bindings.ps1     # re-emit the P/Invokes and record the commit
+pwsh tools/dump-abi.ps1              # re-record the struct layouts
+dotnet test -c Release
+```
+
+Read both diffs. A changed offset in `abi/native-layout.json` means a struct
+moved and its managed mirror has to move with it; the tests will say which.
 
 ## License
 
 MIT. See [LICENSE](LICENSE). Box3D is likewise MIT licensed and is redistributed
-unmodified as a native binary.
+unmodified as a native binary, with its copyright notice intact.
