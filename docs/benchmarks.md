@@ -27,6 +27,45 @@ Reading a position through `body.Position` costs what calling
 `b3Body_GetPosition` by hand costs. The property is a direct call with no
 marshalling, so there is nothing left to remove.
 
+## A frame, at three scales
+
+The per-operation figures above measure a single call. This measures a whole
+step, which is what a game actually pays, with both worlds built identically and
+stepped the same way so that the only difference is which `Step` is called.
+
+| Bodies | C API | Box3D.NET | Ratio | Allocated |
+| ---: | ---: | ---: | ---: | ---: |
+| 100 | 84.01 µs | 86.45 µs | **1.03** | 0 B |
+| 1,000 | 933.94 µs | 911.27 µs | **0.98** | 0 B |
+| 10,000 | 9,842 µs | 9,868 µs | **1.00** | 0 B |
+
+The honest reading of that table is that the wrapper's overhead on a step is not
+measurable. One ratio lands below 1.00, which no wrapper can actually achieve;
+it is measurement noise, and it sets the scale for how much the other two mean.
+Against a frame that costs tens of microseconds at the smallest size here, one
+P/Invoke does not register.
+
+Measured on a Ryzen 5 7600 with other applications running, which is why the
+error bars are around 2% rather than the sub-1% a quiet machine gives. That is
+tolerable at these magnitudes and would not be for the nanosecond figures above.
+
+### Sleeping bodies measure nothing
+
+Worth stating because it invalidated an earlier version of these benchmarks.
+Box3D skips a body that has stopped moving, so a settled scene steps in roughly
+constant time no matter how many bodies it holds:
+
+| Bodies | Settled, sleep enabled | Awake |
+| ---: | ---: | ---: |
+| 100 | 214 ns | 84 µs |
+| 1,000 | 221 ns | 934 µs |
+| 10,000 | 204 ns | 9,842 µs |
+
+The left column is the sleep check and nothing else — it does not respond to
+body count at all, which is how the mistake is recognisable. Every step
+benchmark here sets `EnableSleep = false` for that reason. Do the same before
+trusting any frame-cost measurement, including your own.
+
 ## What the input validation costs
 
 The wrapper rejects NaN and infinity on every path that can reach the solver.
