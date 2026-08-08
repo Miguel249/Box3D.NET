@@ -26,4 +26,13 @@
     <ProjectReference Include="..\Box3D.NET.Native\Box3D.NET.Native.csproj" />
   </ItemGroup>
 
+  <!--
+    The recorded native ABI, embedded so that AbiTests runs from the test
+    assembly alone, with no dependency on the working directory or on a C
+    toolchain being present. tools/dump-abi.ps1 regenerates the file.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\abi\native-layout.json" LogicalName="Box3D.Tests.native-layout.json" />
+  </ItemGroup>
+
 </Project>

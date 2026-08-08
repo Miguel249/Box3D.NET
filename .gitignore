@@ -22,6 +22,12 @@ runtimes/
 *.userosscache
 *.sln.docstates
 
+# Benchmark output. These are machine-specific measurements, not sources: they
+# were committed once and would otherwise be rewritten by every local run,
+# producing diffs that record the CPU that happened to be free. Published
+# numbers belong in docs/benchmarks.md, where they can be dated and attributed.
+BenchmarkDotNet.Artifacts/
+
 # Test and coverage output
 TestResults/
 *.trx

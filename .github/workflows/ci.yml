@@ -179,6 +179,14 @@ jobs:
           }
           if ($failed) { throw 'One or more quality gates are disabled.' }
 
+      # The committed ABI is what AbiTests holds every managed struct to. If a
+      # submodule bump moves a field, the recorded file and the headers diverge
+      # here, before the mismatch can reach a released package and start reading
+      # the wrong bytes at a consumer's run time.
+      - name: Verify the recorded native ABI is up to date
+        shell: pwsh
+        run: ./tools/dump-abi.ps1 -Check
+
       - name: Verify formatting
         run: dotnet format --verify-no-changes --severity warn
 
