@@ -408,10 +408,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: windows-latest,   rid: win-x64,     aot: true }
-          - { os: windows-11-arm,   rid: win-arm64,   aot: false }
-          - { os: ubuntu-latest,    rid: linux-x64,   aot: true }
-          - { os: ubuntu-24.04-arm, rid: linux-arm64, aot: false }
+          - { os: windows-latest,   rid: win-x64,     aot: true,  mode: Framework }
+          - { os: windows-11-arm,   rid: win-arm64,   aot: false, mode: Framework }
+          - { os: ubuntu-latest,    rid: linux-x64,   aot: true,  mode: Framework }
+          - { os: ubuntu-24.04-arm, rid: linux-arm64, aot: false, mode: Framework }
           # osx-x64 runs on the arm64 image, under Rosetta 2, and not by
           # preference. The Intel macos-13 image is on its way out and a job
           # asking for one sat queued for over an hour without ever being
@@ -423,8 +423,19 @@ jobs:
           # genuinely exercised. What it does not prove is behaviour on Intel
           # silicon, and the platform table says so rather than implying
           # otherwise.
-          - { os: macos-14,         rid: osx-x64,     aot: false }
-          - { os: macos-14,         rid: osx-arm64,   aot: true }
+          #
+          # It has to be self-contained. A framework-dependent x64 binary
+          # starts under Rosetta and then dies on libhostfxr.dylib, because
+          # the only .NET on an arm64 runner is arm64:
+          #
+          #   mach-o file, but is an incompatible architecture
+          #   (have 'arm64', need 'x86_64')
+          #
+          # That is the runner missing an x64 runtime, not the package being
+          # wrong, so the consumer carries its own runtime instead of the job
+          # installing a second .NET to work around it.
+          - { os: macos-14,         rid: osx-x64,     aot: false, mode: SelfContained }
+          - { os: macos-14,         rid: osx-arm64,   aot: true,  mode: Framework }
 
     steps:
       - uses: actions/checkout@v4
@@ -444,11 +455,12 @@ jobs:
           name: packages
           path: ./artifacts/packages
 
-      # Framework-dependent everywhere: restore, native library load, world,
-      # bodies, Step, raycast, events, dispose.
+      # Everywhere: restore, native library load, world, bodies, Step, raycast,
+      # events, dispose. Framework-dependent, except where the runner has no
+      # runtime of that architecture; see the matrix.
       - name: Consume the package
         shell: pwsh
-        run: ./tools/verify-package.ps1 -Rid ${{ matrix.rid }} -Mode Framework
+        run: ./tools/verify-package.ps1 -Rid ${{ matrix.rid }} -Mode ${{ matrix.mode }}
 
       # Trimming and NativeAOT where a cross-compiling toolchain is available on
       # the runner. The arm64 Linux and Windows runners and the Intel Mac are

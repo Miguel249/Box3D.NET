@@ -665,11 +665,17 @@ about this package, and claiming a platform on that evidence would be worse than
 leaving the cell empty.
 
 `osx-x64` carries its own caveat. GitHub's Intel macOS image is being retired,
-and a job asking for one sat queued for over an hour without being picked up, so
-the x64 package is installed and run on the arm64 image under Rosetta 2 instead.
-That genuinely exercises the package: the x64 asset is resolved, the x64 native
-library is loaded, and the simulation runs. It does not prove behaviour on Intel
-silicon, which is why the cell says what it says rather than "yes".
+and a job asking for one sat queued for over an hour without ever being picked
+up, so the x64 package is installed and run on the arm64 image under Rosetta 2
+instead. It is published self-contained there, because a framework-dependent x64
+binary starts under Rosetta and then fails to load an x64 `libhostfxr.dylib`
+that an arm64 runner does not have — a fact about the runner rather than about
+the package.
+
+That still exercises what matters: the x64 native asset is resolved out of the
+package, the x64 library is loaded, and the simulation runs and is checked. What
+it does not prove is behaviour on Intel silicon, which is why the cell says what
+it says rather than "yes".
 
 Requires .NET 8 or later.
 

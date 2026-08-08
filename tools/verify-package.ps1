@@ -40,7 +40,16 @@ param(
     [string] $PackageDirectory = 'artifacts/packages',
 
     # Which publish modes to exercise.
-    [ValidateSet('All', 'Framework', 'Trimmed', 'Aot')]
+    #
+    # SelfContained exists for one situation: running a build for a runtime
+    # identifier whose .NET runtime is not installed on this machine. A
+    # framework-dependent osx-x64 binary on an arm64 Mac starts under Rosetta
+    # and then fails to load libhostfxr.dylib, because the only .NET present is
+    # arm64. That failure is about the machine, not about the package. A
+    # self-contained build carries its own runtime and exercises the thing worth
+    # exercising: that the package resolves its x64 native asset and that the
+    # library loads and simulates.
+    [ValidateSet('All', 'Framework', 'SelfContained', 'Trimmed', 'Aot')]
     [string] $Mode = 'All',
 
     # The runtime identifier to publish for. Inferred when omitted.
@@ -309,6 +318,12 @@ try {
     if ($Mode -in 'All', 'Framework') {
         Invoke-Consumer 'framework-dependent' `
             @('--configuration', 'Release', '--runtime', $Rid, '--self-contained', 'false') `
+            "bin/Release/net8.0/$Rid/publish/consumer"
+    }
+
+    if ($Mode -eq 'SelfContained') {
+        Invoke-Consumer 'self-contained' `
+            @('--configuration', 'Release', '--runtime', $Rid, '--self-contained', 'true') `
             "bin/Release/net8.0/$Rid/publish/consumer"
     }
 
