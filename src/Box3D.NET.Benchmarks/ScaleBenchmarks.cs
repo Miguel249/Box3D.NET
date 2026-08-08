@@ -84,6 +84,11 @@ public class StepScaleBenchmarks
             _world.Step(1.0f / 60.0f);
             B3.b3World_Step(_nativeWorld, 1.0f / 60.0f, 4);
         }
+
+        // And confirm the steady state is still a busy one. Without this the
+        // benchmark reports a number whether or not there is anything to solve.
+        Workload.RequireAwake(_world, BodyCount, $"{BodyCount}-body grid, wrapper");
+        Workload.RequireAwake(_nativeWorld, BodyCount, $"{BodyCount}-body grid, C API");
     }
 
     [GlobalCleanup]
@@ -206,6 +211,8 @@ public class StackingBenchmarks
         {
             _world.Step(1.0f / 60.0f);
         }
+
+        Workload.RequireAwake(_world, TowerCount * TowerHeight, $"{TowerCount}x{TowerHeight} towers");
     }
 
     [GlobalCleanup]
@@ -281,6 +288,8 @@ public class JointBenchmarks
         {
             _world.Step(1.0f / 60.0f);
         }
+
+        Workload.RequireAwake(_world, ChainCount * ChainLength, $"{ChainCount}x{ChainLength} joint chains");
     }
 
     [GlobalCleanup]
