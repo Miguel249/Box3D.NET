@@ -20,7 +20,7 @@ internal sealed class ChainScene : Scene
     public override string Name => "chain";
 
     /// <inheritdoc/>
-    public override string Caption => "Twelve links on revolute joints. The joint frames are the engine's own.";
+    public override string Caption => "Nine links and a weight on revolute joints. The joint frames are the engine's own.";
 
     /// <inheritdoc/>
     public override DebugDrawOptions DrawOptions => DebugDrawOptions.Default with
