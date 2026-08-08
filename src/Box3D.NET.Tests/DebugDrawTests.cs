@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using Xunit;
 
@@ -31,13 +32,24 @@ public class DebugDrawTests
         public int Bounds;
         public int Boxes;
         public int Strings;
+        public int Shapes;
+
+        public nint LastShapeHandle;
 
         public BoundingBox LastBounds;
         public Vector3 LastSegmentStart;
         public DebugColor LastColor;
         public bool SawNonFiniteValue;
 
-        public readonly int Total => Segments + Points + Transforms + Spheres + Capsules + Bounds + Boxes + Strings;
+        public readonly int Total => Segments + Points + Transforms + Spheres + Capsules + Bounds + Boxes + Strings + Shapes;
+
+        public void DrawShape(nint handle, Vector3 position, Quaternion rotation, DebugColor color)
+        {
+            Shapes++;
+            LastShapeHandle = handle;
+            LastColor = color;
+            Check(position);
+        }
 
         public void DrawSegment(Vector3 p1, Vector3 p2, DebugColor color)
         {
@@ -280,6 +292,120 @@ public class DebugDrawTests
         Assert.Throws<ObjectDisposedException>(Draw);
 
         void Draw() => world.Draw(ref drawer, DebugDrawOptions.Default);
+    }
+
+    /// <summary>Hands out numbered handles and records what it was asked to build.</summary>
+    private sealed class RecordingFactory : IDebugShapeFactory
+    {
+        private nint _next = 1;
+
+        public int Created { get; private set; }
+
+        public int Destroyed { get; private set; }
+
+        public List<ShapeType> Types { get; } = new();
+
+        public List<float> SphereRadii { get; } = new();
+
+        public nint CreateShape(in DebugShape shape)
+        {
+            Created++;
+            Types.Add(shape.Type);
+
+            if (shape.TryGetSphere(out Sphere sphere))
+            {
+                SphereRadii.Add(sphere.Radius);
+            }
+
+            return _next++;
+        }
+
+        public void DestroyShape(nint handle) => Destroyed++;
+    }
+
+    [NativeFact]
+    public void A_shape_factory_is_asked_to_build_a_drawable_per_shape()
+    {
+        var factory = new RecordingFactory();
+
+        using (var world = new PhysicsWorld(WorldSettings.Default, factory))
+        {
+            Body ground = world.CreateStaticBody(new Vector3(0.0f, -0.5f, 0.0f));
+            ground.AddBox(new Box(new Vector3(10.0f, 0.5f, 10.0f)));
+
+            Body ball = world.CreateDynamicBody(new Vector3(0.0f, 3.0f, 0.0f));
+            ball.AddSphere(new Sphere(0.75f));
+
+            world.Step(1.0f / 60.0f);
+
+            // Nothing is built until something actually draws.
+            Assert.Equal(0, factory.Created);
+
+            var drawer = new CountingDrawer();
+            world.Draw(ref drawer, DebugDrawOptions.Default with { DrawShapes = true });
+
+            Assert.Equal(2, factory.Created);
+            Assert.Equal(2, drawer.Shapes);
+            Assert.NotEqual(0, drawer.LastShapeHandle);
+
+            // Built once, not once per frame: that is the entire reason Box3D
+            // works this way rather than emitting geometry.
+            world.Draw(ref drawer, DebugDrawOptions.Default with { DrawShapes = true });
+            Assert.Equal(2, factory.Created);
+            Assert.Equal(4, drawer.Shapes);
+        }
+
+        // Disposing the world must release every drawable it asked for.
+        Assert.Equal(factory.Created, factory.Destroyed);
+    }
+
+    [NativeFact]
+    public void A_shape_factory_sees_the_geometry_it_is_building_for()
+    {
+        var factory = new RecordingFactory();
+
+        using var world = new PhysicsWorld(WorldSettings.Default, factory);
+
+        Body ball = world.CreateDynamicBody(new Vector3(0.0f, 3.0f, 0.0f));
+        ball.AddSphere(new Sphere(0.75f));
+
+        var drawer = new CountingDrawer();
+        world.Draw(ref drawer, DebugDrawOptions.Default with { DrawShapes = true });
+
+        Assert.Contains(ShapeType.Sphere, factory.Types);
+        Assert.Contains(0.75f, factory.SphereRadii);
+    }
+
+    [NativeFact]
+    public void Drawing_shapes_without_a_factory_draws_nothing()
+    {
+        // The flag alone cannot work: with no factory there is no drawable to
+        // hand back. This must be silent rather than a crash.
+        using PhysicsWorld world = BuildScene();
+
+        var drawer = new CountingDrawer();
+        world.Draw(ref drawer, DebugDrawOptions.Default with { DrawShapes = true });
+
+        Assert.Equal(0, drawer.Shapes);
+    }
+
+    [NativeFact]
+    public void A_destroyed_shape_releases_its_drawable()
+    {
+        var factory = new RecordingFactory();
+
+        using var world = new PhysicsWorld(WorldSettings.Default, factory);
+
+        Body body = world.CreateDynamicBody(new Vector3(0.0f, 3.0f, 0.0f));
+        Shape shape = body.AddSphere(new Sphere(0.5f));
+
+        var drawer = new CountingDrawer();
+        world.Draw(ref drawer, DebugDrawOptions.Default with { DrawShapes = true });
+        Assert.Equal(1, factory.Created);
+
+        shape.Destroy();
+
+        Assert.Equal(1, factory.Destroyed);
     }
 
     [Fact]

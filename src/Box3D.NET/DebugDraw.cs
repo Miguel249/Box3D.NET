@@ -89,6 +89,108 @@ public readonly record struct DebugColor
 }
 
 /// <summary>
+/// The shape Box3D is asking the application to build a drawable for.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Spheres and capsules arrive whole, because they are a handful of floats and
+/// a renderer usually wants them to pick a mesh resolution. Hulls, meshes,
+/// height fields and compounds do not: they point at engine-owned data whose
+/// layout belongs to the C API. Reach those through <see cref="Shape"/>, which
+/// is a normal handle and can be queried like any other.
+/// </para>
+/// <para>
+/// Valid only for the duration of the call that produced it.
+/// </para>
+/// </remarks>
+public readonly ref struct DebugShape
+{
+    private readonly b3DebugShape _native;
+
+    internal DebugShape(in b3DebugShape native, Shape shape)
+    {
+        _native = native;
+        Shape = shape;
+    }
+
+    /// <summary>Gets the shape this drawable is for.</summary>
+    public Shape Shape { get; }
+
+    /// <summary>Gets what kind of shape it is.</summary>
+    public ShapeType Type => (ShapeType)_native.type;
+
+    /// <summary>Gets the sphere, when this is one.</summary>
+    /// <param name="sphere">The sphere, in shape-local space.</param>
+    /// <returns><see langword="true"/> when <see cref="Type"/> is a sphere.</returns>
+    public unsafe bool TryGetSphere(out Sphere sphere)
+    {
+        if (_native.type != b3ShapeType.b3_sphereShape || _native.sphere is null)
+        {
+            sphere = default;
+            return false;
+        }
+
+        sphere = new Sphere(_native.sphere->center, _native.sphere->radius);
+        return true;
+    }
+
+    /// <summary>Gets the capsule, when this is one.</summary>
+    /// <param name="capsule">The capsule, in shape-local space.</param>
+    /// <returns><see langword="true"/> when <see cref="Type"/> is a capsule.</returns>
+    public unsafe bool TryGetCapsule(out Capsule capsule)
+    {
+        if (_native.type != b3ShapeType.b3_capsuleShape || _native.capsule is null)
+        {
+            capsule = default;
+            return false;
+        }
+
+        capsule = new Capsule(_native.capsule->center1, _native.capsule->center2, _native.capsule->radius);
+        return true;
+    }
+}
+
+/// <summary>
+/// Builds and releases the drawable that represents a shape.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Box3D draws shapes in two phases rather than emitting their geometry every
+/// frame. The first time a shape needs drawing it asks for a drawable through
+/// <see cref="CreateShape"/>; from then on it hands that handle back to
+/// <see cref="IDebugDrawer.DrawShape"/> with a transform. For a real renderer
+/// that means uploading a mesh once and issuing a draw call per frame, which is
+/// the difference between debug draw being usable and being a slideshow.
+/// </para>
+/// <para>
+/// Pass an implementation to
+/// <see cref="PhysicsWorld(WorldSettings, IDebugShapeFactory)"/>. Box3D needs
+/// these callbacks when the world is built, not when it is drawn, so they
+/// cannot be supplied later.
+/// </para>
+/// <para>
+/// <see cref="DestroyShape"/> is called when a shape is modified or destroyed,
+/// and for everything still alive when the world is disposed. Neither method
+/// may touch the world.
+/// </para>
+/// </remarks>
+public interface IDebugShapeFactory
+{
+    /// <summary>Builds the drawable for a shape.</summary>
+    /// <param name="shape">What to build a drawable for.</param>
+    /// <returns>
+    /// A handle identifying the drawable, opaque to Box3D and meaningful only
+    /// to the application. Returning <see cref="nint.Zero"/> means "no
+    /// drawable", and the shape is skipped.
+    /// </returns>
+    nint CreateShape(in DebugShape shape);
+
+    /// <summary>Releases a drawable built earlier.</summary>
+    /// <param name="handle">The handle returned by <see cref="CreateShape"/>.</param>
+    void DestroyShape(nint handle);
+}
+
+/// <summary>
 /// Receives the primitives Box3D emits while drawing a world.
 /// </summary>
 /// <remarks>
@@ -130,6 +232,19 @@ public readonly record struct DebugColor
 /// </example>
 public interface IDebugDrawer
 {
+    /// <summary>Draws a drawable built earlier by the shape factory.</summary>
+    /// <param name="handle">The handle returned by <see cref="IDebugShapeFactory.CreateShape"/>.</param>
+    /// <param name="position">Where the shape is, in world space.</param>
+    /// <param name="rotation">The shape's orientation.</param>
+    /// <param name="color">The suggested colour.</param>
+    /// <remarks>
+    /// Only called when the world was built with an
+    /// <see cref="IDebugShapeFactory"/> and
+    /// <see cref="DebugDrawOptions.DrawShapes"/> is set. A drawer that has no
+    /// factory can leave this empty.
+    /// </remarks>
+    void DrawShape(nint handle, Vector3 position, Quaternion rotation, DebugColor color);
+
     /// <summary>Draws a line segment.</summary>
     /// <param name="p1">The start, in world space.</param>
     /// <param name="p2">The end, in world space.</param>
@@ -229,11 +344,11 @@ public readonly record struct DebugDrawOptions
     /// Gets a value indicating whether to draw the shapes themselves.
     /// </summary>
     /// <remarks>
-    /// This one needs more than a flag. Box3D draws a shape by handing back an
-    /// opaque handle the application created earlier, which means registering
-    /// shape callbacks when the world is built. Those are not yet surfaced by
-    /// this layer, so setting this alone draws nothing. See the remarks on
-    /// <see cref="PhysicsWorld.Draw{T}(ref T, in DebugDrawOptions)"/>.
+    /// This one needs more than a flag. Box3D does not emit shape geometry as
+    /// primitives: it hands back an opaque drawable the application built
+    /// earlier, which means the world must have been constructed with an
+    /// <see cref="IDebugShapeFactory"/>. Without one this draws nothing, since
+    /// there is no drawable to hand back.
     /// </remarks>
     public bool DrawShapes { get; init; }
 

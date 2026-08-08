@@ -38,11 +38,14 @@ internal static class DebugDrawSample
         public int Points;
         public int Bounds;
         public int Boxes;
+        public int Shapes;
         public int Other;
 
         public Vector3 LowestPoint;
 
-        public readonly int Total => Segments + Points + Bounds + Boxes + Other;
+        public readonly int Total => Segments + Points + Bounds + Boxes + Shapes + Other;
+
+        public void DrawShape(nint handle, Vector3 position, Quaternion rotation, DebugColor color) => Shapes++;
 
         public void DrawSegment(Vector3 p1, Vector3 p2, DebugColor color) => Segments++;
 
@@ -68,12 +71,52 @@ internal static class DebugDrawSample
         public void DrawString(Vector3 position, ReadOnlySpan<byte> utf8Text, DebugColor color) => Other++;
     }
 
+    /// <summary>
+    /// Stands in for the part of a renderer that turns a shape into something
+    /// drawable, once.
+    /// </summary>
+    /// <remarks>
+    /// A real implementation would build a mesh here and return whatever
+    /// identifies it — a buffer id, an index into an array, a handle. Box3D
+    /// never looks inside the value; it only hands it back at draw time.
+    /// </remarks>
+    private sealed class MeshFactory : IDebugShapeFactory
+    {
+        private nint _next = 1;
+
+        public int Built { get; private set; }
+
+        public int Released { get; private set; }
+
+        public nint CreateShape(in DebugShape shape)
+        {
+            Built++;
+
+            // A renderer would branch on the type here to pick a tessellation.
+            if (shape.TryGetSphere(out Sphere sphere))
+            {
+                Console.WriteLine($"   built a drawable for a sphere of radius {sphere.Radius:F2}");
+            }
+            else
+            {
+                Console.WriteLine($"   built a drawable for a {shape.Type} shape");
+            }
+
+            return _next++;
+        }
+
+        public void DestroyShape(nint handle) => Released++;
+    }
+
     public static void Run()
     {
-        using var world = new PhysicsWorld(WorldSettings.Default with
-        {
-            Gravity = new Vector3(0.0f, -9.81f, 0.0f),
-        });
+        var factory = new MeshFactory();
+
+        // The factory goes in at construction because Box3D takes these
+        // callbacks in the world definition, not at draw time.
+        using var world = new PhysicsWorld(
+            WorldSettings.Default with { Gravity = new Vector3(0.0f, -9.81f, 0.0f) },
+            factory);
 
         Body ground = world.CreateStaticBody(new Vector3(0.0f, -0.5f, 0.0f));
         ground.AddBox(new Box(new Vector3(20.0f, 0.5f, 20.0f)));
@@ -84,11 +127,30 @@ internal static class DebugDrawSample
             box.AddBox(Box.Cube(0.4f));
         }
 
+        Body ball = world.CreateDynamicBody(new Vector3(0.3f, 8.0f, 0.0f));
+        ball.AddSphere(new Sphere(0.5f));
+
         // Let the stack settle so there are real contacts to look at.
         for (int step = 0; step < 90; step++)
         {
             world.Step(1.0f / 60.0f);
         }
+
+        // Shapes first, which is what the factory is for. The drawables are
+        // built on this call and reused by every later one.
+        var shapes = new TallyDrawer { LowestPoint = new Vector3(0.0f, float.MaxValue, 0.0f) };
+        world.Draw(ref shapes, DebugDrawOptions.Default with { DrawShapes = true });
+
+        Console.WriteLine($"shapes drawn: {shapes.Shapes}, drawables built: {factory.Built}");
+        SampleRunner.Expect(shapes.Shapes == 8, "expected the ground, six boxes and the ball to be drawn");
+
+        int builtAfterFirstFrame = factory.Built;
+        world.Draw(ref shapes, DebugDrawOptions.Default with { DrawShapes = true });
+
+        Console.WriteLine($"drawables built after a second frame: {factory.Built}");
+        SampleRunner.Expect(
+            factory.Built == builtAfterFirstFrame,
+            "drawables must be built once and reused, not rebuilt every frame");
 
         // Ask for the broad-phase boxes: one per shape, which makes the count
         // something the sample can check rather than merely print.
@@ -96,7 +158,7 @@ internal static class DebugDrawSample
         world.Draw(ref bounds, DebugDrawOptions.Default with { DrawBounds = true });
 
         Console.WriteLine($"broad-phase boxes drawn: {bounds.Bounds}");
-        SampleRunner.Expect(bounds.Bounds >= 7, "expected a bounding box for the ground and each of the six boxes");
+        SampleRunner.Expect(bounds.Bounds >= 8, "expected a bounding box for the ground, each of the six boxes and the ball");
 
         // Contacts and their normals, which is what debug draw is usually for.
         var contacts = new TallyDrawer { LowestPoint = new Vector3(0.0f, float.MaxValue, 0.0f) };

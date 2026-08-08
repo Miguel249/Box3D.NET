@@ -24,15 +24,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   member removed or a signature changed is caught before it reaches a consumer
   rather than after.
 
-### Known limitations
-
-- `DebugDrawOptions.DrawShapes` draws nothing yet. Box3D does not emit shape
-  geometry as primitives: it asks the application to build a drawable once,
-  through callbacks on the world definition, and then hands back that opaque
-  handle to be drawn at a transform. Surfacing those callbacks means putting a
-  managed object on `WorldSettings`, which is currently a pure value type, so it
-  is a deliberate design decision rather than an oversight. Everything else
-  debug draw emits works today.
+- Shapes are drawn too, through `IDebugShapeFactory`. Box3D does not emit shape
+  geometry as primitives: it asks the application to build a drawable once and
+  then hands that opaque handle back every frame with a transform, which is what
+  lets a renderer upload a mesh once instead of per frame. The factory is passed
+  to `new PhysicsWorld(settings, factory)` rather than living on
+  `WorldSettings`, because Box3D takes these callbacks in the world definition
+  and because `WorldSettings` is compared field by field: a reference in it
+  would stop two identical simulations comparing equal.
 
 ## [0.1.0] - 2026-08-07
 

@@ -101,6 +101,21 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
     private b3WorldId _id;
     private bool _disposed;
 
+    /*
+     * Pins the debug shape factory, when there is one.
+     *
+     * Unlike the drawing callbacks, which live only for the duration of a Draw
+     * call, these are stored in the world and invoked whenever a shape is first
+     * drawn or destroyed. The factory therefore has to stay reachable and stay
+     * put for the world's whole life, which a stack pointer cannot do and the
+     * GC will not do unasked.
+     *
+     * Released in Dispose, and deliberately after b3DestroyWorld: destroying a
+     * world calls the destroy callback for every drawable still alive, so
+     * freeing the handle first would tear down the factory mid-teardown.
+     */
+    private GCHandle _shapeFactoryHandle;
+
     /// <summary>Creates a world with the engine's default settings.</summary>
     public PhysicsWorld()
         : this(WorldSettings.Default)
@@ -120,8 +135,49 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
     /// world remains single-threaded; see the type documentation.
     /// </remarks>
     public PhysicsWorld(WorldSettings settings)
+        : this(settings, null)
+    {
+    }
+
+    /// <summary>
+    /// Creates a world that can draw its shapes, given something to build the
+    /// drawables with.
+    /// </summary>
+    /// <param name="settings">The tuning to apply.</param>
+    /// <param name="shapeFactory">
+    /// Builds and releases the drawable for each shape, or <see langword="null"/>
+    /// for a world whose shapes are never drawn.
+    /// </param>
+    /// <exception cref="InvalidOperationException">
+    /// The engine refused to create the world, which happens when
+    /// <see cref="MaxCount"/> are already live.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// The factory belongs here and not on <see cref="WorldSettings"/> for two
+    /// reasons. Box3D takes these callbacks in the world definition, so they
+    /// genuinely cannot be supplied after the world exists. And
+    /// <see cref="WorldSettings"/> is a value type compared field by field;
+    /// putting a reference in it would mean two settings that describe the same
+    /// simulation stopped comparing equal because they named different
+    /// factories.
+    /// </para>
+    /// <para>
+    /// The factory is kept alive for as long as the world, and released once
+    /// the world has been destroyed.
+    /// </para>
+    /// </remarks>
+    public PhysicsWorld(WorldSettings settings, IDebugShapeFactory? shapeFactory)
     {
         b3WorldDef def = settings.ToNative();
+
+        if (shapeFactory is not null)
+        {
+            _shapeFactoryHandle = GCHandle.Alloc(shapeFactory);
+            def.createDebugShape = &CreateDebugShapeThunk;
+            def.destroyDebugShape = &DestroyDebugShapeThunk;
+            def.userDebugShapeContext = (void*)GCHandle.ToIntPtr(_shapeFactoryHandle);
+        }
 
         lock (LifetimeLock)
         {
@@ -130,6 +186,12 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
 
         if (_id.IsNull)
         {
+            // Nothing owns the handle if the world was never created.
+            if (_shapeFactoryHandle.IsAllocated)
+            {
+                _shapeFactoryHandle.Free();
+            }
+
             throw new InvalidOperationException(
                 $"Box3D refused to create a world. {B3.b3GetWorldCount()} of a maximum " +
                 $"{MaxCount} are already live; dispose worlds you are finished with.");
@@ -726,6 +788,13 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
             }
 
             _id = default;
+        }
+
+        // After the world is gone, never before: destroying it calls the
+        // factory back for every drawable still alive.
+        if (_shapeFactoryHandle.IsAllocated)
+        {
+            _shapeFactoryHandle.Free();
         }
     }
 

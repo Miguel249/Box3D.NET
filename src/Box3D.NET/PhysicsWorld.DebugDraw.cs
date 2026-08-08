@@ -43,6 +43,7 @@ public sealed unsafe partial class PhysicsWorld
     {
         public void* Drawer;
 
+        public delegate*<void*, void*, b3Transform, b3HexColor, void> Shape;
         public delegate*<void*, Vector3, Vector3, b3HexColor, void> Segment;
         public delegate*<void*, Vector3, float, b3HexColor, void> Point;
         public delegate*<void*, b3Transform, void> Transform;
@@ -111,6 +112,7 @@ public sealed unsafe partial class PhysicsWorld
         DrawContext context = new()
         {
             Drawer = Unsafe.AsPointer(ref local),
+            Shape = &DispatchShape<T>,
             Segment = &DispatchSegment<T>,
             Point = &DispatchPoint<T>,
             Transform = &DispatchTransform<T>,
@@ -123,6 +125,7 @@ public sealed unsafe partial class PhysicsWorld
 
         b3DebugDraw draw = options.ToNative();
 
+        draw.DrawShapeFcn = &ShapeThunk;
         draw.DrawSegmentFcn = &SegmentThunk;
         draw.DrawPointFcn = &PointThunk;
         draw.DrawTransformFcn = &TransformThunk;
@@ -145,10 +148,55 @@ public sealed unsafe partial class PhysicsWorld
         }
     }
 
+    // --------------------------------------------------- the factory callbacks
+    //
+    // These are stored in the world rather than passed per call, so they reach
+    // the factory through a GCHandle instead of a stack pointer. The interface
+    // call here is virtual, which costs nothing worth avoiding: a drawable is
+    // built once per shape, not once per frame. The per-frame path is
+    // DrawShapeFcn, which goes through the drawer and stays devirtualised.
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    private static void* CreateDebugShapeThunk(b3DebugShape* debugShape, void* userContext)
+    {
+        if (debugShape is null || userContext is null)
+        {
+            return null;
+        }
+
+        var factory = (IDebugShapeFactory?)GCHandle.FromIntPtr((nint)userContext).Target;
+        if (factory is null)
+        {
+            return null;
+        }
+
+        var shape = new Shape(debugShape->shapeId);
+        return (void*)factory.CreateShape(new DebugShape(in *debugShape, shape));
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    private static void DestroyDebugShapeThunk(void* userShape, void* userContext)
+    {
+        if (userContext is null)
+        {
+            return;
+        }
+
+        var factory = (IDebugShapeFactory?)GCHandle.FromIntPtr((nint)userContext).Target;
+        factory?.DestroyShape((nint)userShape);
+    }
+
     // ------------------------------------------------------------ the thunks
     //
     // Non-generic by necessity. Each one reads the context and forwards to the
     // managed function pointer that knows the drawer's type.
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    private static void ShapeThunk(void* userShape, b3Transform transform, b3HexColor color, void* context)
+    {
+        ref DrawContext ctx = ref Unsafe.AsRef<DrawContext>(context);
+        ctx.Shape(ctx.Drawer, userShape, transform, color);
+    }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     private static void SegmentThunk(Vector3 p1, Vector3 p2, b3HexColor color, void* context)
@@ -210,6 +258,10 @@ public sealed unsafe partial class PhysicsWorld
     //
     // Generic, and reached through a managed function pointer bound in Draw<T>.
     // This is where the drawer's concrete type comes back.
+
+    private static void DispatchShape<T>(void* drawer, void* userShape, b3Transform transform, b3HexColor color)
+        where T : struct, IDebugDrawer =>
+        Unsafe.AsRef<T>(drawer).DrawShape((nint)userShape, transform.p, transform.q, new DebugColor((uint)color));
 
     private static void DispatchSegment<T>(void* drawer, Vector3 p1, Vector3 p2, b3HexColor color)
         where T : struct, IDebugDrawer =>
