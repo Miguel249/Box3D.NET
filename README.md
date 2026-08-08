@@ -348,6 +348,38 @@ holds all 92 structs to that file — size, every field offset, blittability, an
 whether a mirror exists at all — and CI regenerates it, so a submodule bump that
 moves a field fails the build instead of shipping.
 
+## Examples
+
+Sixteen of them, each headless, self-checking and small enough to read in one
+sitting. They assert on their own results rather than only printing, so CI runs
+them — published with NativeAOT — and a regression fails the build instead of
+producing plausible output nobody reads.
+
+```sh
+dotnet run --project src/Box3D.NET.Samples -- --list      # what there is
+dotnet run --project src/Box3D.NET.Samples -- raycast     # run one
+dotnet run --project src/Box3D.NET.Samples                # run all of them
+```
+
+| | |
+| --- | --- |
+| `basic-world` | A world, a body, a shape, a step. |
+| `dynamic-body` | Gravity acting on a falling body. |
+| `collision` | A falling box landing on static ground. |
+| `raycast` | Closest-hit and callback ray casts. |
+| `contact-events` | Reading contacts after a step. |
+| `sensor` | A trigger volume that reports overlaps without colliding. |
+| `compound` | One body carrying several shapes. |
+| `continuous` | A fast body that would otherwise tunnel through a wall. |
+| `height-field` | Terrain from a height map. |
+| `mesh` | Collision against a triangle mesh. |
+| `character` | A kinematic character walking, sliding and climbing. |
+| `entities` | Associating game objects with bodies through user data. |
+| `debug-draw` | Feeding the world's debug geometry to a renderer. |
+| `hinged-door` | A revolute joint with limits. |
+| `chain` | A hanging chain of revolute joints. |
+| `vehicle` | A wheeled vehicle built from wheel joints. |
+
 ## Documentation
 
 | | |
