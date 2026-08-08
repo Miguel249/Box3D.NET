@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] - 2026-08-08
 
 ### Added
 
@@ -15,6 +15,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is a value type taken by `ref`, reached through function pointers rather than
   delegates, so a drawn frame allocates nothing; a sample asserts that. Nothing
   here knows about any renderer.
+- Shapes are drawn too, through `IDebugShapeFactory`. Box3D does not emit shape
+  geometry as primitives: it asks the application to build a drawable once and
+  then hands that opaque handle back every frame with a transform, which is what
+  lets a renderer upload a mesh once instead of rebuilding it per frame. The
+  factory is passed to `new PhysicsWorld(settings, factory)` rather than living
+  on `WorldSettings`, because Box3D takes these callbacks in the world
+  definition and because `WorldSettings` is compared field by field: a reference
+  in it would stop two identical simulations comparing equal.
+- The samples can be run one at a time. `--list` prints the sixteen of them and
+  a name runs just that one; no argument still runs everything, which is what CI
+  does.
+- `ScaleBenchmarks` measures a whole frame at 100, 1,000 and 10,000 bodies
+  through both the C API and the wrapper, plus stacked towers and joint chains.
+  The wrapper's overhead on a step turns out not to be measurable.
 - `abi/native-layout.json` records the size, alignment and every field offset of
   all 92 Box3D structs, as reported by the C compiler. `AbiTests` holds the
   managed mirrors to it and CI regenerates it, so a submodule bump that moves a
@@ -47,15 +61,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The README described the project as unpublished, and said the character mover,
   meshes and height fields were reachable only through the low-level layer. None
   of that had been true for some time.
-
-- Shapes are drawn too, through `IDebugShapeFactory`. Box3D does not emit shape
-  geometry as primitives: it asks the application to build a drawable once and
-  then hands that opaque handle back every frame with a transform, which is what
-  lets a renderer upload a mesh once instead of per frame. The factory is passed
-  to `new PhysicsWorld(settings, factory)` rather than living on
-  `WorldSettings`, because Box3D takes these callbacks in the world definition
-  and because `WorldSettings` is compared field by field: a reference in it
-  would stop two identical simulations comparing equal.
 
 ## [0.1.0] - 2026-08-07
 
@@ -189,5 +194,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   follow Box3D and are documented rather than corrected.
 - Single precision only. Box3D's large-world mode changes the ABI and would need
   a separate package.
-[Unreleased]: https://github.com/Miguel249/Box3D.NET/compare/v0.1.0...main
+[0.2.0]: https://github.com/Miguel249/Box3D.NET/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Miguel249/Box3D.NET/releases/tag/v0.1.0
