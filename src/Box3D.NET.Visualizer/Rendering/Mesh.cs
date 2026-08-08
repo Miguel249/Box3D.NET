@@ -139,6 +139,33 @@ internal sealed class MeshBuilder
         }
     }
 
+    /// <summary>Adds a whole mesh, moved into place.</summary>
+    /// <param name="mesh">The mesh, in its own local space.</param>
+    /// <param name="position">Where its origin goes.</param>
+    /// <param name="rotation">Its orientation.</param>
+    /// <remarks>
+    /// This is what lets a compound be one drawable: each child is tessellated
+    /// in its own space and then folded in here at the transform the engine
+    /// stored for it.
+    /// </remarks>
+    public void Add(Mesh mesh, Vector3 position, Quaternion rotation)
+    {
+        ArgumentNullException.ThrowIfNull(mesh);
+
+        int offset = _positions.Count;
+
+        for (int i = 0; i < mesh.Positions.Length; i++)
+        {
+            _positions.Add(position + Vector3.Transform(mesh.Positions[i], rotation));
+            _normals.Add(Vector3.Transform(mesh.Normals[i], rotation));
+        }
+
+        foreach (int index in mesh.Indices)
+        {
+            _indices.Add(index + offset);
+        }
+    }
+
     /// <summary>Produces the finished mesh.</summary>
     /// <returns>The mesh, or <see langword="null"/> when nothing was added.</returns>
     public Mesh? Build() =>

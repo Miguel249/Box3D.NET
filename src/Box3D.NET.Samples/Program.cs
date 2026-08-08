@@ -26,7 +26,7 @@ using Box3D.Samples;
     ("raycast", "Closest-hit and callback ray casts.", RaycastSample.Run),
     ("contact-events", "Reading contacts after a step.", ContactEventsSample.Run),
     ("sensor", "A trigger volume that reports overlaps without colliding.", SensorSample.Run),
-    ("compound", "One body carrying several shapes.", CompoundShapeSample.Run),
+    ("compound", "Several shapes on one body, and many baked into one shape.", CompoundShapeSample.Run),
     ("continuous", "A fast body that would otherwise tunnel through a wall.", ContinuousCollisionSample.Run),
     ("height-field", "Terrain from a height map.", HeightFieldSample.Run),
     ("mesh", "Collision against a triangle mesh.", MeshSample.Run),

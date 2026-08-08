@@ -392,6 +392,61 @@ public readonly record struct Body
         }
     }
 
+    /// <summary>Attaches a baked compound to this body, which must be static.</summary>
+    /// <param name="compound">
+    /// The compound. It is <b>not</b> copied, so it must outlive this shape.
+    /// </param>
+    /// <param name="definition">The shape settings, or null for the defaults.</param>
+    /// <returns>The new shape.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="compound"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException"><paramref name="compound"/> has been disposed.</exception>
+    /// <exception cref="InvalidOperationException">This body is not static.</exception>
+    /// <remarks>
+    /// The whole compound arrives as one shape, with one filter and one set of
+    /// events; the per-child materials were fixed when it was baked. For several
+    /// shapes that can be told apart, or on a body that moves, attach them one at
+    /// a time instead.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// using CompoundGeometry wall = new CompoundBuilder()
+    ///     .AddHull(rock, new Vector3(0.0f, 0.5f, 0.0f))
+    ///     .AddHull(rock, new Vector3(1.0f, 0.5f, 0.0f))
+    ///     .Build();
+    ///
+    /// Body scenery = world.CreateStaticBody();
+    /// scenery.AddCompound(wall);
+    /// </code>
+    /// </example>
+    public unsafe Shape AddCompound(CompoundGeometry compound, ShapeDefinition? definition = null)
+    {
+        ArgumentNullException.ThrowIfNull(compound);
+        RequireStatic(nameof(compound), "Baked compounds");
+
+        ShapeDefinition settings = definition ?? ShapeDefinition.Default;
+
+        if (settings.Name is null)
+        {
+            b3ShapeDef def = settings.ToNative(null);
+            return new Shape(B3.b3CreateBakedCompoundShape(NativeId, &def, compound.NativeCompound));
+        }
+
+        Span<byte> scratch = stackalloc byte[128];
+        Utf8Buffer name = new(settings.Name, scratch);
+        try
+        {
+            fixed (byte* namePtr = name.Span)
+            {
+                b3ShapeDef def = settings.ToNative(namePtr);
+                return new Shape(B3.b3CreateBakedCompoundShape(NativeId, &def, compound.NativeCompound));
+            }
+        }
+        finally
+        {
+            name.Dispose();
+        }
+    }
+
     private void RequireStatic(string parameterName, string what)
     {
         if (Type != BodyType.Static)

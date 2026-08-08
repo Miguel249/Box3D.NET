@@ -78,6 +78,31 @@ public static class NativeInterop
     /// <returns>The identifier the C API expects.</returns>
     public static b3JointId ToNativeId(this Joint joint) => joint.NativeId;
 
+    /// <summary>Gets the native pointer of a baked compound.</summary>
+    /// <param name="compound">The compound.</param>
+    /// <returns>The pointer the C API expects, owned by <paramref name="compound"/>.</returns>
+    /// <exception cref="System.ArgumentNullException"><paramref name="compound"/> is null.</exception>
+    /// <exception cref="System.ObjectDisposedException"><paramref name="compound"/> has been disposed.</exception>
+    /// <remarks>
+    /// <para>
+    /// The one piece of geometry that cannot be reached from the shape that
+    /// carries it. Hulls, meshes and height fields all have a
+    /// <c>b3Shape_Get...</c> accessor; compounds have none, so anything that
+    /// needs to read a compound's children - a debug renderer tessellating them,
+    /// a tool serializing them with <c>b3ConvertCompoundToBytes</c> - has to be
+    /// handed the pointer by whoever baked it.
+    /// </para>
+    /// <para>
+    /// Valid only while the compound is alive, and freed by disposing it.
+    /// </para>
+    /// </remarks>
+    public static unsafe b3CompoundData* ToNativePointer(this CompoundGeometry compound)
+    {
+        System.ArgumentNullException.ThrowIfNull(compound);
+
+        return compound.NativeCompound;
+    }
+
     /// <summary>Wraps a native body identifier.</summary>
     /// <param name="id">The identifier, which is not validated.</param>
     /// <returns>The body handle.</returns>

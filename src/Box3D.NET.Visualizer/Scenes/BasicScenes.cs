@@ -209,6 +209,11 @@ internal sealed class ContactsScene : Scene
         DrawContacts = true,
         DrawContactNormals = true,
         DrawBounds = true,
+
+        // The mass of each dynamic body, written next to its centre of mass.
+        // This is the flag that makes the engine emit text, and the reason the
+        // renderer carries a font at all.
+        DrawMass = true,
         CategoryMask = BodyCategory,
     };
 
@@ -231,28 +236,32 @@ internal sealed class ContactsScene : Scene
             Filter = new CollisionFilter(BodyCategory, ulong.MaxValue),
         };
 
-        // A deliberately small pile: every contact is drawn, and thirty bodies
-        // would bury the shapes under their own annotations.
-        Span<Vector3> layout =
-        [
-            new Vector3(-0.55f, 0.36f, -0.2f),
-            new Vector3(0.5f, 0.36f, 0.25f),
-            new Vector3(-0.05f, 1.08f, 0.0f),
-        ];
+        // A deliberately small arrangement, and one box rather than a pile of
+        // them. The budget here is not bodies, it is manifold points: every
+        // contact point is labelled with its separation, and a box resting
+        // squarely on another box is four points and four numbers on its own,
+        // where a sphere or a capsule against the same box is one.
+        Body crate = world.CreateDynamicBody(
+            new Vector3(0.0f, 0.36f, 0.0f),
+            Quaternion.CreateFromAxisAngle(Vector3.UnitY, 0.24f));
 
-        for (int i = 0; i < layout.Length; i++)
-        {
-            Body crate = world.CreateDynamicBody(
-                layout[i],
-                Quaternion.CreateFromAxisAngle(Vector3.UnitY, 0.22f * i));
+        visuals.Paint(crate.AddBox(Box.Cube(0.35f), definition), new Appearance(Palette.Cycle(2)));
 
-            visuals.Paint(crate.AddBox(Box.Cube(0.35f), definition), new Appearance(Palette.Cycle(i * 2)));
-        }
-
-        Body ball = world.CreateDynamicBody(new Vector3(-0.05f, 2.1f, 0.0f));
+        // Dropped so that it rolls in and comes to rest against the crate,
+        // rather than starting there and never producing a contact worth
+        // drawing.
+        Body ball = world.CreateDynamicBody(new Vector3(-1.5f, 0.42f, 0.15f));
+        ball.LinearVelocity = new Vector3(1.6f, 0.0f, 0.0f);
         visuals.Paint(ball.AddSphere(new Sphere(0.4f), definition), new Appearance(Palette.Cool));
 
-        Body capsule = world.CreateDynamicBody(new Vector3(1.25f, 3.2f, -0.5f));
+        // Laid across the top of the crate rather than stacked as another box:
+        // a capsule lying on a face is a two-point manifold where a box on a box
+        // is four, and it is the difference between a picture and a heap of
+        // numbers.
+        Body capsule = world.CreateDynamicBody(
+            new Vector3(0.0f, 1.35f, 0.0f),
+            Quaternion.CreateFromAxisAngle(Vector3.UnitZ, MathF.PI * 0.5f));
+
         visuals.Paint(
             capsule.AddCapsule(Capsule.Upright(0.9f, 0.24f), definition),
             new Appearance(Palette.Accent));
@@ -260,5 +269,5 @@ internal sealed class ContactsScene : Scene
 
     /// <inheritdoc/>
     public override Camera GetCamera(int frame) =>
-        Camera.Orbit(new Vector3(0.1f, 0.95f, 0.0f), 4.9f, 26.0f + (frame * 0.07f), 12.0f);
+        Camera.Orbit(new Vector3(0.05f, 0.72f, 0.0f), 4.1f, 26.0f + (frame * 0.07f), 13.0f);
 }

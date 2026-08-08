@@ -4,9 +4,9 @@
 # Points the project at your GitHub repository.
 #
 # The repository URL appears in the package metadata, the changelog, the DocFX
-# "edit this page" links and the README. Editing them by hand means editing
-# seven places and missing one, which shows up later as a broken link in a
-# published package.
+# "edit this page" links, and both the links and the image sources in the README.
+# Editing them by hand means editing seven places and missing one, which shows up
+# later as a broken link, or a broken image on nuget.org, in a published package.
 #
 # Usage:
 #   powershell -File tools/set-repository.ps1 -Owner myname -Repository Box3D.NET
@@ -44,9 +44,15 @@ $files = @(
     'docs/docfx.json'
 )
 
+# The raw.githubusercontent.com rule covers the images in the README. They cannot
+# be relative paths: the README is also the package description on nuget.org,
+# which serves it from its own domain, so a relative image renders as a broken
+# one there. It needs a rule of its own because the host is githubusercontent.com
+# rather than github.com, which the general rule does not match.
 $replacements = [ordered]@{
-    "github.com/$placeholderOwner/$placeholderRepo"      = "github.com/$Owner/$Repository"
-    "$placeholderOwner.github.io/$placeholderRepo/"      = "$Owner.github.io/$Repository/"
+    "raw.githubusercontent.com/$placeholderOwner/$placeholderRepo/" = "raw.githubusercontent.com/$Owner/$Repository/"
+    "github.com/$placeholderOwner/$placeholderRepo"                 = "github.com/$Owner/$Repository"
+    "$placeholderOwner.github.io/$placeholderRepo/"                 = "$Owner.github.io/$Repository/"
 }
 
 $encoding = New-Object System.Text.UTF8Encoding($false)

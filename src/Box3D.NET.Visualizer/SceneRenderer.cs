@@ -33,14 +33,44 @@ internal sealed record RenderOptions
     /// <summary>Gets how many samples per output pixel the animation uses.</summary>
     public int AnimationSupersample { get; init; } = 2;
 
-    /// <summary>Gets how many simulation steps pass between animation frames.</summary>
-    public int Stride { get; init; } = 3;
+    /// <summary>Gets the fewest simulation steps that may pass between animation frames.</summary>
+    public int MinimumStride { get; init; } = 3;
+
+    /// <summary>Gets the most frames an animation may be made of.</summary>
+    /// <remarks>
+    /// A GIF frame costs around thirty kilobytes at these sizes, so the length
+    /// of an animation is the one number that decides what the gallery weighs.
+    /// The scenes run for anything from three to five and a half seconds, and
+    /// capturing every third step of all of them made the long ones twice the
+    /// size of the short ones for no more information.
+    /// </remarks>
+    public int MaxAnimationFrames { get; init; } = 70;
 
     /// <summary>Gets whether to write the animation at all.</summary>
     public bool Animate { get; init; } = true;
 
     /// <summary>Gets where the files go.</summary>
     public string OutputDirectory { get; init; } = ".";
+
+    /// <summary>Works out how many steps pass between the frames of one scene.</summary>
+    /// <param name="frameCount">How many steps the scene runs for.</param>
+    /// <returns>The stride.</returns>
+    /// <remarks>
+    /// Coarse enough to keep the animation inside
+    /// <see cref="MaxAnimationFrames"/>, and never finer than
+    /// <see cref="MinimumStride"/>. A longer scene therefore samples itself more
+    /// coarsely rather than producing a longer file, and because
+    /// <see cref="DelayFor"/> derives the frame delay from the same stride, it
+    /// still plays back at the speed the simulation ran at.
+    /// </remarks>
+    public int StrideFor(int frameCount)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(frameCount);
+
+        int needed = ((frameCount + MaxAnimationFrames) - 1) / MaxAnimationFrames;
+
+        return Math.Max(MinimumStride, needed);
+    }
 
     /// <summary>
     /// Gets how long each animation frame is shown, in hundredths of a second.
@@ -50,8 +80,10 @@ internal sealed record RenderOptions
     /// speed the simulation ran at, rounded to the hundredths GIF counts in.
     /// </remarks>
     /// <param name="timeStep">The simulation step.</param>
+    /// <param name="stride">The stride, from <see cref="StrideFor"/>.</param>
     /// <returns>The delay.</returns>
-    public int DelayFor(float timeStep) => Math.Max(2, (int)MathF.Round(timeStep * Stride * 100.0f));
+    public static int DelayFor(float timeStep, int stride) =>
+        Math.Max(2, (int)MathF.Round(timeStep * stride * 100.0f));
 }
 
 /// <summary>What one scene produced.</summary>
@@ -87,6 +119,8 @@ internal static class SceneRenderer
 
         var clock = Stopwatch.StartNew();
 
+        int stride = options.StrideFor(scene.FrameCount);
+
         var factory = new ShapeMeshFactory();
         var still = new Renderer(options.StillWidth, options.StillHeight, options.StillSupersample)
         {
@@ -119,7 +153,7 @@ internal static class SceneRenderer
                 scene.Update(world, factory, frame);
                 world.Step(scene.TimeStep);
 
-                if (motion is not null && frame % options.Stride == 0)
+                if (motion is not null && frame % stride == 0)
                 {
                     frames.Add(Capture(motion, scene, world, factory, frame));
                 }
@@ -144,7 +178,7 @@ internal static class SceneRenderer
         if (motion is not null && frames.Count > 0)
         {
             animationPath = Path.Combine(options.OutputDirectory, scene.Name + ".gif");
-            GifWriter.Write(frames, options.DelayFor(scene.TimeStep), animationPath);
+            GifWriter.Write(frames, RenderOptions.DelayFor(scene.TimeStep, stride), animationPath);
         }
 
         return new RenderReport(

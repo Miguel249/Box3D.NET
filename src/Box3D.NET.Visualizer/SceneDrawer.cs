@@ -104,9 +104,11 @@ internal struct SceneDrawer(Renderer renderer, ShapeMeshFactory factory) : IDebu
     /// <inheritdoc/>
     public void DrawString(Vector3 position, ReadOnlySpan<byte> utf8Text, DebugColor color)
     {
-        // Deliberately dropped. This renderer has no font, and a label rendered
-        // as a smear of pixels is worse than no label; the captions in the
-        // documentation say what each picture is.
         Primitives++;
+
+        // The engine's own labels are white or the colour of what they annotate,
+        // both of which can land on a body of the same colour. The renderer puts
+        // a shadow under them, so this can pass the suggestion through unchanged.
+        _renderer.DrawText(position, utf8Text, Palette.FromDebugColor(color));
     }
 }

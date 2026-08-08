@@ -123,8 +123,14 @@ internal static class SensorSample
 }
 
 /// <summary>
-/// Several shapes on one body, which is how a compound object is built at run time.
+/// The two kinds of compound: several shapes on one body, and many children
+/// baked into one shape.
 /// </summary>
+/// <remarks>
+/// They are not alternatives. A run-time compound works on any body type and can
+/// change while the world runs; a baked one is static, fixed, and a single
+/// broad-phase proxy no matter how many pieces it holds.
+/// </remarks>
 internal static class CompoundShapeSample
 {
     public static void Run()
@@ -183,6 +189,52 @@ internal static class CompoundShapeSample
         Console.WriteLine($"   resting at   : y = {dumbbell.Position.Y:F3}");
 
         SampleRunner.Expect(dumbbell.Position.Y > 0.0f, "the dumbbell rests on the ground");
+
+        BakedCompound(world);
+    }
+
+    /// <summary>The other kind: many children, one shape, static only.</summary>
+    /// <param name="world">The world to add the scenery to.</param>
+    private static void BakedCompound(PhysicsWorld world)
+    {
+        // A row of pillars. Built once and shared, so Box3D keeps one copy of
+        // the hull and points every instance at it.
+        using var pillar = ConvexHull.Cylinder(height: 2.0f, radius: 0.3f);
+
+        var builder = new CompoundBuilder();
+        for (int i = 0; i < 8; i++)
+        {
+            builder.AddHull(pillar, new Vector3((i * 1.5f) - 5.25f, 0.0f, 6.0f));
+        }
+
+        using CompoundGeometry colonnade = builder.Build();
+
+        // Everything was cloned into the compound, so the hull could be released
+        // right here. The compound itself is borrowed by its shape and must
+        // outlive it, which is why it is not disposed until the world is gone.
+        Body scenery = world.CreateBody(BodyDefinition.Static());
+        Shape shape = scenery.AddCompound(colonnade);
+
+        Console.WriteLine($"   children     : {colonnade.ChildCount} in {colonnade.ByteCount} bytes");
+        Console.WriteLine($"   shapes       : {scenery.ShapeCount}");
+
+        SampleRunner.Expect(colonnade.ChildCount == 8, "all eight pillars are in the compound");
+        SampleRunner.Expect(scenery.ShapeCount == 1, "eight children arrive as one shape");
+        SampleRunner.Expect(shape.Type == ShapeType.Compound, "and it is a compound shape");
+
+        // Dropped onto a pillar rather than beside it, to show the children are
+        // what the broad-phase box resolves to.
+        Body crate = world.CreateBody(BodyDefinition.Dynamic(new Vector3(-5.25f, 6.0f, 6.0f)));
+        crate.AddBox(Box.Cube(0.25f));
+
+        for (int i = 0; i < 240; i++)
+        {
+            world.Step(1.0f / 60.0f);
+        }
+
+        Console.WriteLine($"   crate at     : y = {crate.Position.Y:F3}");
+
+        SampleRunner.Expect(crate.Position.Y > 1.5f, "the crate landed on top of a pillar");
     }
 }
 

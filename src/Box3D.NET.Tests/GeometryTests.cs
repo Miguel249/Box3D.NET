@@ -426,4 +426,188 @@ public class GeometryTests
 
         Assert.Throws<ObjectDisposedException>(() => ground.AddMesh(mesh));
     }
+
+    // ------------------------------------------------------- baked compounds
+
+    [NativeFact]
+    public void A_compound_counts_the_children_it_was_built_from()
+    {
+        using ConvexHull tetrahedron = ConvexHull.FromPoints(TetrahedronPoints);
+        using CollisionMesh floor = CollisionMesh.FromTriangles(FloorVertices, FloorIndices);
+
+        using CompoundGeometry compound = new CompoundBuilder()
+            .AddSphere(new Sphere(new Vector3(0.0f, 1.0f, 0.0f), 0.5f))
+            .AddSphere(new Sphere(new Vector3(2.0f, 1.0f, 0.0f), 0.5f))
+            .AddCapsule(Capsule.Upright(1.0f, 0.25f))
+            .AddHull(tetrahedron, new Vector3(4.0f, 0.0f, 0.0f))
+            .AddMesh(floor, Vector3.Zero)
+            .Build();
+
+        Assert.Equal(2, compound.SphereCount);
+        Assert.Equal(1, compound.CapsuleCount);
+        Assert.Equal(1, compound.HullCount);
+        Assert.Equal(1, compound.MeshCount);
+        Assert.Equal(5, compound.ChildCount);
+        Assert.True(compound.ByteCount > 0, $"a baked compound occupies {compound.ByteCount} bytes");
+    }
+
+    [NativeFact]
+    public void A_compound_encloses_every_child()
+    {
+        using CompoundGeometry compound = new CompoundBuilder()
+            .AddSphere(new Sphere(new Vector3(-3.0f, 0.0f, 0.0f), 1.0f))
+            .AddSphere(new Sphere(new Vector3(3.0f, 0.0f, 0.0f), 1.0f))
+            .Build();
+
+        BoundingBox bounds = compound.Bounds;
+
+        Assert.True(bounds.Min.X <= -4.0f, $"the box starts at {bounds.Min.X}");
+        Assert.True(bounds.Max.X >= 4.0f, $"the box ends at {bounds.Max.X}");
+    }
+
+    [NativeFact]
+    public void A_compound_keeps_its_sources_alive_no_longer_than_the_bake()
+    {
+        // Everything in the definition is cloned, so the hull may go as soon as
+        // the compound exists. This is the difference between a compound and a
+        // mesh, and it is easy to get backwards.
+        ConvexHull tetrahedron = ConvexHull.FromPoints(TetrahedronPoints);
+
+        using CompoundGeometry compound = new CompoundBuilder()
+            .AddHull(tetrahedron, Vector3.Zero)
+            .Build();
+
+        tetrahedron.Dispose();
+
+        using var world = new PhysicsWorld();
+        Body scenery = world.CreateStaticBody();
+        scenery.AddCompound(compound);
+
+        for (int i = 0; i < 10; i++)
+        {
+            world.Step(1.0f / 60.0f);
+        }
+
+        Assert.Equal(1, compound.HullCount);
+    }
+
+    [NativeFact]
+    public void A_compound_arrives_as_one_shape()
+    {
+        using ConvexHull tetrahedron = ConvexHull.FromPoints(TetrahedronPoints);
+
+        using CompoundGeometry compound = new CompoundBuilder()
+            .AddHull(tetrahedron, Vector3.Zero)
+            .AddHull(tetrahedron, new Vector3(2.0f, 0.0f, 0.0f))
+            .AddHull(tetrahedron, new Vector3(4.0f, 0.0f, 0.0f))
+            .Build();
+
+        using var world = new PhysicsWorld();
+        Body scenery = world.CreateStaticBody();
+
+        Shape shape = scenery.AddCompound(compound);
+
+        // Three children, one broad-phase shape. That is the whole point of
+        // baking one.
+        Assert.Equal(1, scenery.ShapeCount);
+        Assert.Equal(ShapeType.Compound, shape.Type);
+    }
+
+    [NativeFact]
+    public void A_body_rests_on_a_compound()
+    {
+        using CompoundGeometry floor = new CompoundBuilder()
+            .AddSphere(new Sphere(new Vector3(0.0f, -0.5f, 0.0f), 1.0f))
+            .Build();
+
+        using (var world = new PhysicsWorld(WorldSettings.Default with
+        {
+            Gravity = new Vector3(0.0f, -10.0f, 0.0f),
+        }))
+        {
+            Body scenery = world.CreateStaticBody();
+            scenery.AddCompound(floor);
+
+            Body ball = world.CreateDynamicBody(new Vector3(0.0f, 4.0f, 0.0f));
+            ball.AddSphere(new Sphere(0.25f));
+
+            for (int i = 0; i < 300; i++)
+            {
+                world.Step(1.0f / 60.0f);
+            }
+
+            // The child sphere reaches 0.5, so a quarter-metre ball settles at
+            // 0.75. If the compound were not colliding, the ball would be gone.
+            Assert.True(ball.Position.Y is > 0.5f and < 1.0f, $"the ball settled at {ball.Position.Y}");
+        }
+    }
+
+    [NativeFact]
+    public void A_compound_may_only_go_on_a_static_body()
+    {
+        using CompoundGeometry compound = new CompoundBuilder()
+            .AddSphere(new Sphere(0.5f))
+            .Build();
+
+        using var world = new PhysicsWorld();
+        Body dynamic = world.CreateDynamicBody();
+
+        Assert.Throws<InvalidOperationException>(() => dynamic.AddCompound(compound));
+    }
+
+    [NativeFact]
+    public void An_empty_compound_is_refused()
+    {
+        var builder = new CompoundBuilder();
+
+        Assert.Equal(0, builder.ChildCount);
+        Assert.Throws<InvalidOperationException>(builder.Build);
+    }
+
+    [NativeFact]
+    public void A_compound_built_from_disposed_geometry_is_refused()
+    {
+        ConvexHull tetrahedron = ConvexHull.FromPoints(TetrahedronPoints);
+
+        var builder = new CompoundBuilder().AddHull(tetrahedron, Vector3.Zero);
+        tetrahedron.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(builder.Build);
+    }
+
+    [NativeFact]
+    public void A_compound_gives_its_memory_back()
+    {
+        using ConvexHull tetrahedron = ConvexHull.FromPoints(TetrahedronPoints);
+
+        int before = B3.b3GetByteCount();
+
+        CompoundGeometry compound = new CompoundBuilder()
+            .AddHull(tetrahedron, Vector3.Zero)
+            .AddSphere(new Sphere(1.0f))
+            .Build();
+
+        Assert.True(B3.b3GetByteCount() > before, "baking a compound should allocate");
+
+        compound.Dispose();
+
+        Assert.Equal(before, B3.b3GetByteCount());
+    }
+
+    [NativeFact]
+    public void A_disposed_compound_answers_nothing()
+    {
+        CompoundGeometry compound = new CompoundBuilder()
+            .AddSphere(new Sphere(1.0f))
+            .Build();
+
+        compound.Dispose();
+
+        Assert.True(compound.IsDisposed);
+        Assert.Throws<ObjectDisposedException>(() => compound.ChildCount);
+
+        // Disposing twice is not an error, and must not free the same block
+        // again.
+        compound.Dispose();
+    }
 }

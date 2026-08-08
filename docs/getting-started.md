@@ -293,9 +293,10 @@ costs nearly twice as much, and more once shapes are attached.
 **A body with no shapes has no mass and no geometry.** Create the body, then
 attach shapes.
 
-**Meshes and height fields are static only.** Box3D only generates their
-contacts against static bodies. Use a convex hull or several primitives for
-something that moves.
+**Meshes, height fields and baked compounds are static only.** Box3D only
+generates their contacts against static bodies. Use a convex hull or several
+primitives for something that moves — several shapes on one body is a run-time
+compound, and it works on any body type.
 
 **Sleeping is a feature.** A settled scene costs almost nothing because bodies
 fall asleep. `world.AwakeBodyCount` reaching zero means everything has settled.

@@ -38,11 +38,18 @@ internal readonly record struct Appearance(Vector3 Albedo, bool CastsShadow = tr
 /// it is called from: it is a read of immutable data, on the calling thread,
 /// inside a call the engine is driving.
 /// </para>
+/// <para>
+/// Baked compounds are the exception, and the reason <see cref="Supply"/>
+/// exists: there is no <c>b3Shape_GetCompound</c>, so the children cannot be
+/// reached from the shape at all and the scene that baked them has to hand the
+/// compound over.
+/// </para>
 /// </remarks>
 internal sealed class ShapeMeshFactory : IDebugShapeFactory
 {
     private readonly Dictionary<nint, Drawable> _drawables = new();
     private readonly Dictionary<Shape, Appearance> _appearance = new();
+    private readonly Dictionary<Shape, CompoundGeometry> _compounds = new();
 
     private nint _next = 1;
 
@@ -61,6 +68,30 @@ internal sealed class ShapeMeshFactory : IDebugShapeFactory
     /// a dictionary read and never asks the world a question mid-draw.
     /// </remarks>
     public void Paint(Shape shape, Appearance appearance) => _appearance[shape] = appearance;
+
+    /// <summary>Hands over the compound behind a shape, so that it can be drawn.</summary>
+    /// <param name="shape">The shape the compound was attached to.</param>
+    /// <param name="compound">The compound it was baked from.</param>
+    /// <remarks>
+    /// <para>
+    /// The one piece of geometry a renderer cannot fetch for itself. Every other
+    /// kind of shape can be read back from its handle - <c>b3Shape_GetHull</c>,
+    /// <c>b3Shape_GetMesh</c>, <c>b3Shape_GetHeightField</c> - but the C API has
+    /// no <c>b3Shape_GetCompound</c>, so the only route to the children is the
+    /// pointer held by whoever baked them.
+    /// </para>
+    /// <para>
+    /// A compound that is not supplied is counted in <see cref="Skipped"/> and
+    /// drawn as nothing, which is the honest outcome: the alternative is a hole
+    /// in the picture with no explanation.
+    /// </para>
+    /// </remarks>
+    public void Supply(Shape shape, CompoundGeometry compound)
+    {
+        ArgumentNullException.ThrowIfNull(compound);
+
+        _compounds[shape] = compound;
+    }
 
     /// <inheritdoc/>
     public nint CreateShape(in DebugShape shape)
@@ -94,7 +125,7 @@ internal sealed class ShapeMeshFactory : IDebugShapeFactory
     /// <returns><see langword="true"/> when the handle is one of ours.</returns>
     public bool TryGet(nint handle, out Drawable drawable) => _drawables.TryGetValue(handle, out drawable);
 
-    private static Mesh? Build(in DebugShape shape)
+    private Mesh? Build(in DebugShape shape)
     {
         if (shape.TryGetSphere(out Sphere sphere))
         {
@@ -104,6 +135,13 @@ internal sealed class ShapeMeshFactory : IDebugShapeFactory
         if (shape.TryGetCapsule(out Capsule capsule))
         {
             return Tessellate.Capsule(capsule.Start, capsule.End, capsule.Radius);
+        }
+
+        if (shape.Type == ShapeType.Compound)
+        {
+            return _compounds.TryGetValue(shape.Shape, out CompoundGeometry? compound)
+                ? FromCompound(compound)
+                : null;
         }
 
         b3ShapeId id = shape.Shape.ToNativeId();
@@ -119,10 +157,87 @@ internal sealed class ShapeMeshFactory : IDebugShapeFactory
 
     private static unsafe Mesh? FromHull(b3ShapeId id)
     {
-        b3HullData* hull = B3.b3Shape_GetHull(id);
+        var builder = new MeshBuilder();
+        AddHull(builder, B3.b3Shape_GetHull(id), Vector3.Zero, Quaternion.Identity);
+
+        return builder.Build();
+    }
+
+    private static unsafe Mesh? FromMesh(b3ShapeId id)
+    {
+        b3Mesh mesh = B3.b3Shape_GetMesh(id);
+
+        var builder = new MeshBuilder();
+        AddMesh(builder, mesh.data, mesh.scale, Vector3.Zero, Quaternion.Identity);
+
+        return builder.Build();
+    }
+
+    /// <summary>Tessellates every child of a baked compound into one mesh.</summary>
+    /// <param name="compound">The compound, as handed over by <see cref="Supply"/>.</param>
+    /// <returns>The mesh, in compound-local space.</returns>
+    /// <remarks>
+    /// One drawable for the whole compound rather than one per child, because
+    /// that is what the engine asks for: a compound is a single shape in the
+    /// broad phase and arrives at the drawer as a single handle and a single
+    /// transform. Folding the children in here is the tessellation-once bargain
+    /// that the rest of this class is built on.
+    /// </remarks>
+    private static unsafe Mesh? FromCompound(CompoundGeometry compound)
+    {
+        b3CompoundData* data = compound.ToNativePointer();
+        var builder = new MeshBuilder();
+
+        // Walked through b3GetCompoundChild rather than the four typed
+        // accessors, because that is the function that knows how the four
+        // arrays are laid out end to end and which of them carries a transform.
+        int children = data->capsuleCount + data->hullCount + data->meshCount + data->sphereCount;
+
+        for (int i = 0; i < children; i++)
+        {
+            b3ChildShape child = B3.b3GetCompoundChild(data, i);
+            Vector3 position = child.transform.p;
+            Quaternion rotation = child.transform.q;
+
+            switch (child.type)
+            {
+                case b3ShapeType.b3_sphereShape:
+                    builder.Add(
+                        Tessellate.Sphere(child.sphere.center, child.sphere.radius),
+                        position,
+                        rotation);
+                    break;
+
+                case b3ShapeType.b3_capsuleShape:
+                    builder.Add(
+                        Tessellate.Capsule(child.capsule.center1, child.capsule.center2, child.capsule.radius),
+                        position,
+                        rotation);
+                    break;
+
+                case b3ShapeType.b3_hullShape:
+                    AddHull(builder, child.hull, position, rotation);
+                    break;
+
+                case b3ShapeType.b3_meshShape:
+                    AddMesh(builder, child.mesh.data, child.mesh.scale, position, rotation);
+                    break;
+
+                default:
+                    // A compound cannot hold a height field or another compound,
+                    // so there is no fourth case to write.
+                    break;
+            }
+        }
+
+        return builder.Build();
+    }
+
+    private static unsafe void AddHull(MeshBuilder builder, b3HullData* hull, Vector3 position, Quaternion rotation)
+    {
         if (hull is null)
         {
-            return null;
+            return;
         }
 
         Vector3* points = B3.b3GetHullPoints(hull);
@@ -132,10 +247,8 @@ internal sealed class ShapeMeshFactory : IDebugShapeFactory
 
         if (points is null || edges is null || faces is null || planes is null)
         {
-            return null;
+            return;
         }
-
-        var builder = new MeshBuilder();
 
         // A hull face is a convex polygon reached by walking its half-edge ring.
         // Box3D stores at most 255 half-edges, so the loop below cannot run
@@ -150,39 +263,37 @@ internal sealed class ShapeMeshFactory : IDebugShapeFactory
 
             do
             {
-                loop[count++] = points[edges[edge].origin];
+                loop[count++] = position + Vector3.Transform(points[edges[edge].origin], rotation);
                 edge = edges[edge].next;
             }
             while (edge != start && count < loop.Length);
 
-            builder.AddConvexPolygon(loop[..count], planes[face].normal);
+            builder.AddConvexPolygon(loop[..count], Vector3.Transform(planes[face].normal, rotation));
         }
-
-        return builder.Build();
     }
 
-    private static unsafe Mesh? FromMesh(b3ShapeId id)
+    private static unsafe void AddMesh(
+        MeshBuilder builder,
+        b3MeshData* data,
+        Vector3 scale,
+        Vector3 position,
+        Quaternion rotation)
     {
-        b3Mesh mesh = B3.b3Shape_GetMesh(id);
-        if (mesh.data is null)
+        if (data is null)
         {
-            return null;
+            return;
         }
 
-        ReadOnlySpan<Vector3> vertices = B3.GetMeshVertexSpan(mesh.data);
-        ReadOnlySpan<b3MeshTriangle> triangles = B3.GetMeshTriangleSpan(mesh.data);
-
-        var builder = new MeshBuilder();
+        ReadOnlySpan<Vector3> vertices = B3.GetMeshVertexSpan(data);
+        ReadOnlySpan<b3MeshTriangle> triangles = B3.GetMeshTriangleSpan(data);
 
         foreach (b3MeshTriangle triangle in triangles)
         {
             builder.AddFlatTriangle(
-                vertices[triangle.index1] * mesh.scale,
-                vertices[triangle.index2] * mesh.scale,
-                vertices[triangle.index3] * mesh.scale);
+                position + Vector3.Transform(vertices[triangle.index1] * scale, rotation),
+                position + Vector3.Transform(vertices[triangle.index2] * scale, rotation),
+                position + Vector3.Transform(vertices[triangle.index3] * scale, rotation));
         }
-
-        return builder.Build();
     }
 
     private static unsafe Mesh? FromHeightField(b3ShapeId id)

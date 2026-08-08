@@ -1,4 +1,10 @@
-<img src="assets/icon.png" width="96" align="right" alt="" />
+<!--
+  The images are absolute URLs on purpose. This file is the package description
+  on nuget.org, which serves it from its own domain, so a relative path resolves
+  against nuget.org and renders as a broken image. tools/set-repository.ps1
+  rewrites them along with everything else that names the repository.
+-->
+<img src="https://raw.githubusercontent.com/Miguel249/Box3D.NET/main/assets/icon.png" width="96" align="right" alt="" />
 
 # Box3D.NET
 
@@ -17,12 +23,12 @@ the 3D physics engine by Erin Catto.
 **[Benchmarks](docs/benchmarks.md)** ·
 **[API reference](https://Miguel249.github.io/Box3D.NET/)**
 
-![Fifteen crates and the ball that ends them](assets/renders/stack.gif)
+![Fifteen crates and the ball that ends them](https://raw.githubusercontent.com/Miguel249/Box3D.NET/main/assets/renders/stack.gif)
 
 > **Status: 0.x.** Published and usable. The binding is complete and verified
 > against the C ABI, and the idiomatic layer covers worlds, bodies, shapes,
-> queries, events, all nine joint types, meshes, height fields, the character
-> mover and debug draw. The API may still change between minor versions; every
+> queries, events, all nine joint types, meshes, height fields, baked compounds,
+> the character mover and debug draw. The API may still change between minor versions; every
 > break is recorded in the [changelog](CHANGELOG.md), and packages are validated
 > against the previous release so none happens by accident.
 
@@ -398,18 +404,19 @@ dotnet run --project src/Box3D.NET.Visualizer                # render all of the
 
 | | |
 | --- | --- |
-| [![Contact points, normals and broad-phase bounds](assets/renders/contacts.png)](docs/gallery.md#contacts)<br>**contacts** — what the solver is working with | [![A chain of revolute joints](assets/renders/chain.png)](docs/gallery.md#chain)<br>**chain** — nine hinges and a weight |
-| [![A sweeping fan of ray casts](assets/renders/raycast.png)](docs/gallery.md#raycast)<br>**raycast** — closest hit and normal, per ray | [![A kinematic character climbing a ramp](assets/renders/character.png)](docs/gallery.md#character)<br>**character** — the mover primitives |
-| [![A cart on wheel joints](assets/renders/vehicle.png)](docs/gallery.md#vehicle)<br>**vehicle** — suspension, a motor, a mesh ramp | [![Balls rolling into a height field bowl](assets/renders/terrain.png)](docs/gallery.md#terrain)<br>**terrain** — a height field, read back from the engine |
+| [![Contact points, normals and broad-phase bounds](https://raw.githubusercontent.com/Miguel249/Box3D.NET/main/assets/renders/contacts.png)](docs/gallery.md#contacts)<br>**contacts** — what the solver is working with | [![A chain of revolute joints](https://raw.githubusercontent.com/Miguel249/Box3D.NET/main/assets/renders/chain.png)](docs/gallery.md#chain)<br>**chain** — nine hinges and a weight |
+| [![A sweeping fan of ray casts](https://raw.githubusercontent.com/Miguel249/Box3D.NET/main/assets/renders/raycast.png)](docs/gallery.md#raycast)<br>**raycast** — closest hit and normal, per ray | [![A kinematic character climbing a ramp](https://raw.githubusercontent.com/Miguel249/Box3D.NET/main/assets/renders/character.png)](docs/gallery.md#character)<br>**character** — the mover primitives |
+| [![A cart on wheel joints](https://raw.githubusercontent.com/Miguel249/Box3D.NET/main/assets/renders/vehicle.png)](docs/gallery.md#vehicle)<br>**vehicle** — suspension, a motor, a mesh ramp | [![Balls rolling into a height field bowl](https://raw.githubusercontent.com/Miguel249/Box3D.NET/main/assets/renders/terrain.png)](docs/gallery.md#terrain)<br>**terrain** — a height field, read back from the engine |
+| [![Spheres, capsules and boxes poured into a pen](https://raw.githubusercontent.com/Miguel249/Box3D.NET/main/assets/renders/pour.png)](docs/gallery.md#pour)<br>**pour** — fifty-four bodies, three shapes | [![A colonnade baked into one shape](https://raw.githubusercontent.com/Miguel249/Box3D.NET/main/assets/renders/compound.png)](docs/gallery.md#compound)<br>**compound** — thirty-seven children, one proxy |
 
-All eight, animated, are in the **[gallery](docs/gallery.md)**.
+All nine, animated, are in the **[gallery](docs/gallery.md)**.
 
 ## Documentation
 
 | | |
 | --- | --- |
 | [Getting started](docs/getting-started.md) | From nothing to a simulation, and the handful of things that will otherwise trip you up. |
-| [Gallery](docs/gallery.md) | Eight scenes, animated, and how the renderer that drew them hangs off the public interface. |
+| [Gallery](docs/gallery.md) | Nine scenes, animated, and how the renderer that drew them hangs off the public interface. |
 | [Architecture](docs/architecture.md) | Layers, ownership and the frame loop, with diagrams. |
 | [Benchmarks](docs/benchmarks.md) | What the wrapper costs, measured. |
 | [API reference](https://Miguel249.github.io/Box3D.NET/) | Every public type, generated from the XML documentation. |

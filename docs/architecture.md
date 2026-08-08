@@ -47,6 +47,7 @@ flowchart LR
         world["PhysicsWorld"]
         mesh["CollisionMesh"]
         field["HeightField"]
+        compound["CompoundGeometry"]
         hull["ConvexHull"]
     end
 
@@ -63,10 +64,12 @@ flowchart LR
     hull -.->|"<b>copied</b> on attach"| shape
     mesh -->|"<b>borrowed</b> — must outlive"| shape
     field -->|"<b>borrowed</b> — must outlive"| shape
+    compound -->|"<b>borrowed</b> — must outlive"| shape
 
     style world fill:#512BD4,color:#fff
     style mesh fill:#dc2626,color:#fff
     style field fill:#dc2626,color:#fff
+    style compound fill:#dc2626,color:#fff
     style hull fill:#16a34a,color:#fff
     style body fill:#f4f4f5,color:#1a1a1a
     style shape fill:#f4f4f5,color:#1a1a1a
@@ -77,9 +80,9 @@ Read the arrow colours:
 
 - **Green** — a hull is interned into the world when attached, so it may be
   disposed the moment the shape exists.
-- **Red** — a mesh or height field is *borrowed*. The shape holds a pointer into
-  it. Disposing it while a shape is alive is a use-after-free inside the solver.
-  **Dispose the world first.**
+- **Red** — a mesh, height field or baked compound is *borrowed*. The shape holds
+  a pointer into it. Disposing it while a shape is alive is a use-after-free
+  inside the solver. **Dispose the world first.**
 - **Grey** — bodies, shapes and joints own nothing. They die with their world.
 
 ```csharp

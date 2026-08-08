@@ -19,6 +19,7 @@ internal static class Program
         string? output = null;
         bool animate = true;
         bool fast = false;
+        bool fontCard = false;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -50,6 +51,10 @@ internal static class Program
                     fast = true;
                     break;
 
+                case "--font-card":
+                    fontCard = true;
+                    break;
+
                 default:
                     if (args[i].StartsWith('-'))
                     {
@@ -61,6 +66,14 @@ internal static class Program
                     requested.Add(args[i]);
                     break;
             }
+        }
+
+        if (fontCard)
+        {
+            string card = Path.Combine(output ?? DefaultOutputDirectory(), "font-card.png");
+            FontCard.Write(card);
+            Console.WriteLine($"Wrote {card}");
+            return 0;
         }
 
         List<Scene> scenes = Select(requested);
@@ -78,7 +91,7 @@ internal static class Program
             StillHeight = fast ? 360 : 720,
             StillSupersample = fast ? 1 : 3,
             AnimationSupersample = fast ? 1 : 2,
-            Stride = fast ? 6 : 3,
+            MinimumStride = fast ? 6 : 3,
         };
 
         b3Version version = B3.b3GetVersion();
@@ -159,6 +172,7 @@ internal static class Program
         Console.WriteLine("  --out <dir>     where the files go, default assets/renders");
         Console.WriteLine("  --no-gif        write only the still images");
         Console.WriteLine("  --fast          small and grainy, for checking a change quickly");
+        Console.WriteLine("  --font-card     a proof sheet of the bitmap font, and nothing else");
     }
 
     private static string Size(string path)
@@ -210,6 +224,7 @@ internal static class Gallery
         new VehicleScene(),
         new RaycastScene(),
         new CharacterScene(),
+        new CompoundScene(),
         new TerrainScene(),
     ];
 }

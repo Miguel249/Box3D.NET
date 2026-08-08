@@ -48,6 +48,7 @@ internal sealed class Renderer
     private readonly List<Instance> _instances = new();
     private readonly List<Segment> _segments = new();
     private readonly List<Sprite> _sprites = new();
+    private readonly List<Label> _labels = new();
 
     private Matrix4x4 _viewProjection;
     private Vector3 _eye;
@@ -89,6 +90,7 @@ internal sealed class Renderer
         _instances.Clear();
         _segments.Clear();
         _sprites.Clear();
+        _labels.Clear();
 
         _eye = camera.Eye;
         _viewProjection = camera.ViewProjection(_width / (float)_height);
@@ -135,6 +137,46 @@ internal sealed class Renderer
     /// <param name="onTop">Whether to ignore the depth buffer.</param>
     public void DrawPoint(Vector3 position, float size, Vector3 color, float alpha = 1.0f, bool onTop = false) =>
         _sprites.Add(new Sprite(position, size, color, alpha, onTop));
+
+    /// <summary>Draws a line of text anchored to a point in the world.</summary>
+    /// <param name="position">Where the text belongs, in world space.</param>
+    /// <param name="utf8Text">The text, UTF-8 encoded and not NUL-terminated.</param>
+    /// <param name="color">The linear colour.</param>
+    /// <param name="scale">How many output pixels wide one glyph pixel is.</param>
+    /// <remarks>
+    /// The bytes belong to whoever called this and may not outlive the call, so
+    /// the text is transcribed here rather than when the label is drawn.
+    /// </remarks>
+    public void DrawText(Vector3 position, ReadOnlySpan<byte> utf8Text, Vector3 color, float scale = 2.0f)
+    {
+        if (utf8Text.IsEmpty)
+        {
+            return;
+        }
+
+        string text = GlyphFont.Transcribe(utf8Text);
+        if (text.Length == 0)
+        {
+            return;
+        }
+
+        _labels.Add(new Label(position, text, color, scale));
+    }
+
+    /// <summary>Draws a line of text anchored to a point in the world.</summary>
+    /// <param name="position">Where the text belongs, in world space.</param>
+    /// <param name="text">The text. Anything outside printable ASCII is drawn as a question mark.</param>
+    /// <param name="color">The linear colour.</param>
+    /// <param name="scale">How many output pixels wide one glyph pixel is.</param>
+    public void DrawText(Vector3 position, string text, Vector3 color, float scale = 2.0f)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+
+        if (text.Length > 0)
+        {
+            _labels.Add(new Label(position, text, color, scale));
+        }
+    }
 
     /// <summary>Draws a circle in the plane perpendicular to an axis.</summary>
     /// <param name="center">The centre, in world space.</param>
@@ -346,6 +388,13 @@ internal sealed class Renderer
         foreach (Sprite sprite in _sprites)
         {
             RasterizeSprite(sprite);
+        }
+
+        // Text last, and over everything. A label is the one primitive that is
+        // unreadable if anything is drawn across it.
+        foreach (Label label in _labels)
+        {
+            RasterizeLabel(label);
         }
 
         return Downsample();
@@ -800,6 +849,107 @@ internal sealed class Renderer
         }
     }
 
+    private void RasterizeLabel(in Label label)
+    {
+        Vector4 clip = Vector4.Transform(new Vector4(label.Position, 1.0f), _viewProjection);
+
+        // Behind the camera. A label has no extent in the world, so there is
+        // nothing to clip against the near plane: it is either in front or not.
+        if (clip.Z < 0.0f || clip.W <= 0.0f)
+        {
+            return;
+        }
+
+        Project(clip, out float x, out float y, out _, out _);
+
+        // A point just in front of the eye projects to screen coordinates in the
+        // millions, and casting one of those to an int does not give a large int
+        // - it gives whatever the conversion happens to produce, which then
+        // overflows the bounds arithmetic below. Rejected here instead: a label
+        // that far off screen has nothing to contribute anyway.
+        const float Limit = 1e6f;
+        if (MathF.Abs(x) > Limit || MathF.Abs(y) > Limit)
+        {
+            return;
+        }
+
+        // Glyph pixels are whole buffer pixels. A fractional cell would let the
+        // same label land on different pixels from one frame to the next and
+        // shimmer, which at this size is all anyone would see.
+        int cell = Math.Max(1, (int)MathF.Round(label.Scale * _supersample));
+
+        // Anchored to the left of the point and centred on it vertically, which
+        // is where a label reads as belonging to the thing under it. The gap
+        // keeps the first stroke off whatever the anchor is marking.
+        int originX = (int)MathF.Round(x) + (cell * 2);
+        int originY = (int)MathF.Round(y) - (GlyphFont.Height * cell / 2);
+
+        if (originX > _width || originY > _height ||
+            originX + (GlyphFont.Measure(label.Text) * cell) < 0 ||
+            originY + (GlyphFont.Height * cell) < 0)
+        {
+            return;
+        }
+
+        // The shadow first, offset by one output pixel. Without it white text
+        // vanishes against a pale body and dark text against the backdrop, and
+        // the scenes cannot promise which a label will land on.
+        Blit(label.Text, originX + _supersample, originY + _supersample, cell, Vector3.Zero, 0.55f);
+        Blit(label.Text, originX, originY, cell, label.Color, 1.0f);
+    }
+
+    private void Blit(string text, int originX, int originY, int cell, Vector3 color, float alpha)
+    {
+        int pen = originX;
+
+        foreach (char character in text)
+        {
+            ReadOnlySpan<byte> glyph = GlyphFont.Glyph(character);
+
+            for (int column = 0; column < GlyphFont.Width; column++)
+            {
+                int bits = glyph[column];
+                if (bits == 0)
+                {
+                    continue;
+                }
+
+                for (int row = 0; row < GlyphFont.Height; row++)
+                {
+                    if ((bits & (1 << row)) != 0)
+                    {
+                        FillCell(pen + (column * cell), originY + (row * cell), cell, color, alpha);
+                    }
+                }
+            }
+
+            pen += GlyphFont.Advance * cell;
+        }
+    }
+
+    private void FillCell(int left, int top, int cell, Vector3 color, float alpha)
+    {
+        int minX = Math.Max(0, left);
+        int maxX = Math.Min(_width - 1, left + cell - 1);
+        int minY = Math.Max(0, top);
+        int maxY = Math.Min(_height - 1, top + cell - 1);
+
+        for (int y = minY; y <= maxY; y++)
+        {
+            int row = y * _width;
+
+            for (int x = minX; x <= maxX; x++)
+            {
+                // No depth test and no depth write: a label describes something
+                // rather than being somewhere.
+                int channel = (row + x) * 3;
+                _color[channel] += (color.X - _color[channel]) * alpha;
+                _color[channel + 1] += (color.Y - _color[channel + 1]) * alpha;
+                _color[channel + 2] += (color.Z - _color[channel + 2]) * alpha;
+            }
+        }
+    }
+
     private Image Downsample()
     {
         var image = new Image(Width, Height);
@@ -1016,6 +1166,17 @@ internal sealed class Renderer
         public float Alpha { get; } = alpha;
 
         public bool OnTop { get; } = onTop;
+    }
+
+    private readonly struct Label(Vector3 position, string text, Vector3 color, float scale)
+    {
+        public Vector3 Position { get; } = position;
+
+        public string Text { get; } = text;
+
+        public Vector3 Color { get; } = color;
+
+        public float Scale { get; } = scale;
     }
 
     private readonly struct RasterVertex(Vector4 clip, Vector3 world, Vector3 normal)

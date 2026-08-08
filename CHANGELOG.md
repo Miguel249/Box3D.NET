@@ -9,23 +9,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Baked compound shapes. `CompoundBuilder` collects spheres, capsules, hulls and
+  meshes, `Build` bakes them into a `CompoundGeometry`, and `Body.AddCompound`
+  attaches the lot as one shape. A baked compound is a single broad-phase proxy
+  no matter how many children it holds, which is what makes it worth having for
+  static scenery built out of hundreds of pieces, and is also why Box3D allows it
+  on static bodies only — for anything that moves, attach the shapes to the body
+  one at a time. Everything in the definition is cloned, so the hulls and meshes
+  may be released as soon as `Build` returns; the compound itself is borrowed by
+  its shape and must outlive it, like a mesh or a height field.
+- `NativeInterop.ToNativePointer(CompoundGeometry)`. The C API has no
+  `b3Shape_GetCompound`, so a compound is the one piece of geometry that cannot
+  be read back from the shape carrying it; anything that needs its children has
+  to be handed the pointer by whoever baked it.
 - A visualizer, in `src/Box3D.NET.Visualizer`, and the gallery it produces in
   `docs/gallery.md`. It is a console application with a software rasterizer and
   its own PNG and GIF writers, no dependencies beyond the base class library,
   and it reaches the simulation only through `IDebugDrawer` and
   `IDebugShapeFactory`. That constraint is the point: the library is
   deliberately renderer-agnostic, so the way to show the drawing interface is
-  usable is to write a renderer against it with no privileged access. Eight
+  usable is to write a renderer against it with no privileged access. Nine
   scenes cover stacking, mixed shapes, contacts and broad-phase bounds, joints,
-  a wheeled vehicle, ray casts, the character mover and a height field.
+  a wheeled vehicle, ray casts, the character mover, a baked compound and a
+  height field.
 - The shape factory tessellates spheres and capsules from the values Box3D
   passes it, and reads hulls, meshes and height fields back out of the engine
   through `Box3D.Interop`. A height field is drawn from the compressed grid the
   engine actually collides against, quantization included, rather than from the
   array it was built from.
+- The visualizer draws the labels the engine emits through `DrawString`, from a
+  5x7 bitmap font of the ninety-five printable ASCII characters, blitted in
+  screen space with a one-pixel shadow. `--font-card` renders a proof sheet of
+  every glyph.
 
-Nothing in `Box3D.NET` or `Box3D.NET.Native` changed. The visualizer is not
-packable and is not referenced by either package.
+### Changed
+
+- Each animation in the gallery is capped at seventy frames. The sampling stride
+  is derived per scene from how long it runs, and the frame delay from the same
+  stride, so a longer scene samples itself more coarsely instead of producing a
+  heavier file that plays at the same speed.
+- The image sources in the README are absolute `raw.githubusercontent.com` URLs
+  rather than repository-relative paths, so they render on nuget.org, which
+  serves the README from its own domain. `tools/set-repository.ps1` rewrites them
+  along with the rest of the repository URLs.
 
 ## [0.2.0] - 2026-08-08
 
