@@ -1,5 +1,7 @@
 - name: Getting started
   href: getting-started.md
+- name: Gallery
+  href: gallery.md
 - name: Architecture
   href: architecture.md
 - name: Benchmarks

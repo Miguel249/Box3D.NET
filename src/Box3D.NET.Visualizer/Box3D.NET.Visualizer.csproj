@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The picture-making tool. It consumes the public API exactly as an
+    application would, so nothing about it leaks back into the library: the
+    engine stays renderer-agnostic and this project owns every pixel it draws.
+
+    Not packable, and deliberately dependency-free - the rasterizer, the PNG
+    writer and the GIF writer are all in here, so `dotnet run` produces the
+    documentation images on a bare clone.
+  -->
+
+  <PropertyGroup>
+    <AssemblyName>Box3D.NET.Visualizer</AssemblyName>
+    <RootNamespace>Box3D.Visualizer</RootNamespace>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <!--
+      Built against net8.0, the oldest runtime the library supports, but run on
+      whatever runtime is present.
+    -->
+    <RollForward>LatestMajor</RollForward>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Box3D.NET\Box3D.NET.csproj" />
+  </ItemGroup>
+
+</Project>

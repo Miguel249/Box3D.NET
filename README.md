@@ -12,9 +12,12 @@ the 3D physics engine by Erin Catto.
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **[Getting started](docs/getting-started.md)** ·
+**[Gallery](docs/gallery.md)** ·
 **[Architecture](docs/architecture.md)** ·
 **[Benchmarks](docs/benchmarks.md)** ·
 **[API reference](https://Miguel249.github.io/Box3D.NET/)**
+
+![Fifteen crates and the ball that ends them](assets/renders/stack.gif)
 
 > **Status: 0.x.** Published and usable. The binding is complete and verified
 > against the C ABI, and the idiomatic layer covers worlds, bodies, shapes,
@@ -380,11 +383,33 @@ dotnet run --project src/Box3D.NET.Samples                # run all of them
 | `chain` | A hanging chain of revolute joints. |
 | `vehicle` | A wheeled vehicle built from wheel joints. |
 
+## Gallery
+
+The library is renderer-agnostic, which makes "does the drawing interface
+actually work" a fair question. `src/Box3D.NET.Visualizer` answers it: a console
+application with a software rasterizer and its own PNG and GIF writers, no
+dependencies beyond the base class library, consuming `Box3D.NET` through
+`IDebugDrawer` and `IDebugShapeFactory` and nothing else.
+
+```sh
+dotnet run --project src/Box3D.NET.Visualizer -- --list      # what there is
+dotnet run --project src/Box3D.NET.Visualizer                # render all of them
+```
+
+| | |
+| --- | --- |
+| [![Contact points, normals and broad-phase bounds](assets/renders/contacts.png)](docs/gallery.md#contacts)<br>**contacts** — what the solver is working with | [![A chain of revolute joints](assets/renders/chain.png)](docs/gallery.md#chain)<br>**chain** — nine hinges and a weight |
+| [![A sweeping fan of ray casts](assets/renders/raycast.png)](docs/gallery.md#raycast)<br>**raycast** — closest hit and normal, per ray | [![A kinematic character climbing a ramp](assets/renders/character.png)](docs/gallery.md#character)<br>**character** — the mover primitives |
+| [![A cart on wheel joints](assets/renders/vehicle.png)](docs/gallery.md#vehicle)<br>**vehicle** — suspension, a motor, a mesh ramp | [![Balls rolling into a height field bowl](assets/renders/terrain.png)](docs/gallery.md#terrain)<br>**terrain** — a height field, read back from the engine |
+
+All eight, animated, are in the **[gallery](docs/gallery.md)**.
+
 ## Documentation
 
 | | |
 | --- | --- |
 | [Getting started](docs/getting-started.md) | From nothing to a simulation, and the handful of things that will otherwise trip you up. |
+| [Gallery](docs/gallery.md) | Eight scenes, animated, and how the renderer that drew them hangs off the public interface. |
 | [Architecture](docs/architecture.md) | Layers, ownership and the frame loop, with diagrams. |
 | [Benchmarks](docs/benchmarks.md) | What the wrapper costs, measured. |
 | [API reference](https://Miguel249.github.io/Box3D.NET/) | Every public type, generated from the XML documentation. |

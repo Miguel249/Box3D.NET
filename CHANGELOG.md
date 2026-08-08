@@ -5,6 +5,28 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- A visualizer, in `src/Box3D.NET.Visualizer`, and the gallery it produces in
+  `docs/gallery.md`. It is a console application with a software rasterizer and
+  its own PNG and GIF writers, no dependencies beyond the base class library,
+  and it reaches the simulation only through `IDebugDrawer` and
+  `IDebugShapeFactory`. That constraint is the point: the library is
+  deliberately renderer-agnostic, so the way to show the drawing interface is
+  usable is to write a renderer against it with no privileged access. Eight
+  scenes cover stacking, mixed shapes, contacts and broad-phase bounds, joints,
+  a wheeled vehicle, ray casts, the character mover and a height field.
+- The shape factory tessellates spheres and capsules from the values Box3D
+  passes it, and reads hulls, meshes and height fields back out of the engine
+  through `Box3D.Interop`. A height field is drawn from the compressed grid the
+  engine actually collides against, quantization included, rather than from the
+  array it was built from.
+
+Nothing in `Box3D.NET` or `Box3D.NET.Native` changed. The visualizer is not
+packable and is not referenced by either package.
+
 ## [0.2.0] - 2026-08-08
 
 ### Added
@@ -194,5 +216,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   follow Box3D and are documented rather than corrected.
 - Single precision only. Box3D's large-world mode changes the ABI and would need
   a separate package.
+[Unreleased]: https://github.com/Miguel249/Box3D.NET/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/Miguel249/Box3D.NET/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Miguel249/Box3D.NET/releases/tag/v0.1.0

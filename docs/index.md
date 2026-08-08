@@ -26,6 +26,8 @@ for (int frame = 0; frame < 120; frame++)
 
 - **[Getting started](getting-started.md)** — from nothing to a simulation, and the
   handful of things that will otherwise trip you up.
+- **[Gallery](gallery.md)** — eight scenes, animated, drawn through the public
+  debug draw interface by a renderer with no privileged access.
 - **[Architecture](architecture.md)** — the layers, what owns what, and why the API
   is shaped the way it is.
 - **[Benchmarks](benchmarks.md)** — what the wrapper costs against calling the C API
