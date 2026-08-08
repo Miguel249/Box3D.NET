@@ -138,6 +138,79 @@ jobs:
           --output ./artifacts/packages
           -p:Version=${{ steps.version.outputs.version }}
 
+      # Inspect the exact files about to be pushed. A version on nuget.org
+      # cannot be withdrawn, only delisted, so this is the last moment at which
+      # a missing native asset or a doubled runtimes path costs nothing.
+      - name: Inspect the packages
+        shell: pwsh
+        run: |
+          $required = @(
+              'runtimes/win-x64/native/box3d.dll'
+              'runtimes/win-arm64/native/box3d.dll'
+              'runtimes/linux-x64/native/libbox3d.so'
+              'runtimes/linux-arm64/native/libbox3d.so'
+              'runtimes/osx-x64/native/libbox3d.dylib'
+              'runtimes/osx-arm64/native/libbox3d.dylib'
+          )
+
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $failed = $false
+
+          foreach ($package in Get-ChildItem ./artifacts/packages -Filter *.nupkg) {
+              Write-Host "== $($package.Name) ($([math]::Round($package.Length / 1KB, 1)) KB)"
+              $zip = [System.IO.Compression.ZipFile]::OpenRead($package.FullName)
+              try {
+                  $entries = $zip.Entries.FullName
+                  $entries | Sort-Object | ForEach-Object { Write-Host "   $_" }
+
+                  foreach ($entry in $entries) {
+                      if ($entry -match '\.(pdb|user|suo)$' -or $entry -match '(^|/)(obj|bin)/') {
+                          Write-Host "::error::$($package.Name) contains a build leftover: $entry"
+                          $failed = $true
+                      }
+                      if ($entry -match 'runtimes/.*/runtimes/') {
+                          Write-Host "::error::$($package.Name) has a doubled runtimes path: $entry"
+                          $failed = $true
+                      }
+                  }
+
+                  if ($package.Name -like 'Box3D.NET.Native.*') {
+                      foreach ($asset in $required) {
+                          if ($entries -notcontains $asset) {
+                              Write-Host "::error::$($package.Name) is missing $asset"
+                              $failed = $true
+                          }
+                      }
+                  }
+
+                  foreach ($expected in 'README.md', 'LICENSE', 'THIRD-PARTY-NOTICES.txt', 'icon.png') {
+                      if ($entries -notcontains $expected) {
+                          Write-Host "::error::$($package.Name) is missing $expected"
+                          $failed = $true
+                      }
+                  }
+              }
+              finally {
+                  $zip.Dispose()
+              }
+          }
+
+          foreach ($id in 'Box3D.NET', 'Box3D.NET.Native') {
+              if (-not (Get-ChildItem ./artifacts/packages -Filter "$id.*.snupkg")) {
+                  Write-Host "::error::no symbol package was produced for $id"
+                  $failed = $true
+              }
+          }
+
+          if ($failed) { throw 'Package inspection found problems. Nothing has been published.' }
+          Write-Host 'Package contents verified.'
+
+      # And install what is about to be published into a project that has never
+      # heard of this repository, before publishing it.
+      - name: Verify a fresh consumer can use the package
+        shell: pwsh
+        run: ./tools/verify-package.ps1 -Rid linux-x64 -Mode Framework -Version ${{ steps.version.outputs.version }}
+
       # Exchanges the workflow's OIDC token for a short-lived NuGet API key. The
       # trusted publishing policy on nuget.org names this repository and this
       # workflow file, so a token minted by any other workflow is refused.
