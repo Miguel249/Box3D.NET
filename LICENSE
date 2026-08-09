@@ -19,10 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-This project is a binding for Box3D (https://github.com/erincatto/box3d),
-which is Copyright (c) Erin Catto and also distributed under the MIT License.
-Box3D is consumed as an unmodified dependency; its license terms accompany the
-native binaries distributed with this package.
