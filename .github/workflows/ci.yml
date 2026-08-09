@@ -625,10 +625,25 @@ jobs:
       matrix:
         include:
           - { os: ubuntu-latest, platform: Android, workload: android }
-          - { os: macos-14,      platform: iOS,     workload: ios }
+          # A newer image than the jobs that only compile Box3D itself. Building
+          # the native library needs nothing but CMake and clang, which Xcode
+          # 15.4 on macos-14 provides; linking an iOS application is the .NET
+          # iOS workload's own job, and it refuses to run against an Xcode older
+          # than the one it was built for - 26.5 wants Xcode 26.6, and macos-14
+          # tops out at 15.4.
+          - { os: macos-26,      platform: iOS,     workload: ios }
 
     steps:
       - uses: actions/checkout@v4
+
+      # Use the newest Xcode the image carries rather than whatever it defaults
+      # to, which is not always the newest installed.
+      - name: Select the newest Xcode
+        if: matrix.platform == 'iOS'
+        run: |
+          newest=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$newest" ]; then sudo xcode-select -s "$newest"; fi
+          xcodebuild -version
 
       - uses: actions/setup-dotnet@v4
         with:
