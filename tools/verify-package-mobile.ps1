@@ -97,6 +97,31 @@ New-Item -ItemType Directory -Force $WorkDirectory | Out-Null
 </configuration>
 "@ | Set-Content -Path (Join-Path $WorkDirectory 'nuget.config') -Encoding utf8
 
+# Cut this project off from the repository's own build configuration.
+#
+# The consumer is supposed to be an ordinary application that has never heard of
+# Box3D.NET, and it is not one while it sits under artifacts/ inheriting the
+# props above it: TreatWarningsAsErrors, the analyzers and the documentation
+# gate all applied to it. The iOS template ships AppDelegate and SceneDelegate,
+# CA1711 objects to both names, and the build failed on the repository's rules
+# rather than on anything to do with the package.
+#
+# MSBuild stops at the first Directory.Build.props it finds walking up, so an
+# empty one here ends the search. The desktop script does the same job by
+# setting ImportDirectoryBuildProps in a project it writes itself; this one
+# cannot, because the project comes from a template.
+foreach ($name in 'Directory.Build.props', 'Directory.Build.targets') {
+    @"
+<Project>
+  <!--
+    Intentionally empty. Its presence stops MSBuild from walking up into the
+    Box3D.NET repository's own build configuration, which this consumer is
+    meant to know nothing about.
+  -->
+</Project>
+"@ | Set-Content -Path (Join-Path $WorkDirectory $name) -Encoding utf8
+}
+
 # The workload's own template, rather than a hand-written project. An Android
 # application needs a manifest, an activity and a resource tree, and an iOS one
 # needs an Info.plist and a scene delegate; reproducing those here would be
