@@ -241,17 +241,24 @@ public readonly record struct Joint
     /// <summary>Gets a value indicating whether this handle refers to a live joint.</summary>
     public bool IsValid => !NativeId.IsNull && B3.b3Joint_IsValid(NativeId);
 
+    /*
+     * Every member below reaches the joint through this rather than through
+     * NativeId, so that a stale handle is rejected instead of being indexed
+     * into a freed slot. See the note in Validate.
+     */
+    private b3JointId Id => Validate.Handle(NativeId);
+
     /// <summary>Gets the kind of constraint this joint applies.</summary>
-    public JointType Type => (JointType)B3.b3Joint_GetType(NativeId);
+    public JointType Type => (JointType)B3.b3Joint_GetType(Id);
 
     /// <summary>Gets the first attached body.</summary>
-    public Body BodyA => new(B3.b3Joint_GetBodyA(NativeId));
+    public Body BodyA => new(B3.b3Joint_GetBodyA(Id));
 
     /// <summary>Gets the second attached body.</summary>
-    public Body BodyB => new(B3.b3Joint_GetBodyB(NativeId));
+    public Body BodyB => new(B3.b3Joint_GetBodyB(Id));
 
     /// <summary>Gets the world this joint belongs to.</summary>
-    public WorldReference World => new(B3.b3Joint_GetWorld(NativeId));
+    public WorldReference World => new(B3.b3Joint_GetWorld(Id));
 
     /// <summary>
     /// Gets or sets the application identifier attached to this joint.
@@ -263,29 +270,29 @@ public readonly record struct Joint
     /// </remarks>
     public unsafe ulong UserData
     {
-        get => Box3D.UserData.FromPointer(B3.b3Joint_GetUserData(NativeId));
-        set => B3.b3Joint_SetUserData(NativeId, Box3D.UserData.ToPointer(value));
+        get => Box3D.UserData.FromPointer(B3.b3Joint_GetUserData(Id));
+        set => B3.b3Joint_SetUserData(Id, Box3D.UserData.ToPointer(value));
     }
 
     /// <summary>Gets or sets a value indicating whether the two attached bodies may collide.</summary>
     public bool CollideConnected
     {
-        get => B3.b3Joint_GetCollideConnected(NativeId);
-        set => B3.b3Joint_SetCollideConnected(NativeId, value);
+        get => B3.b3Joint_GetCollideConnected(Id);
+        set => B3.b3Joint_SetCollideConnected(Id, value);
     }
 
     /// <summary>Gets or sets the joint frame on <see cref="BodyA"/>.</summary>
     public JointFrame FrameA
     {
-        get => JointFrame.FromNative(B3.b3Joint_GetLocalFrameA(NativeId));
-        set => B3.b3Joint_SetLocalFrameA(NativeId, value.ToNative());
+        get => JointFrame.FromNative(B3.b3Joint_GetLocalFrameA(Id));
+        set => B3.b3Joint_SetLocalFrameA(Id, value.ToNative());
     }
 
     /// <summary>Gets or sets the joint frame on <see cref="BodyB"/>.</summary>
     public JointFrame FrameB
     {
-        get => JointFrame.FromNative(B3.b3Joint_GetLocalFrameB(NativeId));
-        set => B3.b3Joint_SetLocalFrameB(NativeId, value.ToNative());
+        get => JointFrame.FromNative(B3.b3Joint_GetLocalFrameB(Id));
+        set => B3.b3Joint_SetLocalFrameB(Id, value.ToNative());
     }
 
     /// <summary>Gets the force the constraint is currently applying, in newtons.</summary>
@@ -293,44 +300,44 @@ public readonly record struct Joint
     /// Compare its length against a threshold to model a joint that breaks under
     /// load.
     /// </remarks>
-    public Vector3 ConstraintForce => B3.b3Joint_GetConstraintForce(NativeId);
+    public Vector3 ConstraintForce => B3.b3Joint_GetConstraintForce(Id);
 
     /// <summary>Gets the torque the constraint is currently applying, in newton-metres.</summary>
-    public Vector3 ConstraintTorque => B3.b3Joint_GetConstraintTorque(NativeId);
+    public Vector3 ConstraintTorque => B3.b3Joint_GetConstraintTorque(Id);
 
     /// <summary>Gets how far the joint is from satisfying its positional constraint, usually in metres.</summary>
-    public float LinearSeparation => B3.b3Joint_GetLinearSeparation(NativeId);
+    public float LinearSeparation => B3.b3Joint_GetLinearSeparation(Id);
 
     /// <summary>Gets how far the joint is from satisfying its angular constraint, usually in radians.</summary>
-    public float AngularSeparation => B3.b3Joint_GetAngularSeparation(NativeId);
+    public float AngularSeparation => B3.b3Joint_GetAngularSeparation(Id);
 
     /// <summary>Gets or sets the force above which this joint raises an event, in newtons.</summary>
     public float ForceThreshold
     {
-        get => B3.b3Joint_GetForceThreshold(NativeId);
-        set => B3.b3Joint_SetForceThreshold(NativeId, value);
+        get => B3.b3Joint_GetForceThreshold(Id);
+        set => B3.b3Joint_SetForceThreshold(Id, value);
     }
 
     /// <summary>Gets or sets the torque above which this joint raises an event, in newton-metres.</summary>
     public float TorqueThreshold
     {
-        get => B3.b3Joint_GetTorqueThreshold(NativeId);
-        set => B3.b3Joint_SetTorqueThreshold(NativeId, value);
+        get => B3.b3Joint_GetTorqueThreshold(Id);
+        set => B3.b3Joint_SetTorqueThreshold(Id, value);
     }
 
     /// <summary>Wakes both attached bodies.</summary>
-    public void WakeBodies() => B3.b3Joint_WakeBodies(NativeId);
+    public void WakeBodies() => B3.b3Joint_WakeBodies(Id);
 
     /// <summary>Sets the constraint softness. Advanced.</summary>
     /// <param name="hertz">The stiffness in cycles per second.</param>
     /// <param name="dampingRatio">The damping ratio, where one is critical damping.</param>
     public void SetConstraintTuning(float hertz, float dampingRatio) =>
-        B3.b3Joint_SetConstraintTuning(NativeId, hertz, dampingRatio);
+        B3.b3Joint_SetConstraintTuning(Id, hertz, dampingRatio);
 
     /// <summary>Destroys this joint.</summary>
     /// <param name="wakeBodies">Whether to wake the attached bodies.</param>
     /// <remarks>Destroying either attached body destroys the joint too.</remarks>
-    public void Destroy(bool wakeBodies = true) => B3.b3DestroyJoint(NativeId, wakeBodies);
+    public void Destroy(bool wakeBodies = true) => B3.b3DestroyJoint(Id, wakeBodies);
 
     /// <summary>
     /// Builds a matched pair of joint frames from a world-space anchor and axis.

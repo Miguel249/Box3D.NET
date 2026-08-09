@@ -211,5 +211,18 @@ if ($platform -eq 'windows') {
     if ($pdb) { Copy-Item $pdb.FullName (Join-Path $OutputDir 'box3d.pdb') -Force }
 }
 
-$size = [math]::Round($built.Length / 1KB, 1)
+# Measure what was staged, not what was found.
+#
+# On macOS CMake writes libbox3d.<version>.dylib and leaves libbox3d.dylib as a
+# symlink to it, so $built above is the link and its Length is zero. Copy-Item
+# follows the link and stages the real contents, but the log read
+# "Staged libbox3d.dylib (0 KB)", which looks exactly like a staging failure and
+# was investigated as one.
+$staged = Get-Item (Join-Path $OutputDir $libraryName)
+$size = [math]::Round($staged.Length / 1KB, 1)
+
+if ($staged.Length -eq 0) {
+    throw "Staged $libraryName is empty. The build produced a file but nothing was copied into $OutputDir."
+}
+
 Write-Host "`nStaged $libraryName ($size KB) to $OutputDir"

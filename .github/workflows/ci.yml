@@ -187,6 +187,14 @@ jobs:
         shell: pwsh
         run: ./tools/dump-abi.ps1 -Check
 
+      # Every Box3D function is accounted for: bound by the generator, bound by
+      # hand, or listed with a reason for not being bound at all. A function
+      # that disappears from the binding without anyone noticing is the failure
+      # this prevents.
+      - name: Verify the API coverage matrix is up to date
+        shell: pwsh
+        run: ./tools/api-coverage.ps1 -Check
+
       - name: Verify formatting
         run: dotnet format --verify-no-changes --severity warn
 
@@ -278,11 +286,193 @@ jobs:
           }
           Get-ChildItem runtimes -Recurse -File | ForEach-Object { $_.FullName.Replace((Get-Location).Path, '') }
 
+      # The native matrix above runs with fail-fast disabled, so that one broken
+      # platform still reports the others. The cost of that is that this job is
+      # reached with whatever succeeded, and dotnet pack will happily produce a
+      # package missing a platform and call it a success. The release workflow
+      # has always checked this before publishing; CI did not, so a platform
+      # could break and the packages artifact still look right.
+      - name: Verify every runtime is present
+        shell: pwsh
+        run: |
+          $required = @('win-x64', 'win-arm64', 'linux-x64', 'linux-arm64', 'osx-x64', 'osx-arm64')
+          $missing = $required | Where-Object { -not (Get-ChildItem "runtimes/$_/native" -File -ErrorAction SilentlyContinue) }
+          if ($missing) {
+              throw "No native library staged for: $($missing -join ', ')"
+          }
+          Write-Host "All $($required.Count) runtimes present."
+
       - name: Pack
         run: dotnet pack --configuration Release --output ./artifacts/packages
+
+      # Inspect the package rather than trusting that pack did the right thing.
+      # A PackagePath that resolves to a directory rather than a file, for
+      # instance, silently produces runtimes\win-x64\native\win-x64\native\ -
+      # a package that restores cleanly and then fails to load on every
+      # platform. That has happened here before.
+      - name: Inspect the packages
+        shell: pwsh
+        run: |
+          $required = @(
+              'runtimes/win-x64/native/box3d.dll'
+              'runtimes/win-arm64/native/box3d.dll'
+              'runtimes/linux-x64/native/libbox3d.so'
+              'runtimes/linux-arm64/native/libbox3d.so'
+              'runtimes/osx-x64/native/libbox3d.dylib'
+              'runtimes/osx-arm64/native/libbox3d.dylib'
+          )
+
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $failed = $false
+
+          foreach ($package in Get-ChildItem ./artifacts/packages -Filter *.nupkg) {
+              Write-Host "== $($package.Name) ($([math]::Round($package.Length / 1KB, 1)) KB)"
+              $zip = [System.IO.Compression.ZipFile]::OpenRead($package.FullName)
+              try {
+                  $entries = $zip.Entries.FullName
+                  $entries | Sort-Object | ForEach-Object { Write-Host "   $_" }
+
+                  # Nothing that should never ship.
+                  foreach ($entry in $entries) {
+                      if ($entry -match '\.(pdb|user|suo)$' -or $entry -match '(^|/)(obj|bin)/') {
+                          Write-Host "::error::$($package.Name) contains a build leftover: $entry"
+                          $failed = $true
+                      }
+                  }
+
+                  if ($package.Name -like 'Box3D.NET.Native.*') {
+                      foreach ($asset in $required) {
+                          if ($entries -notcontains $asset) {
+                              Write-Host "::error::$($package.Name) is missing $asset"
+                              $failed = $true
+                          }
+                      }
+
+                      # A doubled runtimes path restores without complaint and
+                      # then resolves on no platform at all.
+                      foreach ($entry in $entries) {
+                          if ($entry -match 'runtimes/.*/runtimes/') {
+                              Write-Host "::error::$($package.Name) has a doubled runtimes path: $entry"
+                              $failed = $true
+                          }
+                      }
+                  }
+
+                  foreach ($expected in 'README.md', 'LICENSE', 'THIRD-PARTY-NOTICES.txt', 'icon.png') {
+                      if ($entries -notcontains $expected) {
+                          Write-Host "::error::$($package.Name) is missing $expected"
+                          $failed = $true
+                      }
+                  }
+              }
+              finally {
+                  $zip.Dispose()
+              }
+          }
+
+          # Symbols travel separately and must exist for both packages.
+          foreach ($id in 'Box3D.NET', 'Box3D.NET.Native') {
+              if (-not (Get-ChildItem ./artifacts/packages -Filter "$id.*.snupkg")) {
+                  Write-Host "::error::no symbol package was produced for $id"
+                  $failed = $true
+              }
+          }
+
+          if ($failed) { throw 'Package inspection found problems.' }
+          Write-Host 'Package contents verified.'
 
       - uses: actions/upload-artifact@v4
         with:
           name: packages
           path: ./artifacts/packages/
           retention-days: 14
+
+  # Installs the packed .nupkg into a project that has never heard of this
+  # repository, and runs a real simulation through it.
+  #
+  # This is the check the repository did not have. Building the solution proves
+  # nothing about the package: a project reference resolves assemblies from bin/
+  # and copies the native library through a target in Directory.Build.targets,
+  # so it never exercises runtimes/<rid>/native, the NuGet asset resolution, or
+  # the loader. Everything that can only break at a consumer's machine was
+  # therefore untested until now.
+  #
+  # Every declared RID is covered, because a platform in the support matrix
+  # without evidence is a claim rather than a fact.
+  consumer:
+    name: package consumer (${{ matrix.rid }})
+    needs: pack
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest,   rid: win-x64,     aot: true,  mode: Framework }
+          - { os: windows-11-arm,   rid: win-arm64,   aot: false, mode: Framework }
+          - { os: ubuntu-latest,    rid: linux-x64,   aot: true,  mode: Framework }
+          - { os: ubuntu-24.04-arm, rid: linux-arm64, aot: false, mode: Framework }
+          # osx-x64 runs on the arm64 image, under Rosetta 2, and not by
+          # preference. The Intel macos-13 image is on its way out and a job
+          # asking for one sat queued for over an hour without ever being
+          # picked up, which is worse than a failure: timeout-minutes counts
+          # execution rather than queuing, so nothing ever reports.
+          #
+          # Rosetta is a real execution of the x64 binary against the x64
+          # native library, so the asset resolution and the loader are
+          # genuinely exercised. What it does not prove is behaviour on Intel
+          # silicon, and the platform table says so rather than implying
+          # otherwise.
+          #
+          # It has to be self-contained. A framework-dependent x64 binary
+          # starts under Rosetta and then dies on libhostfxr.dylib, because
+          # the only .NET on an arm64 runner is arm64:
+          #
+          #   mach-o file, but is an incompatible architecture
+          #   (have 'arm64', need 'x86_64')
+          #
+          # That is the runner missing an x64 runtime, not the package being
+          # wrong, so the consumer carries its own runtime instead of the job
+          # installing a second .NET to work around it.
+          - { os: macos-14,         rid: osx-x64,     aot: false, mode: SelfContained }
+          - { os: macos-14,         rid: osx-arm64,   aot: true,  mode: Framework }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+
+      - name: Install the native toolchain
+        if: matrix.aot && runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: ./artifacts/packages
+
+      # Everywhere: restore, native library load, world, bodies, Step, raycast,
+      # events, dispose. Framework-dependent, except where the runner has no
+      # runtime of that architecture; see the matrix.
+      - name: Consume the package
+        shell: pwsh
+        run: ./tools/verify-package.ps1 -Rid ${{ matrix.rid }} -Mode ${{ matrix.mode }}
+
+      # Trimming and NativeAOT where a cross-compiling toolchain is available on
+      # the runner. The arm64 Linux and Windows runners and the Intel Mac are
+      # deliberately left at the framework-dependent check rather than given a
+      # cross-compilation setup whose failures would say more about the runner
+      # than about this package.
+      - name: Consume the package, trimmed
+        if: matrix.aot
+        shell: pwsh
+        run: ./tools/verify-package.ps1 -Rid ${{ matrix.rid }} -Mode Trimmed
+
+      - name: Consume the package with NativeAOT
+        if: matrix.aot
+        shell: pwsh
+        run: ./tools/verify-package.ps1 -Rid ${{ matrix.rid }} -Mode Aot

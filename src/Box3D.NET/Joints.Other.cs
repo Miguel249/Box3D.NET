@@ -100,40 +100,44 @@ public readonly record struct WeldJoint
     /// </remarks>
     internal b3JointId NativeId { get; }
 
+    // Reached through here rather than through NativeId so that a stale handle
+    // is rejected instead of being indexed into a freed slot. See Validate.
+    private b3JointId Id => Validate.Handle(NativeId);
+
     /// <summary>Gets the generic handle, carrying what every joint has in common.</summary>
     public Joint AsJoint => new(NativeId);
 
     /// <summary>Gets or sets the translational stiffness in cycles per second. Zero is rigid.</summary>
     public float LinearHertz
     {
-        get => B3.b3WeldJoint_GetLinearHertz(NativeId);
-        set => B3.b3WeldJoint_SetLinearHertz(NativeId, value);
+        get => B3.b3WeldJoint_GetLinearHertz(Id);
+        set => B3.b3WeldJoint_SetLinearHertz(Id, value);
     }
 
     /// <summary>Gets or sets the rotational stiffness in cycles per second. Zero is rigid.</summary>
     public float AngularHertz
     {
-        get => B3.b3WeldJoint_GetAngularHertz(NativeId);
-        set => B3.b3WeldJoint_SetAngularHertz(NativeId, value);
+        get => B3.b3WeldJoint_GetAngularHertz(Id);
+        set => B3.b3WeldJoint_SetAngularHertz(Id, value);
     }
 
     /// <summary>Gets or sets the translational damping ratio.</summary>
     public float LinearDampingRatio
     {
-        get => B3.b3WeldJoint_GetLinearDampingRatio(NativeId);
-        set => B3.b3WeldJoint_SetLinearDampingRatio(NativeId, value);
+        get => B3.b3WeldJoint_GetLinearDampingRatio(Id);
+        set => B3.b3WeldJoint_SetLinearDampingRatio(Id, value);
     }
 
     /// <summary>Gets or sets the rotational damping ratio.</summary>
     public float AngularDampingRatio
     {
-        get => B3.b3WeldJoint_GetAngularDampingRatio(NativeId);
-        set => B3.b3WeldJoint_SetAngularDampingRatio(NativeId, value);
+        get => B3.b3WeldJoint_GetAngularDampingRatio(Id);
+        set => B3.b3WeldJoint_SetAngularDampingRatio(Id, value);
     }
 
     /// <summary>Destroys this joint.</summary>
     /// <param name="wakeBodies">Whether to wake the attached bodies.</param>
-    public void Destroy(bool wakeBodies = true) => B3.b3DestroyJoint(NativeId, wakeBodies);
+    public void Destroy(bool wakeBodies = true) => B3.b3DestroyJoint(Id, wakeBodies);
 }
 
 /// <summary>
@@ -304,106 +308,110 @@ public readonly record struct WheelJoint
     /// </remarks>
     internal b3JointId NativeId { get; }
 
+    // Reached through here rather than through NativeId so that a stale handle
+    // is rejected instead of being indexed into a freed slot. See Validate.
+    private b3JointId Id => Validate.Handle(NativeId);
+
     /// <summary>Gets the generic handle, carrying what every joint has in common.</summary>
     public Joint AsJoint => new(NativeId);
 
     /// <summary>Gets the current spin speed, in radians per second.</summary>
-    public float SpinSpeed => B3.b3WheelJoint_GetSpinSpeed(NativeId);
+    public float SpinSpeed => B3.b3WheelJoint_GetSpinSpeed(Id);
 
     /// <summary>Gets the torque the spin motor is currently applying, in newton-metres.</summary>
-    public float SpinTorque => B3.b3WheelJoint_GetSpinTorque(NativeId);
+    public float SpinTorque => B3.b3WheelJoint_GetSpinTorque(Id);
 
     /// <summary>Gets the current steering angle, in radians.</summary>
-    public float SteeringAngle => B3.b3WheelJoint_GetSteeringAngle(NativeId);
+    public float SteeringAngle => B3.b3WheelJoint_GetSteeringAngle(Id);
 
     /// <summary>Gets the torque steering is currently applying, in newton-metres.</summary>
-    public float SteeringTorque => B3.b3WheelJoint_GetSteeringTorque(NativeId);
+    public float SteeringTorque => B3.b3WheelJoint_GetSteeringTorque(Id);
 
     /// <summary>Gets or sets a value indicating whether the suspension spring is enabled.</summary>
     public bool SuspensionEnabled
     {
-        get => B3.b3WheelJoint_IsSuspensionEnabled(NativeId);
-        set => B3.b3WheelJoint_EnableSuspension(NativeId, value);
+        get => B3.b3WheelJoint_IsSuspensionEnabled(Id);
+        set => B3.b3WheelJoint_EnableSuspension(Id, value);
     }
 
     /// <summary>Gets or sets the suspension stiffness in cycles per second.</summary>
     public float SuspensionHertz
     {
-        get => B3.b3WheelJoint_GetSuspensionHertz(NativeId);
-        set => B3.b3WheelJoint_SetSuspensionHertz(NativeId, value);
+        get => B3.b3WheelJoint_GetSuspensionHertz(Id);
+        set => B3.b3WheelJoint_SetSuspensionHertz(Id, value);
     }
 
     /// <summary>Gets or sets the suspension damping ratio.</summary>
     public float SuspensionDampingRatio
     {
-        get => B3.b3WheelJoint_GetSuspensionDampingRatio(NativeId);
-        set => B3.b3WheelJoint_SetSuspensionDampingRatio(NativeId, value);
+        get => B3.b3WheelJoint_GetSuspensionDampingRatio(Id);
+        set => B3.b3WheelJoint_SetSuspensionDampingRatio(Id, value);
     }
 
     /// <summary>Gets or sets a value indicating whether the suspension travel is limited.</summary>
     public bool SuspensionLimitEnabled
     {
-        get => B3.b3WheelJoint_IsSuspensionLimitEnabled(NativeId);
-        set => B3.b3WheelJoint_EnableSuspensionLimit(NativeId, value);
+        get => B3.b3WheelJoint_IsSuspensionLimitEnabled(Id);
+        set => B3.b3WheelJoint_EnableSuspensionLimit(Id, value);
     }
 
     /// <summary>Gets or sets a value indicating whether the spin motor is enabled.</summary>
     public bool SpinMotorEnabled
     {
-        get => B3.b3WheelJoint_IsSpinMotorEnabled(NativeId);
-        set => B3.b3WheelJoint_EnableSpinMotor(NativeId, value);
+        get => B3.b3WheelJoint_IsSpinMotorEnabled(Id);
+        set => B3.b3WheelJoint_EnableSpinMotor(Id, value);
     }
 
     /// <summary>Gets or sets the spin speed the motor drives towards, in radians per second.</summary>
     public float SpinMotorSpeed
     {
-        get => B3.b3WheelJoint_GetSpinMotorSpeed(NativeId);
-        set => B3.b3WheelJoint_SetSpinMotorSpeed(NativeId, value);
+        get => B3.b3WheelJoint_GetSpinMotorSpeed(Id);
+        set => B3.b3WheelJoint_SetSpinMotorSpeed(Id, value);
     }
 
     /// <summary>Gets or sets the maximum spin torque, in newton-metres.</summary>
     public float MaxSpinTorque
     {
-        get => B3.b3WheelJoint_GetMaxSpinTorque(NativeId);
-        set => B3.b3WheelJoint_SetMaxSpinTorque(NativeId, value);
+        get => B3.b3WheelJoint_GetMaxSpinTorque(Id);
+        set => B3.b3WheelJoint_SetMaxSpinTorque(Id, value);
     }
 
     /// <summary>Gets or sets a value indicating whether the wheel may steer.</summary>
     public bool SteeringEnabled
     {
-        get => B3.b3WheelJoint_IsSteeringEnabled(NativeId);
-        set => B3.b3WheelJoint_EnableSteering(NativeId, value);
+        get => B3.b3WheelJoint_IsSteeringEnabled(Id);
+        set => B3.b3WheelJoint_EnableSteering(Id, value);
     }
 
     /// <summary>Gets or sets the steering angle driven towards, in radians.</summary>
     public float TargetSteeringAngle
     {
-        get => B3.b3WheelJoint_GetTargetSteeringAngle(NativeId);
-        set => B3.b3WheelJoint_SetTargetSteeringAngle(NativeId, value);
+        get => B3.b3WheelJoint_GetTargetSteeringAngle(Id);
+        set => B3.b3WheelJoint_SetTargetSteeringAngle(Id, value);
     }
 
     /// <summary>Gets or sets the maximum steering torque, in newton-metres.</summary>
     public float MaxSteeringTorque
     {
-        get => B3.b3WheelJoint_GetMaxSteeringTorque(NativeId);
-        set => B3.b3WheelJoint_SetMaxSteeringTorque(NativeId, value);
+        get => B3.b3WheelJoint_GetMaxSteeringTorque(Id);
+        set => B3.b3WheelJoint_SetMaxSteeringTorque(Id, value);
     }
 
     /// <summary>Sets both suspension travel limits.</summary>
     /// <param name="lower">The lower limit.</param>
     /// <param name="upper">The upper limit.</param>
     public void SetSuspensionLimits(float lower, float upper) =>
-        B3.b3WheelJoint_SetSuspensionLimits(NativeId, lower, upper);
+        B3.b3WheelJoint_SetSuspensionLimits(Id, lower, upper);
 
     /// <summary>Sets both steering angle limits.</summary>
     /// <param name="lower">The lower limit in radians.</param>
     /// <param name="upper">The upper limit in radians.</param>
     public void SetSteeringLimits(float lower, float upper) =>
-        B3.b3WheelJoint_SetSteeringLimits(NativeId, lower, upper);
+        B3.b3WheelJoint_SetSteeringLimits(Id, lower, upper);
 
     /// <summary>Destroys this joint.</summary>
     /// <param name="wakeBodies">Whether to wake the attached bodies.</param>
-    public void Destroy(bool wakeBodies = true) => B3.b3DestroyJoint(NativeId, wakeBodies);
+    public void Destroy(bool wakeBodies = true) => B3.b3DestroyJoint(Id, wakeBodies);
 }
 
 /// <summary>
@@ -504,82 +512,86 @@ public readonly record struct MotorJoint
     /// </remarks>
     internal b3JointId NativeId { get; }
 
+    // Reached through here rather than through NativeId so that a stale handle
+    // is rejected instead of being indexed into a freed slot. See Validate.
+    private b3JointId Id => Validate.Handle(NativeId);
+
     /// <summary>Gets the generic handle, carrying what every joint has in common.</summary>
     public Joint AsJoint => new(NativeId);
 
     /// <summary>Gets or sets the relative linear velocity driven towards.</summary>
     public Vector3 LinearVelocity
     {
-        get => B3.b3MotorJoint_GetLinearVelocity(NativeId);
-        set => B3.b3MotorJoint_SetLinearVelocity(NativeId, value);
+        get => B3.b3MotorJoint_GetLinearVelocity(Id);
+        set => B3.b3MotorJoint_SetLinearVelocity(Id, value);
     }
 
     /// <summary>Gets or sets the relative angular velocity driven towards.</summary>
     public Vector3 AngularVelocity
     {
-        get => B3.b3MotorJoint_GetAngularVelocity(NativeId);
-        set => B3.b3MotorJoint_SetAngularVelocity(NativeId, value);
+        get => B3.b3MotorJoint_GetAngularVelocity(Id);
+        set => B3.b3MotorJoint_SetAngularVelocity(Id, value);
     }
 
     /// <summary>Gets or sets the maximum force the velocity motor may apply, in newtons.</summary>
     public float MaxVelocityForce
     {
-        get => B3.b3MotorJoint_GetMaxVelocityForce(NativeId);
-        set => B3.b3MotorJoint_SetMaxVelocityForce(NativeId, value);
+        get => B3.b3MotorJoint_GetMaxVelocityForce(Id);
+        set => B3.b3MotorJoint_SetMaxVelocityForce(Id, value);
     }
 
     /// <summary>Gets or sets the maximum torque the velocity motor may apply, in newton-metres.</summary>
     public float MaxVelocityTorque
     {
-        get => B3.b3MotorJoint_GetMaxVelocityTorque(NativeId);
-        set => B3.b3MotorJoint_SetMaxVelocityTorque(NativeId, value);
+        get => B3.b3MotorJoint_GetMaxVelocityTorque(Id);
+        set => B3.b3MotorJoint_SetMaxVelocityTorque(Id, value);
     }
 
     /// <summary>Gets or sets the positional spring stiffness in cycles per second.</summary>
     public float LinearHertz
     {
-        get => B3.b3MotorJoint_GetLinearHertz(NativeId);
-        set => B3.b3MotorJoint_SetLinearHertz(NativeId, value);
+        get => B3.b3MotorJoint_GetLinearHertz(Id);
+        set => B3.b3MotorJoint_SetLinearHertz(Id, value);
     }
 
     /// <summary>Gets or sets the positional spring damping ratio.</summary>
     public float LinearDampingRatio
     {
-        get => B3.b3MotorJoint_GetLinearDampingRatio(NativeId);
-        set => B3.b3MotorJoint_SetLinearDampingRatio(NativeId, value);
+        get => B3.b3MotorJoint_GetLinearDampingRatio(Id);
+        set => B3.b3MotorJoint_SetLinearDampingRatio(Id, value);
     }
 
     /// <summary>Gets or sets the rotational spring stiffness in cycles per second.</summary>
     public float AngularHertz
     {
-        get => B3.b3MotorJoint_GetAngularHertz(NativeId);
-        set => B3.b3MotorJoint_SetAngularHertz(NativeId, value);
+        get => B3.b3MotorJoint_GetAngularHertz(Id);
+        set => B3.b3MotorJoint_SetAngularHertz(Id, value);
     }
 
     /// <summary>Gets or sets the rotational spring damping ratio.</summary>
     public float AngularDampingRatio
     {
-        get => B3.b3MotorJoint_GetAngularDampingRatio(NativeId);
-        set => B3.b3MotorJoint_SetAngularDampingRatio(NativeId, value);
+        get => B3.b3MotorJoint_GetAngularDampingRatio(Id);
+        set => B3.b3MotorJoint_SetAngularDampingRatio(Id, value);
     }
 
     /// <summary>Gets or sets the maximum positional spring force, in newtons.</summary>
     public float MaxSpringForce
     {
-        get => B3.b3MotorJoint_GetMaxSpringForce(NativeId);
-        set => B3.b3MotorJoint_SetMaxSpringForce(NativeId, value);
+        get => B3.b3MotorJoint_GetMaxSpringForce(Id);
+        set => B3.b3MotorJoint_SetMaxSpringForce(Id, value);
     }
 
     /// <summary>Gets or sets the maximum rotational spring torque, in newton-metres.</summary>
     public float MaxSpringTorque
     {
-        get => B3.b3MotorJoint_GetMaxSpringTorque(NativeId);
-        set => B3.b3MotorJoint_SetMaxSpringTorque(NativeId, value);
+        get => B3.b3MotorJoint_GetMaxSpringTorque(Id);
+        set => B3.b3MotorJoint_SetMaxSpringTorque(Id, value);
     }
 
     /// <summary>Destroys this joint.</summary>
     /// <param name="wakeBodies">Whether to wake the attached bodies.</param>
-    public void Destroy(bool wakeBodies = true) => B3.b3DestroyJoint(NativeId, wakeBodies);
+    public void Destroy(bool wakeBodies = true) => B3.b3DestroyJoint(Id, wakeBodies);
 }
 
 /// <summary>
@@ -640,33 +652,37 @@ public readonly record struct ParallelJoint
     /// </remarks>
     internal b3JointId NativeId { get; }
 
+    // Reached through here rather than through NativeId so that a stale handle
+    // is rejected instead of being indexed into a freed slot. See Validate.
+    private b3JointId Id => Validate.Handle(NativeId);
+
     /// <summary>Gets the generic handle, carrying what every joint has in common.</summary>
     public Joint AsJoint => new(NativeId);
 
     /// <summary>Gets or sets the spring stiffness in cycles per second.</summary>
     public float Hertz
     {
-        get => B3.b3ParallelJoint_GetSpringHertz(NativeId);
-        set => B3.b3ParallelJoint_SetSpringHertz(NativeId, value);
+        get => B3.b3ParallelJoint_GetSpringHertz(Id);
+        set => B3.b3ParallelJoint_SetSpringHertz(Id, value);
     }
 
     /// <summary>Gets or sets the spring damping ratio.</summary>
     public float DampingRatio
     {
-        get => B3.b3ParallelJoint_GetSpringDampingRatio(NativeId);
-        set => B3.b3ParallelJoint_SetSpringDampingRatio(NativeId, value);
+        get => B3.b3ParallelJoint_GetSpringDampingRatio(Id);
+        set => B3.b3ParallelJoint_SetSpringDampingRatio(Id, value);
     }
 
     /// <summary>Gets or sets the maximum torque the spring may apply, in newton-metres.</summary>
     public float MaxTorque
     {
-        get => B3.b3ParallelJoint_GetMaxTorque(NativeId);
-        set => B3.b3ParallelJoint_SetMaxTorque(NativeId, value);
+        get => B3.b3ParallelJoint_GetMaxTorque(Id);
+        set => B3.b3ParallelJoint_SetMaxTorque(Id, value);
     }
 
     /// <summary>Destroys this joint.</summary>
     /// <param name="wakeBodies">Whether to wake the attached bodies.</param>
-    public void Destroy(bool wakeBodies = true) => B3.b3DestroyJoint(NativeId, wakeBodies);
+    public void Destroy(bool wakeBodies = true) => B3.b3DestroyJoint(Id, wakeBodies);
 }
 
 /// <summary>
@@ -731,10 +747,14 @@ public readonly record struct FilterJoint
     /// </remarks>
     internal b3JointId NativeId { get; }
 
+    // Reached through here rather than through NativeId so that a stale handle
+    // is rejected instead of being indexed into a freed slot. See Validate.
+    private b3JointId Id => Validate.Handle(NativeId);
+
     /// <summary>Gets the generic handle, carrying what every joint has in common.</summary>
     public Joint AsJoint => new(NativeId);
 
     /// <summary>Destroys this joint, allowing the two bodies to collide again.</summary>
     /// <param name="wakeBodies">Whether to wake the attached bodies.</param>
-    public void Destroy(bool wakeBodies = true) => B3.b3DestroyJoint(NativeId, wakeBodies);
+    public void Destroy(bool wakeBodies = true) => B3.b3DestroyJoint(Id, wakeBodies);
 }

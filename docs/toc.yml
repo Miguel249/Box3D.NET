@@ -6,5 +6,7 @@
   href: architecture.md
 - name: Benchmarks
   href: benchmarks.md
+- name: API coverage
+  href: api-coverage.md
 - name: API reference
   href: api/index.md

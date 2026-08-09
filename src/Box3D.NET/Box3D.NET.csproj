@@ -11,7 +11,7 @@
     <RootNamespace>Box3D</RootNamespace>
     <IsPackable>true</IsPackable>
     <PackageId>Box3D.NET</PackageId>
-    <Description>An idiomatic, allocation-free C# wrapper for Box3D, the 3D physics engine by Erin Catto. Targets .NET 8+, works with NativeAOT and trimming, and ships native binaries for Windows, Linux and macOS.</Description>
+    <Description>An idiomatic C# wrapper for Box3D, the 3D physics engine by Erin Catto, with no managed allocations on the simulation hot path. Targets .NET 8+, works with NativeAOT and trimming, and ships native binaries for Windows, Linux and macOS on x64 and arm64.</Description>
   </PropertyGroup>
 
   <ItemGroup>

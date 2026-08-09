@@ -52,9 +52,14 @@
       Bump the baseline when a version ships. Breaking changes are allowed
       before 1.0, but they should be a decision recorded in the changelog rather
       than something discovered by a consumer.
+
+      This was still 0.1.0 while 0.3.0 was being prepared, which is a gap rather
+      than extra strictness: comparing against 0.1.0 says nothing about whether
+      a member 0.2.0 added has survived, so anything introduced and then removed
+      inside the 0.2.x line would have passed unremarked.
     -->
     <EnablePackageValidation>true</EnablePackageValidation>
-    <PackageValidationBaselineVersion>0.1.0</PackageValidationBaselineVersion>
+    <PackageValidationBaselineVersion>0.2.0</PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(IsPackable)' == 'true'">

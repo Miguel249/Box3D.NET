@@ -7,7 +7,142 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-08
+
+A hardening release. Nothing here is a new capability; it is the release that
+went looking for the ways the existing ones could be wrong, and found one that
+mattered.
+
+### Fixed
+
+- **A stale `Body`, `Shape` or `Joint` handle no longer reads freed memory.**
+  This is the reason 0.3.0 exists. Box3D resolves an id by indexing into the
+  world's arrays and asserting on the way past that the id is live, and those
+  assertions are compiled out of the release binary this package ships. Nothing
+  stood between a dead handle and the read. Measured on `win-x64` against the
+  shipped 0.2.0 build:
+
+  | | Before |
+  | --- | --- |
+  | `default(Body).Position` | access violation, `0xC0000005` |
+  | `body.Position` after `body.Destroy()` | access violation |
+  | `body.Position` after `world.Dispose()` | access violation |
+  | `body.Destroy()` twice | access violation |
+  | `body.AddSphere(...)` after `Destroy()` | access violation |
+  | `default(Shape).Friction` | access violation |
+  | `shape.Friction` after `shape.Destroy()` | returned a value from the freed slot |
+  | a handle whose index had been reused | returned the *replacement* body's position, in silence |
+
+  Every member of `Body`, `Shape`, `Joint` and the nine specific joint handles
+  that dereferences a handle now asks `b3Body_IsValid`, `b3Shape_IsValid` or
+  `b3Joint_IsValid` first, and throws `InvalidOperationException` if the answer
+  is no. `IsValid`, handle conversions such as `hinge.AsJoint`, equality and
+  `ToString` are unchanged and still never throw, so checking a handle is always
+  safe. `HandleSafetyTests` covers every way a dead handle can be produced.
+
+  The check costs 2.07 ns against the 2.66 ns of the `b3Body_GetPosition` it
+  guards, measured over twenty million iterations. Declaring the predicates a
+  second time with `[SuppressGCTransition]` was measured too — it brought the
+  check to 1.65 ns — and rejected, because 0.4 ns does not pay for a
+  hand-written duplicate of a generated binding.
+
+  `Box3D.NET.Native` and `Box3D.Interop` are unchanged and still validate
+  nothing. They are the C API, and its contract is that a handle is valid.
+
+- The `RevoluteJoint` example in the README called `world.CastRay` and
+  `world.CastRayClosest`, neither of which exists; the methods are `Raycast` and
+  `RaycastClosest`.
+
+- The visualizer's `chain` scene described itself as twelve links. It builds
+  nine and a weight.
+
+### Changed
+
+- **Breaking, deliberately.** Members that previously killed the process or
+  returned another object's state when given a dead handle now throw
+  `InvalidOperationException`. No signature changed, so this does not break
+  compilation and package validation against 0.2.0 reports no difference; code
+  that was relying on the old behaviour was relying on undefined behaviour. Code
+  that reads handles out of end-touch or sensor-end events should check
+  `IsValid` first, which the documentation already said to do.
+
+- `PackageValidationBaselineVersion` is 0.2.0. It had been left at 0.1.0 while
+  0.2.0 shipped, which is a gap rather than extra strictness: comparing against
+  0.1.0 says nothing about whether a member 0.2.0 added has survived.
+
+- The README no longer describes the library as "allocation-free". The precise
+  claim, and the one the tests now enforce, is that there are no managed
+  allocations on the simulation hot path.
+
+- Each animation in the gallery is capped at seventy frames. The sampling stride
+  is derived per scene from how long it runs, and the frame delay from the same
+  stride, so a longer scene samples itself more coarsely instead of producing a
+  heavier file that plays at the same speed.
+
+- The image sources in the README are absolute `raw.githubusercontent.com` URLs
+  rather than repository-relative paths, so they render on nuget.org, which
+  serves the README from its own domain. `tools/set-repository.ps1` rewrites them
+  along with the rest of the repository URLs.
+
 ### Added
+
+- `AllocationTests` holds the hot paths to allocating exactly zero managed
+  bytes, measured with `GC.GetAllocatedBytesForCurrentThread`: `Step`, body
+  reads and writes, body creation and destruction, shape access, both ray cast
+  forms, overlap, all six event lists, a whole step-and-drain frame, joint
+  access, and the character mover's collide and cast. Each test also asserts
+  that the scene it measures is doing real work, so a path that stops finding
+  anything fails rather than reporting a flattering zero.
+
+- `GeometryOwnershipTests` covers what the ownership documentation claims: one
+  mesh behind two hundred shapes, one height field behind sixty-four, hulls
+  outliving the hull that created them, every safe teardown order, and ten
+  thousand build-and-release cycles per geometry kind with Box3D's own live byte
+  count required to return exactly to where it started.
+
+- `HandleSafetyTests` covers the defect above, and pins the one case that cannot
+  be caught: a `b3BodyId` records which world *slot* it came from but not that
+  world's generation, so a handle held past `world.Dispose()` is
+  indistinguishable from a handle into whatever world next takes the slot.
+  That is a limit of the C id, not of this binding, and it is documented rather
+  than hidden.
+
+- `tools/verify-package.ps1` installs the packed `.nupkg` into a project that
+  has never heard of this repository and runs a scene through it —
+  framework-dependent, trimmed, and NativeAOT. Building the solution proves
+  nothing about the package: a project reference resolves assemblies from `bin/`
+  and copies the native library through a build target, so it never exercises
+  the `runtimes/<rid>/native` layout, the NuGet asset resolution or the loader.
+  CI runs it on all six supported runtime identifiers, and the release workflow
+  runs it before publishing.
+
+- CI inspects the packed `.nupkg` files: every declared runtime's native library
+  present, no doubled `runtimes/` path, no build leftovers, README, licence,
+  third-party notices, icon and symbol packages all there. The release workflow
+  does the same on the exact files it is about to push, which cannot be
+  withdrawn once pushed.
+
+- CI fails if a native runtime is missing before packing. The native matrix runs
+  with `fail-fast` disabled so one broken platform still reports the others, and
+  the cost of that was that `pack` would happily produce a package missing a
+  platform and call it a success. The release workflow already checked this; CI
+  did not.
+
+- A thread safety section in the README, stating for each operation whether it
+  is safe concurrently, why world creation is guarded by this library rather
+  than by Box3D, and what `WorkerCount` does and does not buy.
+
+- `Workload.RequireAwake` and `Workload.RequireHits` assert that a benchmark
+  scene is doing the work it claims before anything is measured. A physics
+  benchmark fails quietly: Box3D skips sleeping bodies entirely, so a scene that
+  settled during warm-up reports an excellent number that means nothing.
+
+- `EventBenchmarks` measures draining the events separately from stepping, so
+  the enumeration's own cost and allocation can be seen rather than being
+  swamped by the step, and drains all six event lists rather than two.
+
+- `QueryBenchmarks` compares `RaycastClosest` against the same query through the
+  C API, so the wrapper's share of a query is read off rather than assumed.
 
 - Baked compound shapes. `CompoundBuilder` collects spheres, capsules, hulls and
   meshes, `Build` bakes them into a `CompoundGeometry`, and `Body.AddCompound`
@@ -42,16 +177,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   screen space with a one-pixel shadow. `--font-card` renders a proof sheet of
   every glyph.
 
-### Changed
+### Performance
 
-- Each animation in the gallery is capped at seventy frames. The sampling stride
-  is derived per scene from how long it runs, and the frame delay from the same
-  stride, so a longer scene samples itself more coarsely instead of producing a
-  heavier file that plays at the same speed.
-- The image sources in the README are absolute `raw.githubusercontent.com` URLs
-  rather than repository-relative paths, so they render on nuget.org, which
-  serves the README from its own domain. `tools/set-repository.ps1` rewrites them
-  along with the rest of the repository URLs.
+Measured on this machine, single-precision Release build, against the same
+scene through the C API. See `docs/benchmarks.md` for the full conditions.
+
+- A step is unchanged, at every scale and allocating nothing: 100 bodies
+  75.29 µs through the C API against 75.48 µs wrapped, 1,000 bodies 746.82 µs
+  against 745.40 µs, 10,000 bodies 7,704.64 µs against 7,723.55 µs.
+- A ray cast is unchanged: `b3World_CastRayClosest` 175.4 ns against
+  `RaycastClosest` 171.7 ns, allocating nothing.
+- Reading a body position went to 9.496 ns against the C API's 8.998 ns. That
+  0.5 ns is the validity check this release exists to add.
+- Draining all six event lists after a step costs 164.5 ns and allocates
+  nothing.
+
+Two documented figures were found not to reproduce and have been corrected
+rather than left standing:
+
+- **Bulk body creation is 1.48x the C API, not the 1.13x recorded for 0.2.0.**
+  Re-measured two ways, and checked against the published 0.2.0 package, which
+  measures 1.54x on the same machine — so this is a documentation correction,
+  not a regression. The validity check accounts for one to three points of it;
+  the rest is the wrapper rebuilding `b3BodyDef` and `b3ShapeDef` per body where
+  the C loop hoists them, which is what definitions being values costs. The
+  claim that writing the definitions inline costs the same as hoisting them does
+  not hold either: it is 1.65x against 1.48x.
+
+- **The finite-value check is below the noise floor**, not "+0.11 ns". This run
+  measured the native call *with* the check as faster than without it, which is
+  impossible and settles the question in the other direction.
 
 ## [0.2.0] - 2026-08-08
 
