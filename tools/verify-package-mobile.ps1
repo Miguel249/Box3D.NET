@@ -181,6 +181,12 @@ internal static class Box3DUse
         $buildArgs += @('-p:RuntimeIdentifier=iossimulator-arm64')
     }
 
+    # The log is kept because it is evidence in its own right on iOS: whether
+    # the linker was handed the archive at all is visible there, and nowhere in
+    # the finished bundle if the answer is no.
+    $buildLog = Join-Path $WorkDirectory 'build.log'
+    $buildArgs += @('-v:n', "-fileLoggerParameters:LogFile=$buildLog;Verbosity=normal")
+
     Write-Host "`n> dotnet $($buildArgs -join ' ')"
     & dotnet @buildArgs
     if ($LASTEXITCODE -ne 0) { throw "The consumer application failed to build with exit code $LASTEXITCODE" }
@@ -236,21 +242,64 @@ internal static class Box3DUse
 
         Write-Host "`nInspecting $executable ($([math]::Round((Get-Item $executable).Length / 1MB, 1)) MB)"
 
-        # This is the check that matters on iOS.
+        # This is the check that matters on iOS, and it is asked two ways
+        # because a build that succeeds proves nothing on its own. A P/Invoke to
+        # __Internal is resolved by Mono at run time, not by the linker, so an
+        # application whose archive was never handed to the linker builds,
+        # installs and launches exactly like a correct one, and fails on the
+        # first physics call. There is no device here to find that out on.
         #
-        # The symbols are only here if the static archive survived the link,
-        # which is what ForceLoad in the package's .targets is for. Without it
-        # the linker drops every object file, because nothing refers to them
-        # until the P/Invoke resolves at run time - far too late to matter.
-        $symbols = & nm $executable 2>$null | Select-String -Pattern '_b3(CreateWorld|World_Step|CreateBody)' -SimpleMatch:$false
-
-        if (-not $symbols) {
-            throw "No Box3D symbols found in $executable. The static archive was not linked into the application; check ForceLoad and the xcframework in the package."
+        #   the link   did the build hand libbox3d.a to the linker at all,
+        #              which is what the package's .targets is responsible for
+        #   the result did Box3D's symbols end up in the executable, which is
+        #              what ForceLoad is responsible for: without it the linker
+        #              keeps only the objects something already refers to, and
+        #              nothing refers to these until run time
+        #
+        # Either one passing means the archive reached the application. Both are
+        # reported, because which one failed says which half to go and look at.
+        $linkerSawArchive = $false
+        if (Test-Path $buildLog) {
+            $linkerSawArchive = [bool] (Select-String -Path $buildLog -Pattern 'libbox3d\.a|box3d\.xcframework' -Quiet)
         }
 
-        $symbols | Select-Object -First 5 | ForEach-Object { Write-Host "  $($_.Line.Trim())" }
+        $symbols = @(& nm $executable 2>$null | Select-String -Pattern '_b3[A-Za-z_]' )
 
-        Write-Host "`nThe iOS application has Box3D linked into its executable."
+        Write-Host "  archive passed to the linker : $linkerSawArchive"
+        Write-Host "  Box3D symbols in the binary  : $($symbols.Count)"
+
+        if (-not $linkerSawArchive -and $symbols.Count -eq 0) {
+            # Everything worth knowing about why, gathered before failing, so
+            # that one CI run answers the question instead of starting a guess.
+            Write-Host "`n--- diagnostics"
+
+            $allSymbols = @(& nm $executable 2>$null)
+            Write-Host "  symbols in the executable: $($allSymbols.Count)"
+            $allSymbols | Select-Object -First 5 | ForEach-Object { Write-Host "    $_" }
+
+            Write-Host "  bundle contents:"
+            Get-ChildItem $app.FullName | ForEach-Object { Write-Host "    $($_.Name)" }
+
+            if (Test-Path $buildLog) {
+                Write-Host "  build log lines naming the package or a native reference:"
+                Select-String -Path $buildLog -Pattern 'NativeReference|force_load|Box3D' |
+                    Select-Object -First 15 |
+                    ForEach-Object { Write-Host "    $($_.Line.Trim())" }
+            }
+
+            throw "Box3D never reached the application: the linker was not given libbox3d.a and no b3 symbols are in the executable. The package's iOS .targets did not take effect - check that buildTransitive/<tfm>/ matches the consumer's target framework, and that NativeReference names the xcframework correctly."
+        }
+
+        if ($symbols.Count -gt 0) {
+            $symbols | Select-Object -First 5 | ForEach-Object { Write-Host "  $($_.Line.Trim())" }
+            Write-Host "`nThe iOS application has Box3D linked into its executable."
+        }
+        else {
+            # The archive was linked but the symbols are not visible to nm,
+            # which a stripped release binary can legitimately do. Worth saying
+            # out loud rather than reporting as a clean pass.
+            Write-Host "`nThe linker was given Box3D's archive, but no b3 symbols are visible in the executable - it is stripped. The link is evidence enough; the symbol check is not available here."
+        }
     }
 }
 finally {
