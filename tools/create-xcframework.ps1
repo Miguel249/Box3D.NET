@@ -78,8 +78,18 @@ New-Item -ItemType Directory -Force $OutputDir | Out-Null
 $simulator = $null
 $simulatorSlices = @($simulatorArm, $simulatorX64) | Where-Object { $_ }
 
+# The merged archive is written into a directory of its own and keeps the name
+# libbox3d.a. xcodebuild copies each -library argument into the framework under
+# the file name it arrived with, so calling this one libbox3d-simulator.a
+# produced a framework whose two variants held differently named archives -
+# valid, but inconsistent enough that anything matching on the file name sees
+# one variant and not the other.
+$merged = Join-Path $OutputDir 'merged-simulator'
+
 if ($simulatorSlices.Count -gt 1) {
-    $simulator = Join-Path $OutputDir 'libbox3d-simulator.a'
+    New-Item -ItemType Directory -Force $merged | Out-Null
+    $simulator = Join-Path $merged 'libbox3d.a'
+
     Write-Host "> lipo -create $($simulatorSlices -join ' ') -output $simulator"
     & lipo -create @simulatorSlices -output $simulator
     if ($LASTEXITCODE -ne 0) { throw "lipo failed with exit code $LASTEXITCODE" }
@@ -100,8 +110,8 @@ if ($LASTEXITCODE -ne 0) { throw "xcodebuild failed with exit code $LASTEXITCODE
 # The merged archive is an intermediate. Left in place it would be packed into
 # the NuGet package along with the framework directory beside it, doubling the
 # simulator payload for no reason.
-if ($simulator -and $simulator -like "*libbox3d-simulator.a") {
-    Remove-Item -Force $simulator
+if (Test-Path $merged) {
+    Remove-Item -Recurse -Force $merged
 }
 
 # Report what the framework actually covers rather than what was asked for,
