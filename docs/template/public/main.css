@@ -1,0 +1,9 @@
+/* The modern template sizes the navbar logo only when it is an SVG it can
+   inline. Ours is a 128x128 raster icon, so without this it renders at its
+   natural height, overflows the bar and covers the name beside it. */
+#logo {
+    height: 1.75rem;
+    width: auto;
+    margin-right: 0.5rem;
+    border-radius: 0.25rem;
+}
