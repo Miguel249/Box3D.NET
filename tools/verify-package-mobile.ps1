@@ -263,9 +263,19 @@ internal static class Box3DUse
             $linkerSawArchive = [bool] (Select-String -Path $buildLog -Pattern 'libbox3d\.a|box3d\.xcframework' -Quiet)
         }
 
-        $symbols = @(& nm $executable 2>$null | Select-String -Pattern '_b3[A-Za-z_]' )
+        $allSymbols = @(& nm $executable 2>$null)
+        $symbols = @($allSymbols | Select-String -Pattern '_b3[A-Za-z_]')
+
+        # Undefined entries are what the binary imports from the system, and a
+        # fully stripped executable still lists those. Only defined symbols say
+        # anything about what is inside it, so they are counted separately: none
+        # at all means the check cannot see anything and silence proves nothing,
+        # while plenty of them and no b3 among them means Box3D is genuinely
+        # absent.
+        $definedSymbols = @($allSymbols | Where-Object { $_ -notmatch '^\s*U ' -and $_ -match '^[0-9a-fA-F]+\s' })
 
         Write-Host "  archive passed to the linker : $linkerSawArchive"
+        Write-Host "  defined symbols in binary    : $($definedSymbols.Count)"
         Write-Host "  Box3D symbols in the binary  : $($symbols.Count)"
 
         if (-not $linkerSawArchive -and $symbols.Count -eq 0) {
@@ -294,11 +304,19 @@ internal static class Box3DUse
             $symbols | Select-Object -First 5 | ForEach-Object { Write-Host "  $($_.Line.Trim())" }
             Write-Host "`nThe iOS application has Box3D linked into its executable."
         }
+        elseif ($definedSymbols.Count -gt 0) {
+            # The binary kept its symbol table and Box3D is not in it. That is
+            # not a stripped build hiding the evidence, it is the evidence:
+            # ForceLoad did not take, and every physics call would fail on the
+            # device with an entry point that is not there.
+            throw "The executable defines $($definedSymbols.Count) symbols and not one of them is Box3D's, so the archive reached the linker and was then dropped. That is what ForceLoad in the package's .targets exists to prevent - check that it is still set."
+        }
         else {
-            # The archive was linked but the symbols are not visible to nm,
-            # which a stripped release binary can legitimately do. Worth saying
-            # out loud rather than reporting as a clean pass.
-            Write-Host "`nThe linker was given Box3D's archive, but no b3 symbols are visible in the executable - it is stripped. The link is evidence enough; the symbol check is not available here."
+            # Nothing is visible either way. Release builds for iOS are
+            # stripped, so this is expected rather than suspicious, but it does
+            # mean the stronger half of the check did not run and saying "pass"
+            # without saying that would be claiming more than was tested.
+            Write-Host "`nThe linker was given Box3D's archive. The executable is stripped - it defines no symbols at all - so the symbol check could not run; the link is the evidence here."
         }
     }
 }

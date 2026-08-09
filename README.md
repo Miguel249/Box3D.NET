@@ -734,11 +734,17 @@ start an application on a phone, so those two words are the honest ceiling:
   it for `arm64-v8a`. That covers the failure mode specific to Android: an
   unresolved runtime asset produces a perfectly valid application that dies on
   its first physics call.
-- **linked** — CI builds a real iOS application and confirms Box3D's symbols are
-  present in the built executable. That is the failure mode specific to iOS: the
-  library is linked into the application rather than loaded, so a static archive
-  the linker dropped produces an application that installs and then fails the
-  same way.
+- **linked** — CI builds a real iOS application against the packed `.nupkg` and
+  confirms the package handed Box3D's archive to the linker. That is the failure
+  mode specific to iOS: the library is linked into the application rather than
+  loaded, and a P/Invoke to `__Internal` is resolved by Mono at run time, so an
+  application the archive never reached builds and launches exactly like a
+  correct one and fails on its first physics call.
+
+  The stronger check — Box3D's symbols in the finished executable — is attempted
+  and normally cannot run, because a release build for iOS is stripped and
+  defines no symbols at all. Where the binary does keep a symbol table and Box3D
+  is missing from it, that is a failure rather than a shrug.
 
 Neither runs a simulation on a device. If you ship Box3D.NET on a phone, test on
 a phone.

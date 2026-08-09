@@ -40,8 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Both are verified in CI against the packed `.nupkg` rather than the
   repository: a real Android application is built and its `.apk` opened to
   confirm `libbox3d.so` is inside it, and a real iOS application is built and
-  its executable checked for Box3D's symbols, which is what proves the static
-  archive survived the link. Neither runs a simulation on a device, and the
+  checked for evidence that the package handed Box3D's archive to the linker.
+  A clean build proves nothing on iOS by itself — a P/Invoke to `__Internal` is
+  resolved at run time, so an application the archive never reached builds and
+  launches like a correct one. Neither runs a simulation on a device, and the
   platform table in the README says so rather than implying otherwise.
 
 ### Changed
