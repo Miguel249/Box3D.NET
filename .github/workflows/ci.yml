@@ -122,19 +122,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # .NET 10 and the iOS workload are needed to build the solution at all,
-      # not to test iOS. The packable projects multi-target net8.0 and
-      # net10.0-ios, and a plain "dotnet build" builds every framework a project
-      # declares; without the workload the build fails before a single test runs.
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
             8.0.x
             9.0.x
-            10.0.x
-
-      - name: Install the iOS workload
-        run: dotnet workload install ios --skip-sign-check
 
       - uses: actions/download-artifact@v4
         with:
@@ -184,16 +176,9 @@ jobs:
         with:
           submodules: recursive
 
-      # As in the test job: the solution declares an iOS framework, so building
-      # or formatting it needs the workload that understands one.
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: |
-            8.0.x
-            10.0.x
-
-      - name: Install the iOS workload
-        run: dotnet workload install ios --skip-sign-check
+          dotnet-version: 8.0.x
 
       # The quality gates were once disabled by a condition that silently
       # evaluated to false, which cost nothing at build time and quietly stopped
@@ -284,17 +269,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # The samples are net8.0 and only ever resolve the net8.0 side of the
-      # packable projects, but they reference them, and MSBuild evaluates a
-      # referenced project in full before deciding which framework it wants.
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: |
-            8.0.x
-            10.0.x
-
-      - name: Install the iOS workload
-        run: dotnet workload install ios --skip-sign-check
+          dotnet-version: 8.0.x
 
       - name: Install the native toolchain
         run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
@@ -319,11 +296,16 @@ jobs:
 
   # Produces the packages that a release would publish, with every platform's
   # native library inside, and keeps them as an artifact for inspection.
+  # On macOS, and not by preference: this is the only job that builds the
+  # packages' iOS assembly, and the iOS workload has no Linux host pack at all.
+  # "dotnet workload install ios" fails on ubuntu rather than installing
+  # something that cannot link, so the packaging job goes where the toolchain
+  # exists. Everything else it does is platform-independent.
   pack:
     name: pack
     needs: [native, apple, test, lint]
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    runs-on: macos-14
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
@@ -340,8 +322,8 @@ jobs:
             10.0.x
 
       # Only the iOS workload, and only to compile the managed assembly. Linking
-      # an actual application needs Xcode and happens in the consumer job on
-      # macOS; this produces the library half.
+      # an actual application needs Xcode and happens in the consumer job; this
+      # produces the library half.
       - name: Install the iOS workload
         run: dotnet workload install ios --skip-sign-check
 
@@ -412,8 +394,16 @@ jobs:
               throw 'The xcframework has no simulator variant.'
           }
 
+      # Box3DTargetApple is what adds the iOS target framework to the packable
+      # projects. It is off by default so that building this repository needs
+      # neither the .NET 10 SDK nor a workload that does not exist for Linux;
+      # this is the job that asks for it, and the only one that has to.
       - name: Pack
-        run: dotnet pack --configuration Release --output ./artifacts/packages
+        run: >
+          dotnet pack
+          --configuration Release
+          --output ./artifacts/packages
+          -p:Box3DTargetApple=true
 
       # Inspect the package rather than trusting that pack did the right thing.
       # A PackagePath that resolves to a directory rather than a file, for

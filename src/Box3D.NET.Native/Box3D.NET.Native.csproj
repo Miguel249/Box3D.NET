@@ -35,7 +35,8 @@
       suppressing that would ship a package built against a framework that no
       longer receives security fixes.
     -->
-    <TargetFrameworks>net8.0;$(Box3DAppleTargetFramework)</TargetFrameworks>
+    <TargetFrameworks>net8.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(Box3DTargetApple)' == 'true'">net8.0;$(Box3DAppleTargetFramework)</TargetFrameworks>
 
     <AssemblyName>Box3D.NET.Native</AssemblyName>
     <RootNamespace>Box3D.Native</RootNamespace>

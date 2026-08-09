@@ -510,10 +510,16 @@ tests still run. The tests that call into Box3D skip themselves rather than
 fail, so `dotnet test` is useful immediately after cloning. CI always stages a
 binary and then fails if anything was skipped.
 
-Building the repository needs the .NET 10 SDK and the iOS workload
-(`dotnet workload install ios`), because the two packable projects declare an
-iOS target framework and `dotnet build` builds every framework a project
-declares. Nothing else about the repository requires .NET 10.
+Building the repository needs nothing beyond the .NET 8 SDK. The iOS target
+framework is off unless asked for, because it needs the .NET 10 SDK and a
+workload that does not exist for Linux at all:
+
+```sh
+dotnet pack -c Release -p:Box3DTargetApple=true    # needs .NET 10 and the ios workload
+```
+
+That is what the packaging job runs, on a runner that can. Everything else —
+building, testing, formatting — is `net8.0` as it has always been.
 
 ### Other platforms
 

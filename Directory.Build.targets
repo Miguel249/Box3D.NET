@@ -132,7 +132,7 @@
     check short of opening the .nupkg passed. Box3DAppleTargetFramework is a
     plain property from Directory.Build.props, which the outer build can see.
   -->
-  <ItemGroup Condition="'$(PackageId)' == 'Box3D.NET.Native'">
+  <ItemGroup Condition="'$(PackageId)' == 'Box3D.NET.Native' AND '$(Box3DTargetApple)' == 'true'">
     <!--
       Removed before it is added, because the SDK's default None glob has
       already picked this file up: it sits inside the project directory, unlike

@@ -24,6 +24,25 @@
     -->
     <Box3DAppleTargetFramework>net10.0-ios26.0</Box3DAppleTargetFramework>
 
+    <!--
+      Whether the packable projects build that framework at all. Off unless
+      asked, and the packaging jobs ask.
+
+      Building it requires the .NET 10 SDK and the iOS workload, and the iOS
+      workload does not exist for Linux - there is no Linux host pack for
+      Apple's toolchain, so "dotnet workload install ios" fails outright rather
+      than installing something unusable. Left on by default, that made an iOS
+      framework nobody was testing into a hard requirement for building this
+      repository at all, on the platform most of its CI runs on.
+
+      So the default is the repository as it was: net8.0 everywhere, no extra
+      SDK, no workload. The jobs that produce the packages set this to true, on
+      a runner that can, and the iOS half is verified where it is actually
+      built - by installing the resulting package into a real iOS application
+      and checking Box3D is linked into it.
+    -->
+    <Box3DTargetApple Condition="'$(Box3DTargetApple)' == ''">false</Box3DTargetApple>
+
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>

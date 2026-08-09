@@ -21,7 +21,8 @@
       would get the net8.0 binding, which looks for a library file that Apple
       does not allow the application to contain.
     -->
-    <TargetFrameworks>net8.0;$(Box3DAppleTargetFramework)</TargetFrameworks>
+    <TargetFrameworks>net8.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(Box3DTargetApple)' == 'true'">net8.0;$(Box3DAppleTargetFramework)</TargetFrameworks>
 
     <AssemblyName>Box3D.NET</AssemblyName>
     <RootNamespace>Box3D</RootNamespace>

@@ -108,11 +108,13 @@ jobs:
           path: artifacts/apple/box3d.xcframework/
           if-no-files-found: error
 
+  # On macOS because it builds the packages' iOS assembly, and the iOS workload
+  # has no Linux host pack. See the pack job in ci.yml.
   publish:
     name: publish
     needs: [native, apple]
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
+    runs-on: macos-14
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -208,6 +210,7 @@ jobs:
           --configuration Release
           --output ./artifacts/packages
           -p:Version=${{ steps.version.outputs.version }}
+          -p:Box3DTargetApple=true
 
       # Inspect the exact files about to be pushed. A version on nuget.org
       # cannot be withdrawn, only delisted, so this is the last moment at which

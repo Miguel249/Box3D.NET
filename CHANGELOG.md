@@ -30,6 +30,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the SDK refuses to build `net8.0-ios` at all, so 10 is the floor for iOS
   and only for iOS.
 
+  That framework is off unless asked for, with `-p:Box3DTargetApple=true`, so
+  building this repository still needs nothing beyond the .NET 8 SDK. The iOS
+  workload has no Linux host pack — `dotnet workload install ios` fails there
+  rather than installing something unusable — and making an iOS framework a
+  hard requirement for building at all would have broken the platform most of
+  CI runs on. The packaging jobs turn it on, on a runner that can.
+
   Both are verified in CI against the packed `.nupkg` rather than the
   repository: a real Android application is built and its `.apk` opened to
   confirm `libbox3d.so` is inside it, and a real iOS application is built and
