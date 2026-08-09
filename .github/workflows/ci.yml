@@ -636,14 +636,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Use the newest Xcode the image carries rather than whatever it defaults
-      # to, which is not always the newest installed.
-      - name: Select the newest Xcode
+      # Reported, not chosen. macos-26 already defaults to Xcode 26.6, which is
+      # what this workload requires, and pointing xcode-select at the newest
+      # /Applications/Xcode_*.app instead broke the build: those side-by-side
+      # installs are not all complete, and the one picked had no macOS SDK, so
+      # actool could not run at all.
+      - name: Report the Xcode in use
         if: matrix.platform == 'iOS'
-        run: |
-          newest=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1)
-          if [ -n "$newest" ]; then sudo xcode-select -s "$newest"; fi
-          xcodebuild -version
+        run: xcodebuild -version
 
       - uses: actions/setup-dotnet@v4
         with:
