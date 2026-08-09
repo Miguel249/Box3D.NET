@@ -1,12 +1,26 @@
 - name: Getting started
   href: getting-started.md
+
+- name: Guides
+  href: guides/
+
+- name: Concepts
+  href: concepts/
+
+- name: Examples
+  href: examples.md
+
 - name: Gallery
   href: gallery.md
-- name: Architecture
-  href: architecture.md
+
 - name: Benchmarks
   href: benchmarks.md
-- name: API coverage
-  href: api-coverage.md
-- name: API reference
-  href: api/index.md
+
+- name: Reference
+  items:
+    - name: API reference
+      href: api/
+    - name: API coverage
+      href: api-coverage.md
+    - name: Architecture
+      href: architecture.md

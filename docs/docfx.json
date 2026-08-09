@@ -33,6 +33,10 @@
       {
         "files": [
           "*.md",
+          "guides/*.md",
+          "guides/toc.yml",
+          "concepts/*.md",
+          "concepts/toc.yml",
           "toc.yml"
         ],
         "exclude": [
