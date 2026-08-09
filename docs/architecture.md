@@ -15,11 +15,13 @@ flowchart LR
     sub["external/box3d<br/><i>submodule, pinned, never modified</i>"]
     script["tools/build-native.ps1<br/>CMake · shared library"]
     runtimes["runtimes/&lt;rid&gt;/native/"]
+    xcframework["tools/create-xcframework.ps1<br/>box3d.xcframework"]
     gen["tools/generate-bindings.ps1"]
     generated["Generated/*.g.cs<br/>543 declarations"]
     pkg["NuGet packages"]
 
     sub --> script --> runtimes --> pkg
+    script -->|"iOS: static archives"| xcframework --> pkg
     sub -->|"headers"| gen --> generated --> pkg
 
     style sub fill:#d6cdfa,color:#1a1a1a
@@ -39,6 +41,16 @@ dotnet test -c Release
 
 CI fails if the checked-in generated sources differ from what the scripts
 produce, which is the point of them.
+
+Every platform but one follows the top path: a shared library staged under
+`runtimes/<rid>/native/`, which is the layout NuGet resolves from at run time.
+iOS is the exception, and the second edge exists because of it. Apple does not
+allow an application to load a dynamic library that is not a signed framework in
+its bundle, so the iOS build produces static archives instead, which are merged
+into an `xcframework` and linked into the consuming application by a `.targets`
+file the package carries. That is also why the binding names `__Internal` rather
+than `box3d` under the iOS target framework: there is no file to load, because
+the symbols are already in the application's own executable.
 
 ## The bindings are generated
 

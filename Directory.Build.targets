@@ -111,10 +111,59 @@
   -->
   <ItemGroup Condition="'$(PackageId)' == 'Box3D.NET.Native' AND Exists('$(Box3DRuntimesDir)')">
     <None Include="$(Box3DRuntimesDir)**\*"
+          Exclude="$(Box3DRuntimesDir)**\*.a"
           Pack="true"
           PackagePath="runtimes\%(RecursiveDir)%(Filename)%(Extension)"
           Visible="false" />
   </ItemGroup>
+
+  <!--
+    The iOS half of the same package: the static archive and the .targets file
+    that links it in. See src/Box3D.NET.Native/build/Box3D.NET.Native.targets
+    for why iOS needs a build file at all.
+
+    Note what this is not conditioned on. The obvious guard here is
+    TargetPlatformIdentifier == 'ios', so that only the iOS build contributes
+    these, and it does not work: pack gathers package files once, from the outer
+    build of a multi-targeting project, where no single target framework is
+    selected and every framework-specific property reads empty. The condition is
+    true when the inner build is inspected by hand and false during the pack
+    that matters, so the files were quietly missing from the package while every
+    check short of opening the .nupkg passed. Box3DAppleTargetFramework is a
+    plain property from Directory.Build.props, which the outer build can see.
+  -->
+  <ItemGroup Condition="'$(PackageId)' == 'Box3D.NET.Native'">
+    <!--
+      Removed before it is added, because the SDK's default None glob has
+      already picked this file up: it sits inside the project directory, unlike
+      the README and the licences above, which come from the repository root and
+      so are not globbed by anything. Adding it a second time produces two None
+      items for one path, and the one without Pack metadata is the one pack
+      honoured - the file was simply absent from the package, with no warning.
+    -->
+    <None Remove="$(MSBuildThisFileDirectory)src\Box3D.NET.Native\build\Box3D.NET.Native.targets" />
+    <None Include="$(MSBuildThisFileDirectory)src\Box3D.NET.Native\build\Box3D.NET.Native.targets"
+          Pack="true"
+          PackagePath="buildTransitive\$(Box3DAppleTargetFramework)\Box3D.NET.Native.targets"
+          Visible="false" />
+
+    <None Include="$(MSBuildThisFileDirectory)artifacts\apple\box3d.xcframework\**\*"
+          Pack="true"
+          PackagePath="buildTransitive\$(Box3DAppleTargetFramework)\box3d.xcframework\%(RecursiveDir)%(Filename)%(Extension)"
+          Visible="false" />
+  </ItemGroup>
+
+  <!--
+    Why the exclusion above.
+
+    The iOS slices are staged alongside every other platform, because that keeps
+    one build script and one artifact layout, but they are static archives and
+    an archive under runtimes/ is worse than useless: nothing can load one at
+    run time, so it would add megabytes to the package while the platform it
+    claims to serve still had no way to reach Box3D. They reach iOS through the
+    xcframework and the .targets file in Box3D.NET.Native instead, which is the
+    only route Apple's linking model leaves open.
+  -->
 
   <!--
     Copy the host runtime next to the build output.

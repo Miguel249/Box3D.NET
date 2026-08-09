@@ -38,11 +38,24 @@ jobs:
           - { os: ubuntu-24.04-arm, rid: linux-arm64 }
           - { os: macos-14,         rid: osx-x64 }
           - { os: macos-14,         rid: osx-arm64 }
+          # Android cross-compiles from the Linux image, which already carries
+          # an NDK; build-native.ps1 finds it through ANDROID_NDK_LATEST_HOME.
+          # Only the 64-bit ABIs are built: Google Play has required 64-bit for
+          # years, and armeabi-v7a would ship a slower scalar build, because
+          # upstream disables NEON on armv7 where it has no divide or sqrt.
+          - { os: ubuntu-latest,    rid: android-arm64 }
+          - { os: ubuntu-latest,    rid: android-x64 }
 
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      # The NDK toolchain only drives single-configuration generators, so the
+      # build needs Ninja. The Linux image has CMake but not Ninja.
+      - name: Install Ninja
+        if: startsWith(matrix.rid, 'android-')
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
 
       - name: Build Box3D
         shell: pwsh
@@ -52,6 +65,38 @@ jobs:
         with:
           name: native-${{ matrix.rid }}
           path: runtimes/${{ matrix.rid }}/native/
+          if-no-files-found: error
+          retention-days: 7
+
+  # iOS is built in one job rather than as three more rows above, because its
+  # three slices are not three independent outputs: they have to be merged into
+  # a single xcframework, and only a job holding all of them can do that. The
+  # merge is Apple tooling, so it cannot be deferred to the pack job on Linux
+  # either.
+  apple:
+    name: native (ios)
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build every iOS slice
+        shell: pwsh
+        run: |
+          foreach ($rid in 'ios-arm64', 'iossimulator-arm64', 'iossimulator-x64') {
+              ./tools/build-native.ps1 -Rid $rid -Configuration Release
+          }
+
+      - name: Assemble the xcframework
+        shell: pwsh
+        run: ./tools/create-xcframework.ps1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apple-xcframework
+          path: artifacts/apple/box3d.xcframework/
           if-no-files-found: error
           retention-days: 7
 
@@ -77,11 +122,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # .NET 10 and the iOS workload are needed to build the solution at all,
+      # not to test iOS. The packable projects multi-target net8.0 and
+      # net10.0-ios, and a plain "dotnet build" builds every framework a project
+      # declares; without the workload the build fails before a single test runs.
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
             8.0.x
             9.0.x
+            10.0.x
+
+      - name: Install the iOS workload
+        run: dotnet workload install ios --skip-sign-check
 
       - uses: actions/download-artifact@v4
         with:
@@ -131,9 +184,16 @@ jobs:
         with:
           submodules: recursive
 
+      # As in the test job: the solution declares an iOS framework, so building
+      # or formatting it needs the workload that understands one.
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Install the iOS workload
+        run: dotnet workload install ios --skip-sign-check
 
       # The quality gates were once disabled by a condition that silently
       # evaluated to false, which cost nothing at build time and quietly stopped
@@ -224,9 +284,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The samples are net8.0 and only ever resolve the net8.0 side of the
+      # packable projects, but they reference them, and MSBuild evaluates a
+      # referenced project in full before deciding which framework it wants.
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Install the iOS workload
+        run: dotnet workload install ios --skip-sign-check
 
       - name: Install the native toolchain
         run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
@@ -253,23 +321,41 @@ jobs:
   # native library inside, and keeps them as an artifact for inspection.
   pack:
     name: pack
-    needs: [native, test, lint]
+    needs: [native, apple, test, lint]
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # .NET 10 is here for the iOS target framework alone. The packages
+      # themselves still target net8.0 for every other platform, but the iOS
+      # assembly cannot be built by the .NET 8 SDK: its mobile workloads are out
+      # of support and the SDK refuses net8.0-ios outright.
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      # Only the iOS workload, and only to compile the managed assembly. Linking
+      # an actual application needs Xcode and happens in the consumer job on
+      # macOS; this produces the library half.
+      - name: Install the iOS workload
+        run: dotnet workload install ios --skip-sign-check
 
       - name: Collect every native runtime
         uses: actions/download-artifact@v4
         with:
           pattern: native-*
           path: ./artifacts/native
+
+      - name: Collect the iOS framework
+        uses: actions/download-artifact@v4
+        with:
+          name: apple-xcframework
+          path: ./artifacts/apple/box3d.xcframework
 
       # download-artifact places each artifact in its own folder named after
       # the artifact, so native-win-x64/box3d.dll becomes
@@ -295,12 +381,36 @@ jobs:
       - name: Verify every runtime is present
         shell: pwsh
         run: |
-          $required = @('win-x64', 'win-arm64', 'linux-x64', 'linux-arm64', 'osx-x64', 'osx-arm64')
+          $required = @(
+              'win-x64', 'win-arm64'
+              'linux-x64', 'linux-arm64'
+              'osx-x64', 'osx-arm64'
+              'android-arm64', 'android-x64'
+          )
           $missing = $required | Where-Object { -not (Get-ChildItem "runtimes/$_/native" -File -ErrorAction SilentlyContinue) }
           if ($missing) {
               throw "No native library staged for: $($missing -join ', ')"
           }
           Write-Host "All $($required.Count) runtimes present."
+
+          # iOS is checked separately because it is not a runtime asset. The
+          # framework has to hold both variants: a device-only one links fine
+          # and then fails for everyone running on the simulator, which is most
+          # people most of the time.
+          $framework = './artifacts/apple/box3d.xcframework'
+          if (-not (Test-Path "$framework/Info.plist")) {
+              throw "No iOS xcframework was staged at $framework."
+          }
+
+          $variants = Get-ChildItem $framework -Directory | ForEach-Object { $_.Name }
+          Write-Host "xcframework variants: $($variants -join ', ')"
+
+          if (-not ($variants | Where-Object { $_ -notlike '*simulator*' })) {
+              throw 'The xcframework has no device variant.'
+          }
+          if (-not ($variants | Where-Object { $_ -like '*simulator*' })) {
+              throw 'The xcframework has no simulator variant.'
+          }
 
       - name: Pack
         run: dotnet pack --configuration Release --output ./artifacts/packages
@@ -320,6 +430,8 @@ jobs:
               'runtimes/linux-arm64/native/libbox3d.so'
               'runtimes/osx-x64/native/libbox3d.dylib'
               'runtimes/osx-arm64/native/libbox3d.dylib'
+              'runtimes/android-arm64/native/libbox3d.so'
+              'runtimes/android-x64/native/libbox3d.so'
           )
 
           Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -353,6 +465,33 @@ jobs:
                       foreach ($entry in $entries) {
                           if ($entry -match 'runtimes/.*/runtimes/') {
                               Write-Host "::error::$($package.Name) has a doubled runtimes path: $entry"
+                              $failed = $true
+                          }
+                      }
+
+                      # iOS travels as build files rather than runtime assets,
+                      # so none of the checks above would notice it missing -
+                      # and a package that restores on iOS and then cannot link
+                      # is exactly the failure this whole job exists to catch.
+                      if (-not ($entries | Where-Object { $_ -like 'buildTransitive/*/Box3D.NET.Native.targets' })) {
+                          Write-Host "::error::$($package.Name) carries no iOS build file"
+                          $failed = $true
+                      }
+
+                      foreach ($variant in 'ios-arm64', 'simulator') {
+                          if (-not ($entries | Where-Object { $_ -like "buildTransitive/*/box3d.xcframework/*$variant*/libbox3d.a" })) {
+                              Write-Host "::error::$($package.Name) is missing the $variant archive of box3d.xcframework"
+                              $failed = $true
+                          }
+                      }
+
+                      # The static archives belong to the framework and nowhere
+                      # else. One under runtimes/ is dead weight: nothing loads
+                      # an archive at run time, so it would add megabytes while
+                      # serving no platform at all.
+                      foreach ($entry in $entries) {
+                          if ($entry -like 'runtimes/*.a' -or $entry -like 'runtimes/*/*.a') {
+                              Write-Host "::error::$($package.Name) has a static archive under runtimes/: $entry"
                               $failed = $true
                           }
                       }
@@ -476,3 +615,51 @@ jobs:
         if: matrix.aot
         shell: pwsh
         run: ./tools/verify-package.ps1 -Rid ${{ matrix.rid }} -Mode Aot
+
+  # The same idea as the job above, for the two platforms that have no
+  # executable a runner can start.
+  #
+  # Neither of these runs physics; they build a real application against the
+  # packed .nupkg and then open what it produced. That covers the part that is
+  # specific to mobile and invisible everywhere else: whether the native library
+  # is inside the apk, and whether the static archive survived the iOS link.
+  # What it does not cover is execution on a device, and the platform table says
+  # so rather than implying otherwise.
+  consumer-mobile:
+    name: package consumer (${{ matrix.platform }})
+    needs: pack
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, platform: Android, workload: android }
+          - { os: macos-14,      platform: iOS,     workload: ios }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      # The Android SDK tooling pins the JDK it accepts and rejects anything
+      # newer outright (XA0030), so the runner's default cannot be relied on.
+      - uses: actions/setup-java@v4
+        if: matrix.platform == 'Android'
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install the ${{ matrix.workload }} workload
+        run: dotnet workload install ${{ matrix.workload }} --skip-sign-check
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: ./artifacts/packages
+
+      - name: Consume the package
+        shell: pwsh
+        run: ./tools/verify-package-mobile.ps1 -Platform ${{ matrix.platform }}

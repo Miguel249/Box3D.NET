@@ -8,13 +8,60 @@
   -->
 
   <PropertyGroup>
+    <!--
+      Cleared so that TargetFrameworks below is the only one in play.
+      Directory.Build.props sets the singular TargetFramework for the whole
+      repository, and a project that leaves both set builds neither form
+      predictably: MSBuild takes the singular one and silently skips every
+      other framework listed here.
+    -->
+    <TargetFramework />
+
+    <!--
+      iOS is the only platform that needs a target framework of its own, and it
+      needs one because the library is linked into the application rather than
+      loaded from a file there; see Box3DLibrary.Name, which is __Internal only
+      under this framework.
+
+      Android deliberately has no entry. .NET for Android resolves
+      runtimes/android-<arch>/native/libbox3d.so through the ordinary NuGet
+      runtime-identifier mechanism and packs it into the APK, so the net8.0
+      assembly serves it unchanged. Adding net10.0-android would change nothing
+      at run time and would put a JDK on the list of things needed to build
+      this repository.
+
+      The version is 10 rather than 8 because .NET 8's mobile workloads are out
+      of support: the SDK refuses to build net8.0-ios at all (NETSDK1202), and
+      suppressing that would ship a package built against a framework that no
+      longer receives security fixes.
+    -->
+    <TargetFrameworks>net8.0;$(Box3DAppleTargetFramework)</TargetFrameworks>
+
     <AssemblyName>Box3D.NET.Native</AssemblyName>
     <RootNamespace>Box3D.Native</RootNamespace>
     <IsPackable>true</IsPackable>
     <PackageId>Box3D.NET.Native</PackageId>
-    <Description>Low-level P/Invoke bindings for Box3D, the 3D physics engine by Erin Catto. This package mirrors the C API one-to-one. For an idiomatic C# surface, use the Box3D.NET package instead.</Description>
+    <Description>Low-level P/Invoke bindings for Box3D, the 3D physics engine by Erin Catto. This package mirrors the C API one-to-one. For an idiomatic C# surface, use the Box3D.NET package instead. Parts of this project were developed with AI assistance.</Description>
     <!-- Required by LibraryImport: the source generator emits the marshalling stubs. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <!--
+    The iOS slice of the package is a static archive, so it cannot travel in
+    runtimes/ like every other platform: nothing loads it at run time. It is
+    linked into the application instead, which is something only the consuming
+    project's build can do, so the package asks for it through a .targets file.
+
+    buildTransitive rather than build, because almost nobody references this
+    package directly - they reference Box3D.NET, which depends on it. Files
+    under build/ apply only to the project that names the package, and the
+    xcframework would go unlinked for every consumer of the wrapper.
+  -->
+  <!--
+    build\Box3D.NET.Native.targets is the file that links Box3D into an iOS
+    application. It is put into the package by Directory.Build.targets and not
+    from here, because placing it needs TargetPlatformVersion, which the SDK has
+    not worked out yet while this file is being evaluated.
+  -->
 
 </Project>

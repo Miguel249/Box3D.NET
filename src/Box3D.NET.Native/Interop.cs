@@ -15,11 +15,25 @@ public static class Box3DLibrary
     /// The native library name passed to <see cref="LibraryImportAttribute"/>.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The runtime expands this to <c>box3d.dll</c> on Windows, <c>libbox3d.so</c>
-    /// on Linux and <c>libbox3d.dylib</c> on macOS, and resolves it from the
-    /// <c>runtimes/&lt;rid&gt;/native</c> folder of the package.
+    /// on Linux and Android, and <c>libbox3d.dylib</c> on macOS, and resolves it
+    /// from the <c>runtimes/&lt;rid&gt;/native</c> folder of the package.
+    /// </para>
+    /// <para>
+    /// On iOS the value is <c>__Internal</c> instead, which names the running
+    /// executable rather than a file to load. Apple requires every dynamic
+    /// library inside an application to be a signed framework in the bundle, so
+    /// the package ships a static archive that the iOS build links into the
+    /// application: by the time a P/Invoke runs, the Box3D symbols are already
+    /// part of the main image and there is nothing left to load.
+    /// </para>
     /// </remarks>
+#if IOS
+    public const string Name = "__Internal";
+#else
     public const string Name = "box3d";
+#endif
 }
 
 /// <summary>

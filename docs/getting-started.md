@@ -12,6 +12,21 @@ dotnet add package Box3D.NET
 The native Box3D binary for your platform comes with it. Nothing else to
 install. .NET 8 or later, on Windows, Linux and macOS, x64 and arm64.
 
+Android and iOS are supported too, with two caveats worth knowing up front:
+
+- **Android** works exactly like the desktop platforms — add the package and
+  the right `libbox3d.so` is packed into your `.apk`. Only 64-bit ABIs are
+  shipped (`arm64-v8a` and `x86_64`), which covers every publishable device and
+  the emulator.
+- **iOS** requires .NET 10 or later. Apple does not allow an application to load
+  a dynamic library that is not a signed framework, so Box3D is linked into your
+  application instead of loaded from a file, and that needs a target framework
+  the .NET 8 iOS workload can no longer provide.
+
+Neither is exercised on a real device in CI — see
+[Platforms](../README.md#platforms) for exactly what is and is not verified. If
+you ship on a phone, test on a phone.
+
 ## Your first simulation
 
 ```csharp

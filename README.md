@@ -13,7 +13,7 @@ path.
 [![NuGet](https://img.shields.io/nuget/v/Box3D.NET.svg?logo=nuget&label=Box3D.NET)](https://www.nuget.org/packages/Box3D.NET/)
 [![CI](https://github.com/Miguel249/Box3D.NET/actions/workflows/ci.yml/badge.svg)](https://github.com/Miguel249/Box3D.NET/actions/workflows/ci.yml)
 [![.NET](https://img.shields.io/badge/.NET-8.0%2B-512BD4)](https://dotnet.microsoft.com/)
-[![Platforms](https://img.shields.io/badge/platforms-win%20%7C%20linux%20%7C%20macOS-lightgrey)](#platforms)
+[![Platforms](https://img.shields.io/badge/platforms-win%20%7C%20linux%20%7C%20macOS%20%7C%20Android%20%7C%20iOS-lightgrey)](#platforms)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **[Getting started](docs/getting-started.md)** ·
@@ -31,6 +31,12 @@ path.
 > the character mover and debug draw. The API may still change between minor versions; every
 > break is recorded in the [changelog](CHANGELOG.md), and packages are validated
 > against the previous release so none happens by accident.
+
+> **Built with AI assistance.** Parts of this project — code, tests and
+> documentation — were written with the help of AI tools. Everything published
+> has been reviewed, and the verification described under
+> [Platforms](#platforms) is how the claims here are held to evidence rather
+> than to anyone's word, mine or a model's. See [AI assistance](#ai-assistance).
 
 ```sh
 dotnet add package Box3D.NET
@@ -504,6 +510,33 @@ tests still run. The tests that call into Box3D skip themselves rather than
 fail, so `dotnet test` is useful immediately after cloning. CI always stages a
 binary and then fails if anything was skipped.
 
+Building the repository needs the .NET 10 SDK and the iOS workload
+(`dotnet workload install ios`), because the two packable projects declare an
+iOS target framework and `dotnet build` builds every framework a project
+declares. Nothing else about the repository requires .NET 10.
+
+### Other platforms
+
+`build-native.ps1` takes the platform from the runtime identifier, so the same
+script cross-compiles:
+
+```sh
+pwsh tools/build-native.ps1 -Rid android-arm64   # needs the Android NDK
+pwsh tools/build-native.ps1 -Rid android-x64
+
+# macOS only, and all three are needed before the framework can be assembled.
+pwsh tools/build-native.ps1 -Rid ios-arm64
+pwsh tools/build-native.ps1 -Rid iossimulator-arm64
+pwsh tools/build-native.ps1 -Rid iossimulator-x64
+pwsh tools/create-xcframework.ps1
+```
+
+The Android build finds the NDK through `ANDROID_NDK_HOME` or the Android SDK,
+and will borrow the CMake and Ninja bundled with the SDK if neither is on PATH.
+iOS needs Xcode and therefore a Mac; a package packed anywhere else simply has
+no iOS binaries in it, and says so at the consumer's build rather than at their
+run time.
+
 ## Testing
 
 | Suite | What it protects |
@@ -659,6 +692,11 @@ events, dispose.
 | `linux-arm64` | yes | — | yes | — | — |
 | `osx-x64` | yes | — | under Rosetta | — | — |
 | `osx-arm64` | yes | yes | yes | yes | yes |
+| `android-arm64` | yes | — | in the apk | — | — |
+| `android-x64` | yes | — | in the apk | — | — |
+| `ios-arm64` | yes | — | — | — | — |
+| `iossimulator-arm64` | yes | — | linked | — | — |
+| `iossimulator-x64` | yes | — | — | — | — |
 
 A dash is "not verified", not "known broken". Trimming and NativeAOT are checked
 on the three runners where the toolchain is native rather than cross-compiled; a
@@ -679,7 +717,40 @@ package, the x64 library is loaded, and the simulation runs and is checked. What
 it does not prove is behaviour on Intel silicon, which is why the cell says what
 it says rather than "yes".
 
-Requires .NET 8 or later.
+### Android and iOS
+
+The mobile rows say something weaker than the desktop ones, on purpose. Every
+desktop row is backed by a simulation that ran and was checked; no CI runner can
+start an application on a phone, so those two words are the honest ceiling:
+
+- **in the apk** — CI builds a real Android application against the packed
+  `.nupkg`, then opens the resulting `.apk` and confirms `libbox3d.so` is inside
+  it for `arm64-v8a`. That covers the failure mode specific to Android: an
+  unresolved runtime asset produces a perfectly valid application that dies on
+  its first physics call.
+- **linked** — CI builds a real iOS application and confirms Box3D's symbols are
+  present in the built executable. That is the failure mode specific to iOS: the
+  library is linked into the application rather than loaded, so a static archive
+  the linker dropped produces an application that installs and then fails the
+  same way.
+
+Neither runs a simulation on a device. If you ship Box3D.NET on a phone, test on
+a phone.
+
+Two details are worth knowing before you take the dependency:
+
+- **Only 64-bit Android.** `armeabi-v7a` is not shipped. Google Play has
+  required 64-bit for years, and Box3D disables NEON on armv7 — which has no
+  divide or square root — so that ABI would ship a slower scalar build for
+  devices that cannot be published to anyway.
+- **iOS needs `net10.0-ios`.** Every other platform is served by the `net8.0`
+  assembly. iOS gets its own, because Apple does not allow an application to
+  load a dynamic library that is not a signed framework, so Box3D is linked
+  statically and the binding has to name `__Internal` instead of `box3d`. That
+  requires a target framework of its own, and .NET 8's and 9's iOS workloads are
+  out of support — the SDK refuses to build `net8.0-ios` at all.
+
+Requires .NET 8 or later, except on iOS, which requires .NET 10 or later.
 
 ## Contributing
 
@@ -732,6 +803,29 @@ dotnet test -c Release
 
 Read both diffs. A changed offset in `abi/native-layout.json` means a struct
 moved and its managed mirror has to move with it; the tests will say which.
+
+## AI assistance
+
+This project was built with AI assistance. That covers a substantial part of the
+code, the tests, the tooling and this document, and it is stated here plainly
+because you deserve to know what you are taking a dependency on.
+
+What that does and does not mean:
+
+- Every published change was reviewed before it shipped. AI wrote a great deal
+  of it; nobody merged anything unread.
+- The claims in this README are held to evidence rather than to assertion, which
+  matters more here than it would otherwise. The binding is checked against the
+  real C ABI, struct layouts are recorded and compared, the packages are
+  installed by a project that has never heard of this repository and a
+  simulation is run and its results checked, and the performance numbers come
+  from a benchmark that fails when it stops measuring what it says it measures.
+  A confident sentence is not evidence, whoever wrote it.
+- Where something is unverified, the documentation says so instead of rounding
+  up. The dashes in the platform table and the deliberately weaker wording for
+  Android and iOS are examples.
+
+Box3D itself is Erin Catto's work and is redistributed unmodified.
 
 ## License
 

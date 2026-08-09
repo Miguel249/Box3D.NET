@@ -1,0 +1,233 @@
+#!/usr/bin/env pwsh
+# SPDX-License-Identifier: MIT
+#
+# Consumes the built packages from a real Android or iOS application, and proves
+# that Box3D actually ends up inside it.
+#
+# verify-package.ps1 is the desktop counterpart and cannot cover these: it
+# publishes an executable and runs it, and neither platform has an executable a
+# CI runner can start. What can be checked without a device is the part that
+# actually differs on mobile - whether the native library reaches the artifact
+# the user installs - and it is checked by opening that artifact rather than by
+# trusting a green build:
+#
+#   Android   the .apk is a zip; lib/<abi>/libbox3d.so has to be in it
+#   iOS       the library is linked into the executable, so its symbols have
+#             to be in the built binary
+#
+# Both failures are silent otherwise. An Android build with the runtime asset
+# unresolved produces a perfectly valid apk that dies on the first physics call,
+# and an iOS build whose static archive was dropped by the linker produces a
+# perfectly valid app that does the same.
+#
+# Usage:
+#   pwsh tools/verify-package-mobile.ps1 -Platform Android
+#   pwsh tools/verify-package-mobile.ps1 -Platform iOS
+
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory = $true)]
+    [ValidateSet('Android', 'iOS')]
+    [string] $Platform,
+
+    # The package version to install. Inferred from the packages present when
+    # omitted.
+    [string] $Version,
+
+    # Where the .nupkg files are.
+    [string] $PackageDirectory = 'artifacts/packages',
+
+    # Where to build the consumer. Removed and recreated on each run.
+    [string] $WorkDirectory
+)
+
+$ErrorActionPreference = 'Stop'
+
+$RepoRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+$PackageDirectory = Join-Path $RepoRoot $PackageDirectory
+
+if (-not (Test-Path $PackageDirectory)) {
+    throw "No package directory at $PackageDirectory. Run: dotnet pack --configuration Release --output artifacts/packages"
+}
+
+if (-not $Version) {
+    $packages = Get-ChildItem $PackageDirectory -Filter 'Box3D.NET.*.nupkg' |
+        Where-Object { $_.Name -match '^Box3D\.NET\.(\d+\.\d+\.\d+.*)\.nupkg$' }
+
+    if (-not $packages) {
+        throw "No Box3D.NET package found in $PackageDirectory."
+    }
+
+    $Version = [regex]::Match($packages[0].Name, '^Box3D\.NET\.(.+)\.nupkg$').Groups[1].Value
+}
+
+# Linking an iOS application is Xcode's job, and Xcode is macOS only. Android
+# cross-compiles from anywhere the workload installs.
+if ($Platform -eq 'iOS' -and -not $IsMacOS) {
+    throw 'Verifying the iOS package requires macOS with Xcode installed.'
+}
+
+if (-not $WorkDirectory) {
+    $WorkDirectory = Join-Path $RepoRoot "artifacts/package-consumer-$($Platform.ToLowerInvariant())"
+}
+
+Write-Host "Mobile package consumer verification"
+Write-Host "  platform : $Platform"
+Write-Host "  packages : $PackageDirectory"
+Write-Host "  version  : $Version"
+Write-Host "  work dir : $WorkDirectory"
+
+if (Test-Path $WorkDirectory) {
+    Remove-Item -Recurse -Force $WorkDirectory
+}
+New-Item -ItemType Directory -Force $WorkDirectory | Out-Null
+
+# ------------------------------------------------------------ the consumer
+
+# The same folder feed the desktop verification uses, and for the same reason:
+# with <clear/> the result cannot depend on feeds this machine happens to have.
+@"
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <clear />
+    <add key="local" value="$PackageDirectory" />
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+  </packageSources>
+</configuration>
+"@ | Set-Content -Path (Join-Path $WorkDirectory 'nuget.config') -Encoding utf8
+
+# The workload's own template, rather than a hand-written project. An Android
+# application needs a manifest, an activity and a resource tree, and an iOS one
+# needs an Info.plist and a scene delegate; reproducing those here would be
+# reproducing something that changes with every workload release.
+$template = if ($Platform -eq 'Android') { 'android' } else { 'ios' }
+
+Push-Location $WorkDirectory
+try {
+    Write-Host "`n> dotnet new $template"
+    & dotnet new $template --name consumer --output . --force
+    if ($LASTEXITCODE -ne 0) { throw "dotnet new $template failed with exit code $LASTEXITCODE. Is the $template workload installed?" }
+
+    Write-Host "`n> dotnet add package Box3D.NET --version $Version"
+    & dotnet add package Box3D.NET --version $Version
+    if ($LASTEXITCODE -ne 0) { throw "dotnet add package failed with exit code $LASTEXITCODE" }
+
+    # Something in the application has to call into Box3D.
+    #
+    # Not for the sake of running it - nothing here runs - but so that the
+    # assembly is genuinely referenced. An unused package reference is a
+    # candidate for the linker to drop, and a check that passes only because
+    # nothing was trimmed is not the check anyone wants.
+    @'
+// SPDX-License-Identifier: MIT
+using System.Numerics;
+using Box3D;
+
+internal static class Box3DUse
+{
+    internal static float Fall()
+    {
+        using var world = new PhysicsWorld(WorldSettings.Default with
+        {
+            Gravity = new Vector3(0.0f, -9.81f, 0.0f),
+        });
+
+        Body ball = world.CreateDynamicBody(new Vector3(0.0f, 10.0f, 0.0f));
+        ball.AddSphere(new Sphere(0.5f), ShapeDefinition.Default);
+
+        for (int frame = 0; frame < 60; frame++)
+        {
+            world.Step(1.0f / 60.0f);
+        }
+
+        return ball.Position.Y;
+    }
+}
+'@ | Set-Content -Path (Join-Path $WorkDirectory 'Box3DUse.cs') -Encoding utf8
+
+    $buildArgs = @('build', '--configuration', 'Release')
+
+    # The simulator, because a device build needs a signing identity and a
+    # provisioning profile, which a CI runner has no business holding. The
+    # linking question is the same either way: the archive is either in the
+    # executable or it is not.
+    if ($Platform -eq 'iOS') {
+        $buildArgs += @('-p:RuntimeIdentifier=iossimulator-arm64')
+    }
+
+    Write-Host "`n> dotnet $($buildArgs -join ' ')"
+    & dotnet @buildArgs
+    if ($LASTEXITCODE -ne 0) { throw "The consumer application failed to build with exit code $LASTEXITCODE" }
+
+    # ------------------------------------------------------------ inspection
+
+    if ($Platform -eq 'Android') {
+        $apk = Get-ChildItem -Path (Join-Path $WorkDirectory 'bin/Release') -Recurse -Filter '*.apk' -File |
+            Sort-Object Length -Descending | Select-Object -First 1
+
+        if (-not $apk) {
+            throw 'The build produced no .apk to inspect.'
+        }
+
+        Write-Host "`nInspecting $($apk.Name) ($([math]::Round($apk.Length / 1MB, 1)) MB)"
+
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $zip = [System.IO.Compression.ZipFile]::OpenRead($apk.FullName)
+        try {
+            $libraries = $zip.Entries.FullName | Where-Object { $_ -like '*libbox3d.so' }
+        }
+        finally {
+            $zip.Dispose()
+        }
+
+        if (-not $libraries) {
+            throw "$($apk.Name) contains no libbox3d.so. The package's Android runtime asset was not resolved into the application."
+        }
+
+        $libraries | ForEach-Object { Write-Host "  $_" }
+
+        # An apk built for a single ABI is legitimate; one missing the ABI every
+        # current phone uses is not.
+        if (-not ($libraries | Where-Object { $_ -like '*arm64-v8a*' })) {
+            throw 'The apk carries libbox3d.so but not for arm64-v8a, which is the ABI every current Android device runs.'
+        }
+
+        Write-Host "`nThe Android application carries Box3D for every ABI listed above."
+    }
+    else {
+        $app = Get-ChildItem -Path (Join-Path $WorkDirectory 'bin/Release') -Recurse -Directory -Filter '*.app' |
+            Select-Object -First 1
+
+        if (-not $app) {
+            throw 'The build produced no .app bundle to inspect.'
+        }
+
+        # The executable inside the bundle shares its name, minus the extension.
+        $executable = Join-Path $app.FullName ([System.IO.Path]::GetFileNameWithoutExtension($app.Name))
+        if (-not (Test-Path $executable)) {
+            throw "No executable inside $($app.Name)."
+        }
+
+        Write-Host "`nInspecting $executable ($([math]::Round((Get-Item $executable).Length / 1MB, 1)) MB)"
+
+        # This is the check that matters on iOS.
+        #
+        # The symbols are only here if the static archive survived the link,
+        # which is what ForceLoad in the package's .targets is for. Without it
+        # the linker drops every object file, because nothing refers to them
+        # until the P/Invoke resolves at run time - far too late to matter.
+        $symbols = & nm $executable 2>$null | Select-String -Pattern '_b3(CreateWorld|World_Step|CreateBody)' -SimpleMatch:$false
+
+        if (-not $symbols) {
+            throw "No Box3D symbols found in $executable. The static archive was not linked into the application; check ForceLoad and the xcframework in the package."
+        }
+
+        $symbols | Select-Object -First 5 | ForEach-Object { Write-Host "  $($_.Line.Trim())" }
+
+        Write-Host "`nThe iOS application has Box3D linked into its executable."
+    }
+}
+finally {
+    Pop-Location
+}

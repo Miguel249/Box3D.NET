@@ -10,6 +10,20 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
+
+    <!--
+      The target framework the packable projects use for iOS, named in one place
+      because three files have to agree on it: the two projects that build it,
+      and Directory.Build.targets, which puts the iOS build files under a folder
+      named after it inside the package.
+
+      The platform version is spelled out rather than left to the SDK. NuGet
+      requires it in the folder name and rejects the package without one
+      (NU1012), and pinning it means a workload update cannot silently change
+      the framework the package advertises to consumers.
+    -->
+    <Box3DAppleTargetFramework>net10.0-ios26.0</Box3DAppleTargetFramework>
+
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
