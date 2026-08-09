@@ -17,8 +17,9 @@ path.
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **[Getting started](docs/getting-started.md)** ·
+**[Guides](docs/guides/bodies.md)** ·
+**[Examples](docs/examples.md)** ·
 **[Gallery](docs/gallery.md)** ·
-**[Architecture](docs/architecture.md)** ·
 **[Benchmarks](docs/benchmarks.md)** ·
 **[API reference](https://Miguel249.github.io/Box3D.NET/)**
 
@@ -462,10 +463,13 @@ All nine, animated, are in the **[gallery](docs/gallery.md)**.
 
 | | |
 | --- | --- |
-| [Getting started](docs/getting-started.md) | From nothing to a simulation, and the handful of things that will otherwise trip you up. |
-| [Gallery](docs/gallery.md) | Nine scenes, animated, and how the renderer that drew them hangs off the public interface. |
-| [Architecture](docs/architecture.md) | Layers, ownership and the frame loop, with diagrams. |
+| [Getting started](docs/getting-started.md) | Install, first simulation, the loop. |
+| [Guides](docs/guides/bodies.md) | Bodies, shapes, filtering, queries, events, joints, terrain, characters, debug draw. |
+| [Concepts](docs/concepts/step.md) | The step, memory and ownership, handle validity, threading, the native layer. |
+| [Examples](docs/examples.md) | Sixteen runnable samples, and what each one teaches. |
+| [Gallery](docs/gallery.md) | Nine scenes, animated, drawn through the public debug draw interface. |
 | [Benchmarks](docs/benchmarks.md) | What the wrapper costs, measured. |
+| [Architecture](docs/architecture.md) | How the binding is generated and held to the C API. |
 | [API coverage](docs/api-coverage.md) | Every function Box3D exports, how it is bound, and whether the idiomatic layer reaches it. |
 | [API reference](https://Miguel249.github.io/Box3D.NET/) | Every public type, generated from the XML documentation. |
 
