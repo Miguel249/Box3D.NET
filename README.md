@@ -4,9 +4,7 @@
   against nuget.org and renders as a broken image. tools/set-repository.ps1
   rewrites them along with everything else that names the repository.
 -->
-<img src="https://raw.githubusercontent.com/Miguel249/Box3D.NET/main/assets/icon.png" width="96" align="right" alt="" />
-
-# Box3D.NET
+# <img src="https://raw.githubusercontent.com/Miguel249/Box3D.NET/main/assets/icon.png" width="40" align="top" alt="" /> Box3D.NET
 
 An idiomatic C# binding for [Box3D](https://github.com/erincatto/box3d), the 3D
 physics engine by Erin Catto, with no managed allocations on the simulation hot
