@@ -171,6 +171,49 @@ internal static class Box3DUse
 }
 '@ | Set-Content -Path (Join-Path $WorkDirectory 'Box3DUse.cs') -Encoding utf8
 
+    # On iOS the call has to be reachable from the entry point, not merely
+    # present in the project.
+    #
+    # A file the application never reaches is trimmed away, and on iOS that
+    # silently undoes the linking this whole check exists to prove. The chain is
+    # worth spelling out, because every link in it succeeds:
+    #
+    #   the trimmer drops Box3DUse, since nothing in the template's AppDelegate
+    #   refers to it, and the P/Invokes go with it
+    #
+    #   mtouch builds the list of symbols to keep from the P/Invokes it finds in
+    #   what survives - it finds none, so no b3 symbol is listed
+    #
+    #   the native link runs with -force_load, which pulls every object of
+    #   libbox3d.a in, and then -dead_strip removes all of them again: nothing
+    #   refers to them by name, because a P/Invoke to __Internal is resolved at
+    #   run time, and the exported symbol list does not ask for them either
+    #
+    # The result builds, installs and launches, and dies on the first physics
+    # call. Calling Fall from Main puts a real reference in the entry point's
+    # own code path, which is what an application using this package looks like.
+    if ($Platform -eq 'iOS') {
+        $entryPoint = Get-ChildItem -Path $WorkDirectory -Filter '*.cs' -File |
+            Where-Object { (Get-Content -Raw $_.FullName) -match 'UIApplication\.Main\(' } |
+            Select-Object -First 1
+
+        if (-not $entryPoint) {
+            throw 'No file in the iOS template calls UIApplication.Main, so there is nowhere to call Box3D from. The template has changed shape and this script needs to follow it.'
+        }
+
+        # Inserted ahead of UIApplication.Main rather than written over the file,
+        # so the template keeps its own namespace and its own AppDelegate.
+        $source = Get-Content -Raw $entryPoint.FullName
+        $patched = ([regex] '(?m)^([ \t]*)(UIApplication\.Main\()').Replace($source, "`$1global::Box3DUse.Fall();`r`n`r`n`$1`$2", 1)
+
+        if ($patched -eq $source) {
+            throw "Could not insert the Box3D call into $($entryPoint.Name): the UIApplication.Main call is not on a line of its own. Without it the trimmer drops Box3D and the link check below proves nothing."
+        }
+
+        Set-Content -Path $entryPoint.FullName -Value $patched -Encoding utf8
+        Write-Host "`nCalled Box3D from $($entryPoint.Name), so the entry point reaches it."
+    }
+
     $buildArgs = @('build', '--configuration', 'Release')
 
     # The simulator, because a device build needs a signing identity and a
@@ -306,10 +349,43 @@ internal static class Box3DUse
         }
         elseif ($definedSymbols.Count -gt 0) {
             # The binary kept its symbol table and Box3D is not in it. That is
-            # not a stripped build hiding the evidence, it is the evidence:
-            # ForceLoad did not take, and every physics call would fail on the
-            # device with an entry point that is not there.
-            throw "The executable defines $($definedSymbols.Count) symbols and not one of them is Box3D's, so the archive reached the linker and was then dropped. That is what ForceLoad in the package's .targets exists to prevent - check that it is still set."
+            # not a stripped build hiding the evidence, it is the evidence: the
+            # archive was handed to the linker and dropped again, and every
+            # physics call would fail on the device with an entry point that is
+            # not there.
+            #
+            # Which half to go and fix is decided by mtouch-symbols.list, the
+            # file passed to the native link as -exported_symbols_list. mtouch
+            # fills it from the __Internal P/Invokes left in the application
+            # after trimming, and -dead_strip keeps only what it names.
+            Write-Host "`n--- diagnostics"
+
+            $requested = @()
+            $symbolList = Get-ChildItem -Path (Join-Path $WorkDirectory 'obj') -Recurse -Filter 'mtouch-symbols.list' -File |
+                Select-Object -First 1
+
+            if ($symbolList) {
+                $listed = @(Get-Content $symbolList.FullName)
+                $requested = @($listed | Select-String -Pattern '_b3[A-Za-z_]')
+                Write-Host "  mtouch-symbols.list          : $($requested.Count) Box3D of $($listed.Count) symbols asked for"
+                $requested | Select-Object -First 5 | ForEach-Object { Write-Host "    $($_.Line.Trim())" }
+            }
+            else {
+                Write-Host "  mtouch-symbols.list          : not found under obj/"
+            }
+
+            if (Test-Path $buildLog) {
+                Write-Host "  native link invocations naming the archive:"
+                Select-String -Path $buildLog -Pattern 'force_load' |
+                    Select-Object -First 3 |
+                    ForEach-Object { Write-Host "    $(($_.Line.Trim() -split '\s+' | Select-Object -First 6) -join ' ') ..." }
+            }
+
+            if ($requested.Count -eq 0) {
+                throw "The executable defines $($definedSymbols.Count) symbols and not one of them is Box3D's. mtouch asked the linker to keep no Box3D symbol at all, so -dead_strip removed everything -force_load had just pulled in: the application's own code no longer P/Invokes into Box3D by the time mtouch looks. Something reachable from the entry point has to call it - check that the call this script inserts into Main is still there and still survives trimming."
+            }
+
+            throw "The executable defines $($definedSymbols.Count) symbols and not one of them is Box3D's, even though mtouch asked the linker to keep $($requested.Count). The archive reached the linker and was then dropped - check that ForceLoad is still set in the package's .targets and that the xcframework slice matches the architecture being built."
         }
         else {
             # Nothing is visible either way. Release builds for iOS are
