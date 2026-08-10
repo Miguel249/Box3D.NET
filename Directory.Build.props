@@ -71,7 +71,7 @@
 
   <!-- Package metadata. -->
   <PropertyGroup>
-    <VersionPrefix>0.3.0</VersionPrefix>
+    <VersionPrefix>0.4.0</VersionPrefix>
     <Authors>Box3D.NET contributors</Authors>
     <Company>Box3D.NET</Company>
     <Product>Box3D.NET</Product>

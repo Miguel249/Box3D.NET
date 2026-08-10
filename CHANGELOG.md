@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-10
+
+A reach release. The library itself is unchanged — no type, member or behaviour
+differs from 0.3.0, and package validation against it reports no difference —
+and what is new is where it runs: the packages now carry Android and iOS
+alongside the six desktop runtimes. That is a minor version rather than a patch
+because a platform is a capability, and nothing here is a fix.
+
 ### Added
 
 - **Android and iOS.** The packages now carry native binaries for
@@ -462,6 +470,8 @@ rather than left standing:
   follow Box3D and are documented rather than corrected.
 - Single precision only. Box3D's large-world mode changes the ABI and would need
   a separate package.
-[Unreleased]: https://github.com/Miguel249/Box3D.NET/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/Miguel249/Box3D.NET/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/Miguel249/Box3D.NET/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/Miguel249/Box3D.NET/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Miguel249/Box3D.NET/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Miguel249/Box3D.NET/releases/tag/v0.1.0
