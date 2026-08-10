@@ -308,9 +308,28 @@ jobs:
 
       # And install what is about to be published into a project that has never
       # heard of this repository, before publishing it.
+      #
+      # The runtime identifier has to be one this runner can execute, because
+      # the script does not merely restore the package - it publishes a consumer
+      # and runs a simulation through it. This asked for linux-x64 while the job
+      # ran on ubuntu, and kept asking for it after the job moved to macOS so
+      # that the iOS workload would be installable, which no Linux host pack
+      # exists for. The result was a release workflow that could not publish at
+      # all: 0.4.0's first attempt died here on
+      #
+      #   Program 'consumer' failed to run ... Exec format error
+      #
+      # having built a perfectly good ELF binary on a Mac. Nothing had been
+      # pushed, because this step comes before the push, which is the whole
+      # reason it comes before the push.
+      #
+      # osx-arm64 is the host's own identifier. CI covers the other five against
+      # the same packed .nupkg on runners that can run them; what this step adds
+      # is that the exact files about to become permanent were installed and
+      # executed once more, and it can only do that for this machine.
       - name: Verify a fresh consumer can use the package
         shell: pwsh
-        run: ./tools/verify-package.ps1 -Rid linux-x64 -Mode Framework -Version ${{ steps.version.outputs.version }}
+        run: ./tools/verify-package.ps1 -Rid osx-arm64 -Mode Framework -Version ${{ steps.version.outputs.version }}
 
       # Exchanges the workflow's OIDC token for a short-lived NuGet API key. The
       # trusted publishing policy on nuget.org names this repository and this
