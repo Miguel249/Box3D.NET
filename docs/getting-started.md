@@ -24,8 +24,8 @@ Android and iOS are supported too, with two caveats worth knowing up front:
   the .NET 8 iOS workload can no longer provide.
 
 Neither is exercised on a real device in CI — see
-[Platforms](../README.md#platforms) for exactly what is and is not verified. If
-you ship on a phone, test on a phone.
+[Platforms](https://github.com/Miguel249/Box3D.NET#platforms) for exactly what
+is and is not verified. If you ship on a phone, test on a phone.
 
 ## Your first simulation
 
