@@ -36,8 +36,8 @@ jobs:
           - { os: windows-11-arm,   rid: win-arm64 }
           - { os: ubuntu-latest,    rid: linux-x64 }
           - { os: ubuntu-24.04-arm, rid: linux-arm64 }
-          - { os: macos-14,         rid: osx-x64 }
-          - { os: macos-14,         rid: osx-arm64 }
+          - { os: macos-15,         rid: osx-x64 }
+          - { os: macos-15,         rid: osx-arm64 }
           # Android cross-compiles from the Linux image, which already carries
           # an NDK; build-native.ps1 finds it through ANDROID_NDK_LATEST_HOME.
           # Only the 64-bit ABIs are built: Google Play has required 64-bit for
@@ -75,7 +75,7 @@ jobs:
   # either.
   apple:
     name: native (ios)
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -117,7 +117,7 @@ jobs:
         include:
           - { os: windows-latest, rid: win-x64 }
           - { os: ubuntu-latest,  rid: linux-x64 }
-          - { os: macos-14,       rid: osx-arm64 }
+          - { os: macos-15,       rid: osx-arm64 }
 
     steps:
       - uses: actions/checkout@v4
@@ -304,7 +304,7 @@ jobs:
   pack:
     name: pack
     needs: [native, apple, test, lint]
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
@@ -542,10 +542,16 @@ jobs:
           - { os: ubuntu-latest,    rid: linux-x64,   aot: true,  mode: Framework }
           - { os: ubuntu-24.04-arm, rid: linux-arm64, aot: false, mode: Framework }
           # osx-x64 runs on the arm64 image, under Rosetta 2, and not by
-          # preference. The Intel macos-13 image is on its way out and a job
+          # preference. The Intel image then on offer was macos-13, and a job
           # asking for one sat queued for over an hour without ever being
           # picked up, which is worse than a failure: timeout-minutes counts
           # execution rather than queuing, so nothing ever reports.
+          #
+          # macos-13 is gone and macos-15-intel has replaced it, so a real
+          # Intel runner is available again. It is not taken here because the
+          # reason to avoid one was the wait rather than the image, and that is
+          # not something this file can find out without spending another hour
+          # to ask. Worth revisiting; not worth blocking a runner migration on.
           #
           # Rosetta is a real execution of the x64 binary against the x64
           # native library, so the asset resolution and the loader are
@@ -563,8 +569,8 @@ jobs:
           # That is the runner missing an x64 runtime, not the package being
           # wrong, so the consumer carries its own runtime instead of the job
           # installing a second .NET to work around it.
-          - { os: macos-14,         rid: osx-x64,     aot: false, mode: SelfContained }
-          - { os: macos-14,         rid: osx-arm64,   aot: true,  mode: Framework }
+          - { os: macos-15,         rid: osx-x64,     aot: false, mode: SelfContained }
+          - { os: macos-15,         rid: osx-arm64,   aot: true,  mode: Framework }
 
     steps:
       - uses: actions/checkout@v4
@@ -626,11 +632,11 @@ jobs:
         include:
           - { os: ubuntu-latest, platform: Android, workload: android }
           # A newer image than the jobs that only compile Box3D itself. Building
-          # the native library needs nothing but CMake and clang, which Xcode
-          # 15.4 on macos-14 provides; linking an iOS application is the .NET
+          # the native library needs nothing but CMake and clang, which the
+          # Xcode on macos-15 provides; linking an iOS application is the .NET
           # iOS workload's own job, and it refuses to run against an Xcode older
-          # than the one it was built for - 26.5 wants Xcode 26.6, and macos-14
-          # tops out at 15.4.
+          # than the one it was built for - 26.5 wants Xcode 26.6, and macos-15
+          # defaults to 16.4.
           - { os: macos-26,      platform: iOS,     workload: ios }
 
     steps:
