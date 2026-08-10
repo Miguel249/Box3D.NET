@@ -138,19 +138,46 @@ try {
     & dotnet add package Box3D.NET --version $Version
     if ($LASTEXITCODE -ne 0) { throw "dotnet add package failed with exit code $LASTEXITCODE" }
 
-    # Something in the application has to call into Box3D.
+    # Something in the application has to call into Box3D, and the call has to be
+    # reachable from code the application actually keeps.
     #
-    # Not for the sake of running it - nothing here runs - but so that the
-    # assembly is genuinely referenced. An unused package reference is a
-    # candidate for the linker to drop, and a check that passes only because
-    # nothing was trimmed is not the check anyone wants.
+    # Not for the sake of running it - nothing here runs - but because an
+    # unreachable call is trimmed away, and on iOS that silently undoes the
+    # linking this whole check exists to prove. Every link in that chain
+    # succeeds, which is why it is worth spelling out:
+    #
+    #   the trimmer drops Box3DUse, since nothing the application reaches refers
+    #   to it, and the P/Invokes go with it
+    #
+    #   mtouch builds the list of symbols to keep from the __Internal P/Invokes
+    #   it finds in what survives - it finds none, so no b3 symbol is listed
+    #
+    #   the native link runs with -force_load, which pulls every object of
+    #   libbox3d.a in, and then -dead_strip removes all of them again: nothing
+    #   refers to them by name, because a P/Invoke to __Internal is resolved at
+    #   run time, and the exported symbol list does not ask for them either
+    #
+    # The result builds, installs and launches, and dies on the first physics
+    # call. A module initializer is what anchors it: ILLink keeps the module's
+    # own initializer for the assembly being built, so the call below is rooted
+    # without this script having to find and edit the template's entry point,
+    # which is a shape that changes with the workload.
     @'
 // SPDX-License-Identifier: MIT
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using Box3D;
 
 internal static class Box3DUse
 {
+    internal static float Result;
+
+    [ModuleInitializer]
+    internal static void Run()
+    {
+        Result = Fall();
+    }
+
     internal static float Fall()
     {
         using var world = new PhysicsWorld(WorldSettings.Default with
@@ -171,47 +198,44 @@ internal static class Box3DUse
 }
 '@ | Set-Content -Path (Join-Path $WorkDirectory 'Box3DUse.cs') -Encoding utf8
 
-    # On iOS the call has to be reachable from the entry point, not merely
-    # present in the project.
+    # A second anchor for the same call, from the template's entry point.
     #
-    # A file the application never reaches is trimmed away, and on iOS that
-    # silently undoes the linking this whole check exists to prove. The chain is
-    # worth spelling out, because every link in it succeeds:
-    #
-    #   the trimmer drops Box3DUse, since nothing in the template's AppDelegate
-    #   refers to it, and the P/Invokes go with it
-    #
-    #   mtouch builds the list of symbols to keep from the P/Invokes it finds in
-    #   what survives - it finds none, so no b3 symbol is listed
-    #
-    #   the native link runs with -force_load, which pulls every object of
-    #   libbox3d.a in, and then -dead_strip removes all of them again: nothing
-    #   refers to them by name, because a P/Invoke to __Internal is resolved at
-    #   run time, and the exported symbol list does not ask for them either
-    #
-    # The result builds, installs and launches, and dies on the first physics
-    # call. Calling Fall from Main puts a real reference in the entry point's
-    # own code path, which is what an application using this package looks like.
+    # The module initializer above is what the check relies on. This adds the
+    # call an application would really contain, on the line before the template
+    # hands control to UIKit, and it is deliberately best effort: the file that
+    # calls UIApplication.Main is the workload's to write, and it has already
+    # changed spelling once. When it cannot be found, what is reported is that
+    # this anchor is missing rather than a failure - the symbol check at the end
+    # is the judge either way, and it cannot be fooled by a missing anchor.
     if ($Platform -eq 'iOS') {
-        $entryPoint = Get-ChildItem -Path $WorkDirectory -Filter '*.cs' -File |
-            Where-Object { (Get-Content -Raw $_.FullName) -match 'UIApplication\.Main\(' } |
+        # obj and bin are excluded because both fill with generated sources
+        # during the restore that has already run, and one of those is a far
+        # worse place to edit than the template's own file.
+        $sources = @(Get-ChildItem -Path $WorkDirectory -Filter '*.cs' -File -Recurse |
+            Where-Object { $_.FullName -notmatch '[\\/](obj|bin)[\\/]' })
+
+        $entryPoint = $sources |
+            Where-Object { (Get-Content -Raw $_.FullName) -match 'UIApplication\.Main\s*\(' } |
             Select-Object -First 1
 
-        if (-not $entryPoint) {
-            throw 'No file in the iOS template calls UIApplication.Main, so there is nowhere to call Box3D from. The template has changed shape and this script needs to follow it.'
+        $patched = $null
+        if ($entryPoint) {
+            # Inserted ahead of the call rather than written over the file, so
+            # the template keeps its own namespace and its own AppDelegate.
+            $source = Get-Content -Raw $entryPoint.FullName
+            $patched = ([regex] '(?m)^([ \t]*)(UIApplication\.Main\s*\()').Replace($source, "`$1global::Box3DUse.Fall();`r`n`r`n`$1`$2", 1)
+
+            if ($patched -ne $source) {
+                Set-Content -Path $entryPoint.FullName -Value $patched -Encoding utf8
+                Write-Host "`nCalled Box3D from $($entryPoint.Name) as well as from the module initializer."
+            }
         }
 
-        # Inserted ahead of UIApplication.Main rather than written over the file,
-        # so the template keeps its own namespace and its own AppDelegate.
-        $source = Get-Content -Raw $entryPoint.FullName
-        $patched = ([regex] '(?m)^([ \t]*)(UIApplication\.Main\()').Replace($source, "`$1global::Box3DUse.Fall();`r`n`r`n`$1`$2", 1)
-
-        if ($patched -eq $source) {
-            throw "Could not insert the Box3D call into $($entryPoint.Name): the UIApplication.Main call is not on a line of its own. Without it the trimmer drops Box3D and the link check below proves nothing."
+        if (-not $entryPoint -or $patched -eq $source) {
+            Write-Host "`nNo entry point to call Box3D from - the module initializer is the only anchor."
+            Write-Host '  sources the template produced:'
+            $sources | ForEach-Object { Write-Host "    $($_.FullName.Substring($WorkDirectory.Length + 1))" }
         }
-
-        Set-Content -Path $entryPoint.FullName -Value $patched -Encoding utf8
-        Write-Host "`nCalled Box3D from $($entryPoint.Name), so the entry point reaches it."
     }
 
     $buildArgs = @('build', '--configuration', 'Release')
