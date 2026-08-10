@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Android and iOS.** The packages now carry native binaries for
+  `android-arm64`, `android-x64` and iOS, alongside the six desktop runtimes.
+
+  Android needs nothing from the consumer: the `.so` is resolved through the
+  ordinary NuGet runtime-identifier mechanism and packed into the `.apk`, and
+  the existing `net8.0` assembly serves it unchanged. Only the 64-bit ABIs are
+  shipped. `armeabi-v7a` is deliberately absent — Google Play has required
+  64-bit for years, and Box3D disables NEON on armv7, which has no divide or
+  square root, so that ABI would ship a slower scalar build for devices that
+  cannot be published to anyway.
+
+  iOS is different in kind. Apple does not allow an application to load a
+  dynamic library that is not a signed framework in its bundle, so Box3D is
+  shipped as a static archive in an `xcframework` and linked into the
+  application by a `.targets` file in `Box3D.NET.Native`. The binding therefore
+  names `__Internal` rather than `box3d` there, which needs a target framework
+  of its own: the packages now also target `net10.0-ios`. Every other platform
+  is still served by `net8.0`. .NET 8's and 9's iOS workloads are out of support
+  and the SDK refuses to build `net8.0-ios` at all, so 10 is the floor for iOS
+  and only for iOS.
+
+  That framework is off unless asked for, with `-p:Box3DTargetApple=true`, so
+  building this repository still needs nothing beyond the .NET 8 SDK. The iOS
+  workload has no Linux host pack — `dotnet workload install ios` fails there
+  rather than installing something unusable — and making an iOS framework a
+  hard requirement for building at all would have broken the platform most of
+  CI runs on. The packaging jobs turn it on, on a runner that can.
+
+  Both are verified in CI against the packed `.nupkg` rather than the
+  repository: a real Android application is built and its `.apk` opened to
+  confirm `libbox3d.so` is inside it, and a real iOS application is built and
+  checked for evidence that the package handed Box3D's archive to the linker.
+  A clean build proves nothing on iOS by itself — a P/Invoke to `__Internal` is
+  resolved at run time, so an application the archive never reached builds and
+  launches like a correct one. Neither runs a simulation on a device, and the
+  platform table in the README says so rather than implying otherwise.
+
+### Changed
+
+- `tools/build-native.ps1` now takes the target platform from the runtime
+  identifier instead of from the host, since the two stopped being the same
+  thing. It also builds each target in its own CMake tree — a shared one caches
+  the first target's toolchain and either fails on the second or, worse,
+  produces a binary for the wrong target under the right name — and finds the
+  Android NDK and the CMake and Ninja bundled with the Android SDK on its own.
+  Android binaries are stripped, which takes each one from about 6 MB to under
+  900 KB.
+
+- The project now states in the README and in both package descriptions that it
+  was built with AI assistance.
+
 ## [0.3.0] - 2026-08-08
 
 A hardening release. Nothing here is a new capability; it is the release that

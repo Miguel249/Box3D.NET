@@ -41,6 +41,13 @@ coverage*.xml
 packages/
 !packages/build/
 
+# NuGet's convention for files a package contributes to the consumer's build is
+# a folder called build/, which the rule near the top of this file ignores along
+# with every CMake output directory. Box3D.NET.Native's is source, not output:
+# without this line the iOS .targets is never committed, and the package ships
+# looking complete while no iOS application can link against it.
+!src/Box3D.NET.Native/build/
+
 # OS noise
 .DS_Store
 Thumbs.db

@@ -1,0 +1,51 @@
+<Project>
+
+  <!--
+    Links Box3D into iOS applications.
+
+    Every other platform this package supports ships a loadable library that the
+    runtime finds by name at run time, and needs nothing from the consuming
+    build. iOS cannot work that way: Apple requires a dynamic library inside an
+    application to be a signed framework in the bundle, so the package ships a
+    static archive and the application links it in. That is a decision only the
+    consuming project's build can carry out, which is what this file is for.
+
+    It is delivered under buildTransitive/net10.0-ios/, so it applies to anyone
+    who ends up with this package - including, and mainly, the consumers who
+    reference Box3D.NET rather than this package directly.
+  -->
+
+  <ItemGroup>
+    <!--
+      The xcframework holds one archive per iOS variant - device arm64, and a
+      simulator archive fat with arm64 and x86_64 - and lets Apple's tooling
+      choose between them. Selecting by RuntimeIdentifier here instead would
+      have to reproduce that choice, and would get it wrong for a build that has
+      not resolved a single RID yet.
+
+      ForceLoad passes -force_load to the native linker. Without it the linker
+      keeps only the object files something already refers to, and nothing in
+      the application refers to these by name: the calls arrive through
+      P/Invoke, which is resolved after the link. The symbols would be dropped
+      and every Box3D call would fail at startup with an entry point not found.
+    -->
+    <NativeReference Include="$(MSBuildThisFileDirectory)box3d.xcframework"
+                     Kind="Framework"
+                     ForceLoad="True"
+                     Condition="Exists('$(MSBuildThisFileDirectory)box3d.xcframework')" />
+  </ItemGroup>
+
+  <!--
+    A missing xcframework means the package was built without the iOS slices -
+    which a local pack on Windows or Linux does, because those slices need Xcode.
+    Failing here with the reason beats letting the application link, install, and
+    then fail on its first physics call.
+  -->
+  <Target Name="_Box3DVerifyAppleArchive"
+          BeforeTargets="_ComputeNativeReferences;Build"
+          Condition="!Exists('$(MSBuildThisFileDirectory)box3d.xcframework')">
+    <Error Code="BOX3D001"
+           Text="This build of Box3D.NET.Native carries no iOS binaries: box3d.xcframework is missing from the package. Packages published from CI include it; one packed locally on a machine without Xcode does not." />
+  </Target>
+
+</Project>

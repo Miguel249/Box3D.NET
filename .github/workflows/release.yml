@@ -57,11 +57,17 @@ jobs:
           - { os: ubuntu-24.04-arm, rid: linux-arm64 }
           - { os: macos-14,         rid: osx-x64 }
           - { os: macos-14,         rid: osx-arm64 }
+          - { os: ubuntu-latest,    rid: android-arm64 }
+          - { os: ubuntu-latest,    rid: android-x64 }
 
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Install Ninja
+        if: startsWith(matrix.rid, 'android-')
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
 
       - name: Build Box3D
         shell: pwsh
@@ -73,20 +79,58 @@ jobs:
           path: runtimes/${{ matrix.rid }}/native/
           if-no-files-found: error
 
+  # One job for all three iOS slices, because they have to be merged into a
+  # single xcframework and only Apple's tooling can do the merging. See the
+  # equivalent job in ci.yml.
+  apple:
+    name: native (ios)
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build every iOS slice
+        shell: pwsh
+        run: |
+          foreach ($rid in 'ios-arm64', 'iossimulator-arm64', 'iossimulator-x64') {
+              ./tools/build-native.ps1 -Rid $rid -Configuration Release
+          }
+
+      - name: Assemble the xcframework
+        shell: pwsh
+        run: ./tools/create-xcframework.ps1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apple-xcframework
+          path: artifacts/apple/box3d.xcframework/
+          if-no-files-found: error
+
+  # On macOS because it builds the packages' iOS assembly, and the iOS workload
+  # has no Linux host pack. See the pack job in ci.yml.
   publish:
     name: publish
-    needs: native
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    needs: [native, apple]
+    runs-on: macos-14
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: recursive
 
+      # .NET 10 is required to build the iOS assembly; every other platform is
+      # still net8.0. See the same step in ci.yml.
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Install the iOS workload
+        run: dotnet workload install ios --skip-sign-check
 
       - name: Resolve the version
         id: version
@@ -109,6 +153,12 @@ jobs:
           pattern: native-*
           path: ./artifacts/native
 
+      - name: Collect the iOS framework
+        uses: actions/download-artifact@v4
+        with:
+          name: apple-xcframework
+          path: ./artifacts/apple/box3d.xcframework
+
       - name: Stage the runtimes
         shell: pwsh
         run: |
@@ -124,12 +174,35 @@ jobs:
       - name: Verify every runtime is present
         shell: pwsh
         run: |
-          $required = @('win-x64', 'win-arm64', 'linux-x64', 'linux-arm64', 'osx-x64', 'osx-arm64')
+          $required = @(
+              'win-x64', 'win-arm64'
+              'linux-x64', 'linux-arm64'
+              'osx-x64', 'osx-arm64'
+              'android-arm64', 'android-x64'
+          )
           $missing = $required | Where-Object { -not (Get-ChildItem "runtimes/$_/native" -File -ErrorAction SilentlyContinue) }
           if ($missing) {
               throw "No native library staged for: $($missing -join ', ')"
           }
           Write-Host "All $($required.Count) runtimes present."
+
+          # iOS ships as build files rather than runtime assets, so it needs its
+          # own check. A framework with only the device variant links for
+          # everyone and then fails for everyone on the simulator.
+          $framework = './artifacts/apple/box3d.xcframework'
+          if (-not (Test-Path "$framework/Info.plist")) {
+              throw "No iOS xcframework was staged at $framework."
+          }
+
+          $variants = Get-ChildItem $framework -Directory | ForEach-Object { $_.Name }
+          Write-Host "xcframework variants: $($variants -join ', ')"
+
+          if (-not ($variants | Where-Object { $_ -notlike '*simulator*' })) {
+              throw 'The xcframework has no device variant.'
+          }
+          if (-not ($variants | Where-Object { $_ -like '*simulator*' })) {
+              throw 'The xcframework has no simulator variant.'
+          }
 
       - name: Pack
         run: >
@@ -137,6 +210,7 @@ jobs:
           --configuration Release
           --output ./artifacts/packages
           -p:Version=${{ steps.version.outputs.version }}
+          -p:Box3DTargetApple=true
 
       # Inspect the exact files about to be pushed. A version on nuget.org
       # cannot be withdrawn, only delisted, so this is the last moment at which
@@ -151,6 +225,8 @@ jobs:
               'runtimes/linux-arm64/native/libbox3d.so'
               'runtimes/osx-x64/native/libbox3d.dylib'
               'runtimes/osx-arm64/native/libbox3d.dylib'
+              'runtimes/android-arm64/native/libbox3d.so'
+              'runtimes/android-x64/native/libbox3d.so'
           )
 
           Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -178,6 +254,31 @@ jobs:
                       foreach ($asset in $required) {
                           if ($entries -notcontains $asset) {
                               Write-Host "::error::$($package.Name) is missing $asset"
+                              $failed = $true
+                          }
+                      }
+
+                      # iOS travels as build files, not runtime assets, so the
+                      # loop above cannot see it. A package that restores on iOS
+                      # and then cannot link is precisely what this step is the
+                      # last chance to catch.
+                      if (-not ($entries | Where-Object { $_ -like 'buildTransitive/*/Box3D.NET.Native.targets' })) {
+                          Write-Host "::error::$($package.Name) carries no iOS build file"
+                          $failed = $true
+                      }
+
+                      foreach ($variant in 'ios-arm64', 'simulator') {
+                          if (-not ($entries | Where-Object { $_ -like "buildTransitive/*/box3d.xcframework/*$variant*/libbox3d.a" })) {
+                              Write-Host "::error::$($package.Name) is missing the $variant archive of box3d.xcframework"
+                              $failed = $true
+                          }
+                      }
+
+                      # A static archive under runtimes/ serves no platform:
+                      # nothing loads one at run time. It would only add weight.
+                      foreach ($entry in $entries) {
+                          if ($entry -like 'runtimes/*/*.a') {
+                              Write-Host "::error::$($package.Name) has a static archive under runtimes/: $entry"
                               $failed = $true
                           }
                       }

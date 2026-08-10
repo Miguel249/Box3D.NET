@@ -7,11 +7,28 @@
   -->
 
   <PropertyGroup>
+    <!--
+      Cleared so that TargetFrameworks below is the only one in play; see the
+      same pair of properties in Box3D.NET.Native.csproj for what happens when
+      both are left set.
+    -->
+    <TargetFramework />
+
+    <!--
+      Follows Box3D.NET.Native exactly, and has to. The iOS build of the binding
+      is the one that names __Internal instead of box3d, and a project reference
+      resolves per framework: were this package net8.0 only, an iOS application
+      would get the net8.0 binding, which looks for a library file that Apple
+      does not allow the application to contain.
+    -->
+    <TargetFrameworks>net8.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(Box3DTargetApple)' == 'true'">net8.0;$(Box3DAppleTargetFramework)</TargetFrameworks>
+
     <AssemblyName>Box3D.NET</AssemblyName>
     <RootNamespace>Box3D</RootNamespace>
     <IsPackable>true</IsPackable>
     <PackageId>Box3D.NET</PackageId>
-    <Description>An idiomatic C# wrapper for Box3D, the 3D physics engine by Erin Catto, with no managed allocations on the simulation hot path. Targets .NET 8+, works with NativeAOT and trimming, and ships native binaries for Windows, Linux and macOS on x64 and arm64.</Description>
+    <Description>An idiomatic C# wrapper for Box3D, the 3D physics engine by Erin Catto, with no managed allocations on the simulation hot path. Targets .NET 8+, works with NativeAOT and trimming, and ships native binaries for Windows, Linux, macOS, Android and iOS. Parts of this project were developed with AI assistance.</Description>
   </PropertyGroup>
 
   <ItemGroup>

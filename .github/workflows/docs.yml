@@ -47,8 +47,13 @@ jobs:
       - name: Restore tools
         run: dotnet tool restore
 
+      # net8.0 explicitly, matching the TargetFramework docfx.json asks for.
+      # Without it this builds every framework the project declares, which now
+      # includes an iOS one, and would need the .NET 10 SDK and the iOS workload
+      # on a runner that has no use for either: the public API is the same on
+      # both sides, and the reference is generated from the net8.0 assembly.
       - name: Build
-        run: dotnet build src/Box3D.NET/Box3D.NET.csproj --configuration Release
+        run: dotnet build src/Box3D.NET/Box3D.NET.csproj --configuration Release --framework net8.0
 
       - name: Generate the icon
         shell: pwsh
