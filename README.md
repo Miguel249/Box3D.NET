@@ -734,17 +734,27 @@ start an application on a phone, so those two words are the honest ceiling:
   it for `arm64-v8a`. That covers the failure mode specific to Android: an
   unresolved runtime asset produces a perfectly valid application that dies on
   its first physics call.
-- **linked** — CI builds a real iOS application against the packed `.nupkg` and
-  confirms the package handed Box3D's archive to the linker. That is the failure
-  mode specific to iOS: the library is linked into the application rather than
-  loaded, and a P/Invoke to `__Internal` is resolved by Mono at run time, so an
-  application the archive never reached builds and launches exactly like a
-  correct one and fails on its first physics call.
+- **linked** — CI builds a real iOS application against the packed `.nupkg`,
+  then reads the executable it produced with `nm` and requires Box3D's own
+  native symbols to be defined in it. That is the failure mode specific to iOS:
+  the library is linked into the application rather than loaded, and a P/Invoke
+  to `__Internal` is resolved by Mono at run time, so an application the archive
+  never reached builds and launches exactly like a correct one and fails on its
+  first physics call.
 
-  The stronger check — Box3D's symbols in the finished executable — is attempted
-  and normally cannot run, because a release build for iOS is stripped and
-  defines no symbols at all. Where the binary does keep a symbol table and Box3D
-  is missing from it, that is a failure rather than a shrug.
+  Only symbols named `_b3…` count, since those can only have come out of
+  `libbox3d.a`. An AOT-compiled method carries its parameter types in its
+  mangled name, so `b3BodyId` and `b3ShapeDef` turn up inside managed symbols
+  like `_Box3D_NET_Box3D_Body__ctor_Box3D_Native_b3BodyId`, which are in the
+  binary whether or not the archive survived the link. Those are counted too,
+  separately, because they answer the other question — whether the trimmer kept
+  Box3D's C# at all — and between them they say which half to go and look at
+  when the check fails.
+
+  A stripped executable would leave nothing to read, and the check falls back to
+  the build log's evidence that the linker was handed the archive, reporting
+  that it did so rather than claiming the stronger result. That has not happened
+  yet: the release simulator build keeps its symbol table.
 
 Neither runs a simulation on a device. If you ship Box3D.NET on a phone, test on
 a phone.

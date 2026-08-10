@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-10
+
+A reach release. The library itself is unchanged — no type, member or behaviour
+differs from 0.3.0, and package validation against it reports no difference —
+and what is new is where it runs: the packages now carry Android and iOS
+alongside the six desktop runtimes. That is a minor version rather than a patch
+because a platform is a capability, and nothing here is a fix.
+
 ### Added
 
 - **Android and iOS.** The packages now carry native binaries for
@@ -40,11 +48,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Both are verified in CI against the packed `.nupkg` rather than the
   repository: a real Android application is built and its `.apk` opened to
   confirm `libbox3d.so` is inside it, and a real iOS application is built and
-  checked for evidence that the package handed Box3D's archive to the linker.
-  A clean build proves nothing on iOS by itself — a P/Invoke to `__Internal` is
-  resolved at run time, so an application the archive never reached builds and
-  launches like a correct one. Neither runs a simulation on a device, and the
-  platform table in the README says so rather than implying otherwise.
+  its executable read with `nm` to confirm Box3D's own native symbols are
+  defined in it — 415 of them, in the run this release was cut from. A clean
+  build proves nothing on iOS by itself: a P/Invoke to `__Internal` is resolved
+  at run time, so an application the archive never reached builds and launches
+  like a correct one.
+
+  Only symbols named `_b3…` are counted as evidence of the link. An AOT-compiled
+  method carries its parameter types in its mangled name, so `b3BodyId` and
+  `b3ShapeDef` occur inside managed symbols such as
+  `_Box3D_NET_Box3D_Body__ctor_Box3D_Native_b3BodyId`, which are in the binary
+  whether or not the archive survived; counting those would have counted the
+  wrong thing. They are counted separately instead, because they answer the
+  other question — whether the trimmer kept Box3D's C# at all — and that
+  distinction is what tells the two failures apart.
+
+  Neither platform runs a simulation on a device, and the platform table in the
+  README says so rather than implying otherwise.
 
 ### Changed
 
@@ -450,6 +470,8 @@ rather than left standing:
   follow Box3D and are documented rather than corrected.
 - Single precision only. Box3D's large-world mode changes the ABI and would need
   a separate package.
-[Unreleased]: https://github.com/Miguel249/Box3D.NET/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/Miguel249/Box3D.NET/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/Miguel249/Box3D.NET/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/Miguel249/Box3D.NET/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Miguel249/Box3D.NET/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Miguel249/Box3D.NET/releases/tag/v0.1.0

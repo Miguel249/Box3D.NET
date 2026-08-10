@@ -56,10 +56,13 @@
       This was still 0.1.0 while 0.3.0 was being prepared, which is a gap rather
       than extra strictness: comparing against 0.1.0 says nothing about whether
       a member 0.2.0 added has survived, so anything introduced and then removed
-      inside the 0.2.x line would have passed unremarked.
+      inside the 0.2.x line would have passed unremarked. It was then left at
+      0.2.0 while 0.3.0 shipped, which is the same gap again, so the instruction
+      above is worth taking literally: this line moves in the commit that moves
+      VersionPrefix, not in the one after it.
     -->
     <EnablePackageValidation>true</EnablePackageValidation>
-    <PackageValidationBaselineVersion>0.2.0</PackageValidationBaselineVersion>
+    <PackageValidationBaselineVersion>0.3.0</PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(IsPackable)' == 'true'">
