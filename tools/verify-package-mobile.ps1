@@ -331,57 +331,67 @@ internal static class Box3DUse
         }
 
         $allSymbols = @(& nm $executable 2>$null)
-        $symbols = @($allSymbols | Select-String -Pattern '_b3[A-Za-z_]')
 
         # Undefined entries are what the binary imports from the system, and a
         # fully stripped executable still lists those. Only defined symbols say
         # anything about what is inside it, so they are counted separately: none
-        # at all means the check cannot see anything and silence proves nothing,
-        # while plenty of them and no b3 among them means Box3D is genuinely
-        # absent.
+        # at all means the check cannot see anything and silence proves nothing.
         $definedSymbols = @($allSymbols | Where-Object { $_ -notmatch '^\s*U ' -and $_ -match '^[0-9a-fA-F]+\s' })
+
+        # Two different things are counted here, and only one of them answers
+        # what this job exists to ask.
+        #
+        #   native   a defined symbol whose name starts _b3. That is the C API's
+        #            own naming, so it came out of libbox3d.a and nowhere else
+        #   managed  the AOT compiler's output for Box3D's C#, named like
+        #            _Box3D_NET_Box3D_Body__ctor_Box3D_Native_b3BodyId
+        #
+        # Telling them apart is the whole point. A plain search for b3 matches
+        # the managed ones by accident, because a mangled name carries its
+        # parameter types and b3BodyId or b3ShapeDef sit inside them - and those
+        # symbols come from the managed assembly, so they would be in the binary
+        # whether or not the archive survived the link. Counting them as proof
+        # of linking counts the wrong thing.
+        #
+        # The managed count is still worth having. It says whether the trimmer
+        # kept Box3D's C# at all, which is the other way this check has failed,
+        # and it separates the two causes when the native count is zero.
+        $nativeSymbols = @($definedSymbols | Where-Object { $_ -match '^[0-9a-fA-F]+\s+\S+\s+_b3[A-Za-z_]' })
+        $managedSymbols = @($definedSymbols | Where-Object { $_ -match '_Box3D_NET_' })
 
         Write-Host "  archive passed to the linker : $linkerSawArchive"
         Write-Host "  defined symbols in binary    : $($definedSymbols.Count)"
-        Write-Host "  Box3D symbols in the binary  : $($symbols.Count)"
+        Write-Host "  Box3D native symbols         : $($nativeSymbols.Count)"
+        Write-Host "  Box3D managed AOT symbols    : $($managedSymbols.Count)"
 
-        if (-not $linkerSawArchive -and $symbols.Count -eq 0) {
-            # Everything worth knowing about why, gathered before failing, so
-            # that one CI run answers the question instead of starting a guess.
-            Write-Host "`n--- diagnostics"
-
-            $allSymbols = @(& nm $executable 2>$null)
-            Write-Host "  symbols in the executable: $($allSymbols.Count)"
-            $allSymbols | Select-Object -First 5 | ForEach-Object { Write-Host "    $_" }
-
-            Write-Host "  bundle contents:"
-            Get-ChildItem $app.FullName | ForEach-Object { Write-Host "    $($_.Name)" }
-
-            if (Test-Path $buildLog) {
-                Write-Host "  build log lines naming the package or a native reference:"
-                Select-String -Path $buildLog -Pattern 'NativeReference|force_load|Box3D' |
-                    Select-Object -First 15 |
-                    ForEach-Object { Write-Host "    $($_.Line.Trim())" }
-            }
-
-            throw "Box3D never reached the application: the linker was not given libbox3d.a and no b3 symbols are in the executable. The package's iOS .targets did not take effect - check that buildTransitive/<tfm>/ matches the consumer's target framework, and that NativeReference names the xcframework correctly."
-        }
-
-        if ($symbols.Count -gt 0) {
-            $symbols | Select-Object -First 5 | ForEach-Object { Write-Host "  $($_.Line.Trim())" }
+        if ($nativeSymbols.Count -gt 0) {
+            $nativeSymbols | Select-Object -First 5 | ForEach-Object { Write-Host "  $($_.Trim())" }
             Write-Host "`nThe iOS application has Box3D linked into its executable."
         }
-        elseif ($definedSymbols.Count -gt 0) {
-            # The binary kept its symbol table and Box3D is not in it. That is
-            # not a stripped build hiding the evidence, it is the evidence: the
-            # archive was handed to the linker and dropped again, and every
-            # physics call would fail on the device with an entry point that is
-            # not there.
+        elseif ($definedSymbols.Count -eq 0) {
+            # Nothing is visible either way. Release builds for iOS are
+            # stripped, so this is expected rather than suspicious, but it does
+            # mean the stronger half of the check did not run and saying "pass"
+            # without saying that would be claiming more than was tested.
+            if (-not $linkerSawArchive) {
+                throw 'Box3D never reached the application: the linker was not given libbox3d.a, and the executable is stripped so nothing else can be read from it. The package iOS .targets did not take effect - check that buildTransitive/<tfm>/ matches the consumer target framework, and that NativeReference names the xcframework correctly.'
+            }
+
+            Write-Host "`nThe linker was given Box3D's archive. The executable is stripped - it defines no symbols at all - so the symbol check could not run; the link is the evidence here."
+        }
+        else {
+            # The binary kept its symbol table and no native Box3D symbol is in
+            # it. That is not a stripped build hiding the evidence, it is the
+            # evidence: whatever the linker was given did not end up in the
+            # application, and every physics call would fail on the device with
+            # an entry point that is not there.
             #
-            # Which half to go and fix is decided by mtouch-symbols.list, the
-            # file passed to the native link as -exported_symbols_list. mtouch
-            # fills it from the __Internal P/Invokes left in the application
-            # after trimming, and -dead_strip keeps only what it names.
+            # Which half to go and fix is decided by two things gathered here.
+            # The managed count says whether the application still contains the
+            # C# that P/Invokes at all, and mtouch-symbols.list - the file
+            # passed to the native link as -exported_symbols_list - says whether
+            # anything asked the linker to keep the native symbols, since
+            # -dead_strip keeps only what that file names.
             Write-Host "`n--- diagnostics"
 
             $requested = @()
@@ -390,7 +400,7 @@ internal static class Box3DUse
 
             if ($symbolList) {
                 $listed = @(Get-Content $symbolList.FullName)
-                $requested = @($listed | Select-String -Pattern '_b3[A-Za-z_]')
+                $requested = @($listed | Select-String -Pattern '^_?b3[A-Za-z_]')
                 Write-Host "  mtouch-symbols.list          : $($requested.Count) Box3D of $($listed.Count) symbols asked for"
                 $requested | Select-Object -First 5 | ForEach-Object { Write-Host "    $($_.Line.Trim())" }
             }
@@ -405,18 +415,15 @@ internal static class Box3DUse
                     ForEach-Object { Write-Host "    $(($_.Line.Trim() -split '\s+' | Select-Object -First 6) -join ' ') ..." }
             }
 
-            if ($requested.Count -eq 0) {
-                throw "The executable defines $($definedSymbols.Count) symbols and not one of them is Box3D's. mtouch asked the linker to keep no Box3D symbol at all, so -dead_strip removed everything -force_load had just pulled in: the application's own code no longer P/Invokes into Box3D by the time mtouch looks. Something reachable from the entry point has to call it - check that the call this script inserts into Main is still there and still survives trimming."
+            if ($managedSymbols.Count -eq 0) {
+                throw "The executable defines $($definedSymbols.Count) symbols and none of them is Box3D's, native or managed. Box3D's C# is not in the application either, so the trimmer took it: nothing reachable calls into Box3D, mtouch found no P/Invoke to keep a symbol for, and -dead_strip removed everything -force_load had pulled in. Check that the module initializer this script writes into Box3DUse.cs is still there and still survives trimming."
             }
 
-            throw "The executable defines $($definedSymbols.Count) symbols and not one of them is Box3D's, even though mtouch asked the linker to keep $($requested.Count). The archive reached the linker and was then dropped - check that ForceLoad is still set in the package's .targets and that the xcframework slice matches the architecture being built."
-        }
-        else {
-            # Nothing is visible either way. Release builds for iOS are
-            # stripped, so this is expected rather than suspicious, but it does
-            # mean the stronger half of the check did not run and saying "pass"
-            # without saying that would be claiming more than was tested.
-            Write-Host "`nThe linker was given Box3D's archive. The executable is stripped - it defines no symbols at all - so the symbol check could not run; the link is the evidence here."
+            if ($requested.Count -eq 0) {
+                throw "The executable carries $($managedSymbols.Count) managed Box3D symbols but not one native one, and mtouch asked the linker to keep no Box3D symbol at all. The C# survived trimming and its P/Invokes did not reach mtouch - check that the package's iOS assembly is the one being used, since it is the only one whose library name is __Internal."
+            }
+
+            throw "The executable carries $($managedSymbols.Count) managed Box3D symbols but not one native one, even though mtouch asked the linker to keep $($requested.Count). The archive reached the linker and was then dropped - check that ForceLoad is still set in the package's .targets and that the xcframework slice matches the architecture being built."
         }
     }
 }
