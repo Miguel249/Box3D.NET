@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`ShapeDefinition.Friction` and `ShapeDefinition.Restitution`**, shortcuts for
+  the two material properties changed most often. Changing one used to take a
+  nested `with`; now `ShapeDefinition.Default with { Friction = 0.7f }` does it.
+  Both read and write `Material` and store nothing of their own, so a definition
+  built either way is equal to the other. Initializers run in order, so set
+  `Material` before them when using both.
+
 ### Changed
 
 - **`PhysicsWorld.Explode` says which shapes respond.** It read "only spheres,

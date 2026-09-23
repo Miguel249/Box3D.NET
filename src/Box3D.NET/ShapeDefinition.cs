@@ -52,7 +52,7 @@ public enum ShapeType
 /// var def = ShapeDefinition.Default with
 /// {
 ///     Density = 2000.0f,
-///     Material = PhysicsMaterial.Default with { Friction = 0.9f },
+///     Friction = 0.9f,
 ///     EnableContactEvents = true,
 /// };
 ///
@@ -79,6 +79,47 @@ public readonly record struct ShapeDefinition
 
     /// <summary>Gets the surface properties.</summary>
     public PhysicsMaterial Material { get; init; }
+
+    /// <summary>Gets the friction of <see cref="Material"/>.</summary>
+    /// <remarks>
+    /// <para>
+    /// A shortcut for the common case of changing only the friction, which
+    /// otherwise takes a nested <c>with</c>. Setting it replaces the material
+    /// with a copy that differs only in friction; nothing is stored apart from
+    /// <see cref="Material"/>.
+    /// </para>
+    /// <para>
+    /// Initializers run in order, so when setting both, set
+    /// <see cref="Material"/> first: a <see cref="Material"/> after this one
+    /// replaces the friction it set.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var grippy = ShapeDefinition.Default with { Friction = 0.9f };
+    /// // Same as:
+    /// var nested = ShapeDefinition.Default with
+    /// {
+    ///     Material = PhysicsMaterial.Default with { Friction = 0.9f },
+    /// };
+    /// </code>
+    /// </example>
+    public float Friction
+    {
+        get => Material.Friction;
+        init => Material = Material with { Friction = value };
+    }
+
+    /// <summary>Gets the restitution, or bounciness, of <see cref="Material"/>.</summary>
+    /// <remarks>
+    /// A shortcut in the same way as <see cref="Friction"/>, and with the same
+    /// caveat: set <see cref="Material"/> first when setting both.
+    /// </remarks>
+    public float Restitution
+    {
+        get => Material.Restitution;
+        init => Material = Material with { Restitution = value };
+    }
 
     /// <summary>Gets the collision filtering rules.</summary>
     public CollisionFilter Filter { get; init; }
