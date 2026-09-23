@@ -98,8 +98,21 @@ public class LayoutTests
     [InlineData(typeof(b3Manifold), 268)]
     [InlineData(typeof(b3FeaturePair), 4)]
     [InlineData(typeof(b3SATCache), 8)]
-    [InlineData(typeof(b3TreeNode), 48)]
+    [InlineData(typeof(b3TreeNode), 32)]
+    [InlineData(typeof(b3TreeProxy), 24)]
+    [InlineData(typeof(b3DynamicTree), 112)]
     [InlineData(typeof(b3ChildShape), 80)]
+    [InlineData(typeof(b3PlaneResult), 40)]
+    [InlineData(typeof(b3BodyPlaneResult), 48)]
+    [InlineData(typeof(b3BodyTOIResult), 36)]
+    [InlineData(typeof(b3Point2D), 16)]
+    [InlineData(typeof(b3MeshDef), 48)]
+    [InlineData(typeof(b3MeshData), 96)]
+    [InlineData(typeof(b3HullData), 144)]
+    [InlineData(typeof(b3BoxHull), 640)]
+    [InlineData(typeof(b3HeightFieldData), 96)]
+    [InlineData(typeof(b3Profile), 88)]
+    [InlineData(typeof(b3Counters), 208)]
     public void Public_structs_have_the_C_size(Type type, int expected)
     {
         Assert.Equal(expected, SizeOf(type));
@@ -162,6 +175,82 @@ public class LayoutTests
         Assert.Equal(0, raw[3]); // angularX
         Assert.Equal(1, raw[4]); // angularY
         Assert.Equal(0, raw[5]); // angularZ
+    }
+
+    /*
+     * b3MeshDef gained a size_t stride after the vertex pointer and a trailing
+     * bool. The stride is pointer-sized, so everything after it moved by eight
+     * bytes, and the new bool fills what used to be the struct's last padding
+     * byte: 8 + 8 + 8 + 8 + 4 + 4 + 4 + four bools = 48.
+     */
+
+    [Fact]
+    public void MeshDef_puts_the_stride_after_the_vertices_and_the_winding_last()
+    {
+        Assert.Equal(8, (int)Marshal.OffsetOf<b3MeshDef>(nameof(b3MeshDef.stride)));
+        Assert.Equal(16, (int)Marshal.OffsetOf<b3MeshDef>(nameof(b3MeshDef.indices)));
+        Assert.Equal(24, (int)Marshal.OffsetOf<b3MeshDef>(nameof(b3MeshDef.materialIndices)));
+        Assert.Equal(32, (int)Marshal.OffsetOf<b3MeshDef>(nameof(b3MeshDef.weldTolerance)));
+        Assert.Equal(44, (int)Marshal.OffsetOf<b3MeshDef>(nameof(b3MeshDef.weldVertices)));
+        Assert.Equal(47, (int)Marshal.OffsetOf<b3MeshDef>(nameof(b3MeshDef.clockWiseWinding)));
+        Assert.Equal(sizeof(ulong), Unsafe.SizeOf<nuint>());
+    }
+
+    /*
+     * b3PlaneResult appended three ints after the 28 bytes of plane and point,
+     * and b3BodyPlaneResult embeds it after an 8-byte shape id.
+     */
+
+    [Fact]
+    public void PlaneResult_appends_the_triangle_child_and_material_indices()
+    {
+        Assert.Equal(28, (int)Marshal.OffsetOf<b3PlaneResult>(nameof(b3PlaneResult.triangleIndex)));
+        Assert.Equal(32, (int)Marshal.OffsetOf<b3PlaneResult>(nameof(b3PlaneResult.childIndex)));
+        Assert.Equal(36, (int)Marshal.OffsetOf<b3PlaneResult>(nameof(b3PlaneResult.materialIndex)));
+        Assert.Equal(8, (int)Marshal.OffsetOf<b3BodyPlaneResult>(nameof(b3BodyPlaneResult.result)));
+    }
+
+    [Fact]
+    public void BodyTOIResult_is_point_normal_fraction_then_shape()
+    {
+        Assert.Equal(0, (int)Marshal.OffsetOf<b3BodyTOIResult>(nameof(b3BodyTOIResult.point)));
+        Assert.Equal(12, (int)Marshal.OffsetOf<b3BodyTOIResult>(nameof(b3BodyTOIResult.normal)));
+        Assert.Equal(24, (int)Marshal.OffsetOf<b3BodyTOIResult>(nameof(b3BodyTOIResult.fraction)));
+        Assert.Equal(28, (int)Marshal.OffsetOf<b3BodyTOIResult>(nameof(b3BodyTOIResult.shapeId)));
+    }
+
+    /*
+     * The geometry headers moved to 64-bit hashes. The hash now follows the
+     * version directly, where the old byte count and 32-bit hash used to share
+     * one eight-byte slot, so every field after it moved.
+     */
+
+    [Fact]
+    public void Baked_geometry_keeps_a_64_bit_hash_right_after_the_version()
+    {
+        Assert.Equal(8, (int)Marshal.OffsetOf<b3HullData>(nameof(b3HullData.hash)));
+        Assert.Equal(140, (int)Marshal.OffsetOf<b3HullData>(nameof(b3HullData.byteCount)));
+
+        Assert.Equal(8, (int)Marshal.OffsetOf<b3MeshData>(nameof(b3MeshData.hash)));
+        Assert.Equal(16, (int)Marshal.OffsetOf<b3MeshData>(nameof(b3MeshData.byteCount)));
+
+        Assert.Equal(8, (int)Marshal.OffsetOf<b3HeightFieldData>(nameof(b3HeightFieldData.hash)));
+        Assert.Equal(16, (int)Marshal.OffsetOf<b3HeightFieldData>(nameof(b3HeightFieldData.byteCount)));
+        Assert.Equal(88, (int)Marshal.OffsetOf<b3HeightFieldData>(nameof(b3HeightFieldData.clockwise)));
+    }
+
+    [Fact]
+    public void TreeNode_union_members_share_the_last_word()
+    {
+        b3TreeNode node = default;
+        node.height = 7;
+
+        Assert.Equal(7, node.shapeIndex);
+
+        node.flagIndex = 0x80000000u | 0x40000000u | 42u;
+        Assert.True(node.IsLeaf);
+        Assert.True(node.IsMoved);
+        Assert.Equal(42, node.Index);
     }
 
     /*

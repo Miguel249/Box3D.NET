@@ -7,6 +7,153 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Box3D moves from `3fc20f5` to `9e5a4cd`, the six upstream commits between them.
+The idiomatic `Box3D.NET` only gains members: nothing in it is removed or
+changes signature, and package validation against the last release reports no
+difference. `Box3D.NET.Native` is a mirror of the C API, so where Box3D changed
+a declaration the mirror changed with it; every such break is listed under
+Changed and recorded in `src/Box3D.NET.Native/CompatibilitySuppressions.xml`.
+
+### Added
+
+- **Clockwise meshes.** `MeshOptions.ClockwiseWinding` builds a mesh from
+  indices wound clockwise, for content exported with that convention, instead
+  of reordering them by hand. The mesh faces the same way either way.
+
+- **Meshes from interleaved vertex buffers.**
+  `CollisionMesh.FromTriangles<TVertex>(vertices, positionOffset, indices, ...)`
+  reads each position out of a larger vertex struct, so a render vertex buffer
+  can be used as it is. The stride is the size of `TVertex`. A vertex type
+  Box3D cannot read — a size that is not a multiple of four, or outside 12 to
+  4096 bytes — is rejected with an `ArgumentException`, and a position offset
+  that is misaligned or does not fit with an `ArgumentOutOfRangeException`,
+  rather than surfacing as a failed build.
+
+- **What a character is touching.** `CharacterContact.TriangleIndex`,
+  `ChildIndex` and `MaterialIndex` name the mesh or height field triangle, the
+  compound child and the material behind each plane. All three are zero for
+  shapes they do not apply to, which is how Box3D reports them — not minus one
+  as on `RaycastHit`. The material index is clamped to the shape's own
+  materials, so on a mesh or height field attached through `Box3D.NET`, which
+  carries one material, it is always zero; on a compound it tells the children's
+  materials apart.
+
+- **A character struck by a moving body.** `CharacterMover.TimeOfImpact` sweeps
+  a body between two poses against a capsule's own movement over the same
+  interval and returns a `CharacterImpact`: whether it hit, the shape, the
+  point, the normal from the body towards the character, and the fraction.
+  Only the sphere, capsule and hull shapes on the body are swept, and a shape
+  overlapping the capsule at the start is ignored — both as Box3D defines it.
+  `CharacterControllerSample` now ends with a crate dropped on a standing
+  character.
+
+- **`Joint.IsAwake`**, true exactly when at least one of the joint's bodies is
+  awake.
+
+- **Continuous collision tuning.** `BodyDefinition.SafetyFactor` and
+  `Body.SafetyFactor` decide when a body counts as fast enough to need
+  continuous collision. Smaller is safer but can make the body hitch; the
+  engine default of 0.5 is what every body had before. A non-finite or
+  negative value is rejected.
+
+- In `Box3D.NET.Native`: `b3Body_TimeOfImpactMover` and `b3BodyTOIResult`,
+  `b3Joint_IsAwake`, `b3Body_SetSafetyFactor` and `b3Body_GetSafetyFactor`,
+  `b3Body_GetMinExtent`, `b3Body_GetMaxExtent` and `b3Body_GetMaxExtentOrigin`,
+  `b3GetMaxManifoldPoints`, `b3Hull2D`, `b3SimplifyHull2D` and `b3Point2D`,
+  `b3TreeProxy`, and `Constants.B3_MAX_MESH_CONTACT_TRIANGLES`. The new struct
+  fields are `b3MeshDef.stride` and `clockWiseWinding`,
+  `b3PlaneResult.triangleIndex`, `childIndex` and `materialIndex`,
+  `b3BodyDef.safetyFactor` and `b3CompoundData.proxyOffset`.
+
+### Changed
+
+- **Box3D updated to `9e5a4cd`** (`v0.1.0-24`), from `3fc20f5`.
+
+- **Mesh and height field triangles are one-sided for shape casts.**
+  `PhysicsWorld.CastCapsule`, and `b3World_CastMover`, `b3World_CastShape` and
+  `b3Body_CastShape` in the native layer, now pass through the back of a
+  triangle, as ray casts always have. A capsule cast upwards from under a floor
+  used to stop on its underside; it now goes through. The tests that pin this
+  fail against the previous Box3D. `CollideCapsule` already reported only the
+  front face, and still does.
+
+- **The serialized geometry formats changed.** Box3D moved hulls, meshes and
+  height fields to 64-bit content hashes and rewrote the dynamic tree, so
+  `B3_HULL_VERSION`, `B3_MESH_VERSION`, `B3_HEIGHT_FIELD_VERSION`,
+  `B3_DYNAMIC_TREE_VERSION` and the `B3_COMPOUND_VERSION` derived from them all
+  have new values, and recordings are now format 6.7. Nothing `Box3D.NET` builds
+  at run time is affected. Geometry baked and saved by an earlier Box3D — through
+  `b3LoadHeightField`, `b3DynamicTree_Load` or raw copies of the structures in
+  `Box3D.NET.Native` — does not match the new layout and has to be rebuilt.
+
+- **Restitution is applied once, at the end of the step.** Box3D dropped
+  `B3_RESTITUTION_ITERATIONS`, so `Constants.B3_RESTITUTION_ITERATIONS` is now
+  `[Obsolete]` and affects nothing. `b3ManifoldPoint.normalVelocity` is only
+  computed when restitution or hit events need it, and is zero otherwise;
+  `ContactHitEvent.ApproachSpeed` is unaffected, since hit events are what turn
+  it on.
+
+- A NaN smuggled into a body through `Box3D.NET.Native` no longer reaches bodies
+  it is not touching: Box3D's new broad phase contained that. It still spreads
+  through contact, so the validation in `Box3D.NET` is unchanged, and the
+  README, `docs/benchmarks.md` and the test that measures it now describe what
+  actually happens.
+
+- **Breaking, `Box3D.NET.Native` only.** Each of these follows a change to the C
+  declaration it mirrors, and none can be preserved without the mirror lying
+  about the layout the native library uses:
+  - `b3GetByteCount` returns `long`, as `int64_t` in C. Change the variable
+    receiving it.
+  - `b3SetAllocator` takes `delegate* unmanaged[Cdecl]<nuint, int, void*>` and
+    `delegate* unmanaged[Cdecl]<void*, nuint, void>`: the size is a `size_t`,
+    and the free callback is now told the size of the block.
+  - `b3Counters.byteCount` is a `long` and is now the first field.
+  - `b3Profile.applyRestitution` is gone.
+  - The dynamic tree was rewritten. `b3TreeNode` is now 32 bytes of box,
+    `flagIndex` and a `height`/`shapeIndex` union, with `IsLeaf`, `IsMoved` and
+    `Index` to read the packed word; the user data and category bits moved to
+    the new `b3TreeProxy`. `b3DynamicTree` holds `parents`, `proxies`,
+    `nodeEnd`, `pairFreeList` and the rest of the new layout in place of `root`,
+    `nodeCount` and `freeList`. `b3TreeNodeChildren`, `b3TreeNodeFlags` and
+    `b3TreeNodeFlagsStorage` have no C counterpart any more and are removed,
+    and `b3DynamicTree_ValidateNoEnlarged` became
+    `b3DynamicTree_ValidateNoMoved`. `B3.b3DynamicTree_GetUserData` and
+    `b3DynamicTree_GetAABB` read through the proxies, as the C versions do.
+  - `b3HullData.hash`, `b3MeshData.hash` and `b3HeightFieldData.hash` are
+    `ulong`, and the fields after them moved. `b3HullData.padding` is gone,
+    `b3MeshData.padding` is new, `b3HeightFieldData.clockwise` is a `byte`
+    followed by seven bytes of padding, and `b3BoxHull.padding` shrank to two.
+  - `b3RecPlayer_Create` and `b3RecPlayer_Destroy` were renamed by Box3D to
+    `b3CreatePlayer` and `b3DestroyPlayer`. This one is a pure rename, so the
+    old names remain as `[Obsolete]` forwarders and existing code still
+    compiles.
+
+- `B3Math.b3GetLengthAndNormalize` follows the new inline in the header: a
+  vector counts as zero when its squared length is at most `1000 * FLT_MIN`,
+  rather than when its length is below `FLT_EPSILON`, and its length is then
+  reported as zero.
+
+- `tools/generate-bindings.ps1` maps `b3AllocFcn` and `b3FreeFcn` to their new
+  `size_t` signatures.
+
+### Fixed
+
+Inherited from Box3D:
+
+- Triangle collision fixes against meshes and height fields (upstream #126).
+- Mover collision is smoother, and no longer catches on the back of mesh
+  triangles (upstream #141).
+- Creating many hulls with regularly spaced coordinates, as voxel games do, was
+  slow because of collisions in the hull database's hash. Box3D now hashes with
+  rapidhash; the first 64-bit hash it tried had a bad optimization, fixed later
+  in the same range of commits (upstream #120, #129).
+- Contacts are invalidated when a body's centre of mass shifts, instead of
+  being recycled with stale anchors (upstream #155).
+- A broad-phase validation failure in scenes with contact events (upstream
+  #149). It only fired in builds of Box3D with validation enabled, which the
+  shipped binaries are not.
+
+
 ## [0.4.0] - 2026-08-10
 
 A reach release. The library itself is unchanged — no type, member or behaviour

@@ -98,6 +98,7 @@ public unsafe class NativeInteropTests
         Assert.True(def.isAwake);
         Assert.True(def.isEnabled);
         Assert.False(def.isBullet);
+        Assert.Equal(0.5f, def.safetyFactor);
     }
 
     [NativeFact]
@@ -327,7 +328,7 @@ public unsafe class NativeInteropTests
         b3WorldId first = B3.b3CreateWorld(&warmup);
         B3.b3DestroyWorld(first);
 
-        int before = B3.b3GetByteCount();
+        long before = B3.b3GetByteCount();
 
         for (int i = 0; i < 16; ++i)
         {
@@ -347,7 +348,7 @@ public unsafe class NativeInteropTests
             B3.b3DestroyWorld(world);
         }
 
-        int after = B3.b3GetByteCount();
+        long after = B3.b3GetByteCount();
 
         Assert.Equal(before, after);
     }
@@ -355,7 +356,7 @@ public unsafe class NativeInteropTests
     [NativeFact]
     public void A_created_hull_is_freed_by_the_caller()
     {
-        int before = B3.b3GetByteCount();
+        long before = B3.b3GetByteCount();
 
         b3HullData* hull = B3.b3CreateCylinder(2.0f, 1.0f, 0.0f, 16);
         try
@@ -394,7 +395,7 @@ public unsafe class NativeInteropTests
     {
         // b3MakeBoxHull returns by value with its arrays embedded, so it does
         // not allocate and must never reach b3DestroyHull.
-        int before = B3.b3GetByteCount();
+        long before = B3.b3GetByteCount();
 
         b3BoxHull box = B3.b3MakeBoxHull(1.0f, 2.0f, 3.0f);
 
@@ -489,5 +490,113 @@ public unsafe class NativeInteropTests
         // scaled constants must be resting at their documented defaults.
         Assert.Equal(1.0f, B3.b3GetLengthUnitsPerMeter(), 6);
         Assert.Equal(0.005f, ScaledConstants.B3_LINEAR_SLOP, 6);
+    }
+
+    // ----------------------------------------------------------- build facts
+
+    [NativeFact]
+    public void The_library_was_built_with_the_manifold_size_the_mirrors_assume()
+    {
+        // b3Manifold carries B3_MAX_MANIFOLD_POINTS points inline, and every
+        // structure holding one is laid out around that number. Box3D added this
+        // function precisely so that a binding can check it.
+        Assert.Equal(Constants.B3_MAX_MANIFOLD_POINTS, B3.b3GetMaxManifoldPoints());
+    }
+
+    [NativeFact]
+    public void Baked_geometry_carries_the_format_versions_the_constants_declare()
+    {
+        // The versions changed with the switch to 64-bit hashes. Data baked by an
+        // older Box3D is rejected on this field, so the constants have to agree
+        // with the library that does the rejecting.
+        b3MeshData* mesh = B3.b3CreateGridMesh(2, 2, 1.0f, 1, true);
+        b3HeightFieldData* field = B3.b3CreateGrid(3, 3, Vector3.One, false);
+        try
+        {
+            Assert.Equal(Constants.B3_MESH_VERSION, mesh->version);
+            Assert.Equal(Constants.B3_HEIGHT_FIELD_VERSION, field->version);
+            Assert.NotEqual(0UL, mesh->hash);
+            Assert.NotEqual(0UL, field->hash);
+        }
+        finally
+        {
+            B3.b3DestroyMesh(mesh);
+            B3.b3DestroyHeightField(field);
+        }
+    }
+
+    [NativeFact]
+    public void A_mesh_def_with_an_unusable_stride_is_refused()
+    {
+        Vector3* vertices = stackalloc Vector3[3] { Vector3.Zero, Vector3.UnitX, Vector3.UnitZ };
+        int* indices = stackalloc int[3] { 0, 2, 1 };
+
+        b3MeshDef def = new()
+        {
+            vertices = vertices,
+            indices = indices,
+            vertexCount = 3,
+            triangleCount = 1,
+            stride = 14,
+        };
+
+        // Box3D reads the stride as a byte count, so one that is not a multiple
+        // of four, or is smaller than a vector, can only be a mistake.
+        Assert.True(B3.b3CreateMesh(&def, null, 0) is null);
+
+        def.stride = 8;
+        Assert.True(B3.b3CreateMesh(&def, null, 0) is null);
+
+        def.stride = (nuint)sizeof(Vector3);
+        b3MeshData* mesh = B3.b3CreateMesh(&def, null, 0);
+        Assert.True(mesh is not null);
+        B3.b3DestroyMesh(mesh);
+    }
+
+    // ------------------------------------------------- one-sided shape casts
+
+    [NativeFact]
+    public void A_shape_cast_hits_the_front_of_a_mesh_and_passes_through_the_back()
+    {
+        b3WorldDef worldDef = B3.b3DefaultWorldDef();
+        b3WorldId world = B3.b3CreateWorld(&worldDef);
+        b3MeshData* grid = B3.b3CreateGridMesh(4, 4, 1.0f, 1, true);
+        try
+        {
+            b3BodyDef bodyDef = B3.b3DefaultBodyDef();
+            b3BodyId body = B3.b3CreateBody(world, &bodyDef);
+            b3ShapeDef shapeDef = B3.b3DefaultShapeDef();
+            B3.b3CreateMeshShape(body, &shapeDef, grid, Vector3.One);
+            B3.b3World_Step(world, 1.0f / 60.0f, 4);
+
+            // A sphere of radius 0.25, as a one-point proxy.
+            Vector3 point = Vector3.Zero;
+            b3ShapeProxy proxy = new() { points = &point, count = 1, radius = 0.25f };
+            b3Transform pose = B3.b3Body_GetTransform(body);
+            // The grid is four metres across, centred on the origin.
+            Vector3 above = new(0.3f, 2.0f, 0.4f);
+            Vector3 below = new(0.3f, -2.0f, 0.4f);
+
+            b3BodyCastResult down = B3.b3Body_CastShape(
+                body, above, &proxy, new Vector3(0.0f, -4.0f, 0.0f), B3.b3DefaultQueryFilter(), 1.0f, false, pose);
+
+            b3BodyCastResult up = B3.b3Body_CastShape(
+                body, below, &proxy, new Vector3(0.0f, 4.0f, 0.0f), B3.b3DefaultQueryFilter(), 1.0f, false, pose);
+
+            // The grid lies at y = 0 facing up, so from above the sphere lands
+            // after 1.75 of its 4 metres.
+            Assert.False(down.shapeId.IsNull, "the cast from above should hit the front of the mesh");
+            Assert.Equal(1.75f / 4.0f, down.fraction, 2);
+            Assert.True(down.normal.Y > 0.9f, $"normal {down.normal}");
+
+            // From below it meets only the back of each triangle, which casts
+            // ignore, as ray casts always have.
+            Assert.True(up.shapeId.IsNull, $"the cast from below hit the back of the mesh at fraction {up.fraction}");
+        }
+        finally
+        {
+            B3.b3DestroyWorld(world);
+            B3.b3DestroyMesh(grid);
+        }
     }
 }

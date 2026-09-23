@@ -20,8 +20,8 @@ namespace Box3D.Native;
 public static class BindingSource
 {
     /// <summary>The Box3D commit the declarations were generated from.</summary>
-    public const string Commit = "3fc20f5b453ba9e14cdf54ecafa87a2a4bcdf53c";
+    public const string Commit = "9e5a4cde862fba95ff19f096b79567f3ea6c01fd";
 
     /// <summary>The same revision as <c>git describe</c> renders it.</summary>
-    public const string Description = "3fc20f5";
+    public const string Description = "9e5a4cd";
 }

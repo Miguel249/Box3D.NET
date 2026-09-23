@@ -91,6 +91,17 @@ public unsafe struct b3BodyDef
     public float sleepThreshold;
 
     /// <summary>
+    /// The continuous collision safety factor. Non-dimensional.
+    /// </summary>
+    /// <remarks>
+    /// A body is only treated as fast, and given continuous collision, when it
+    /// moves more than this fraction of the distance that risks tunneling in one
+    /// step. Smaller is safer but can cause hitching. The recommended range is
+    /// 0.01 to 0.5, and the default of 0.5 favours performance.
+    /// </remarks>
+    public float safetyFactor;
+
+    /// <summary>
     /// An optional name for debugging, as a null-terminated UTF-8 string.
     /// </summary>
     /// <remarks>Box3D copies the string, so the pointer need only be valid during the call.</remarks>

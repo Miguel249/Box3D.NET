@@ -102,9 +102,9 @@ the process-wide total:
 ```csharp
 using Box3D.Native;
 
-int before = B3.b3GetByteCount();
+long before = B3.b3GetByteCount();
 // ... create and destroy worlds, meshes, hulls ...
-int after = B3.b3GetByteCount();       // should be back where it started
+long after = B3.b3GetByteCount();      // should be back where it started
 ```
 
 That is exactly what the test suite does after every create-and-destroy cycle,

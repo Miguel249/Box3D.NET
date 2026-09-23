@@ -333,6 +333,12 @@ the caller.
 about eighty lines, with gravity, jumping, ground detection, slope limits and
 wall sliding. Copy it and change the parts that are yours.
 
+Two more calls cover what those three cannot see. Each contact names the mesh
+triangle, compound child and material it came from, so a controller can tell ice
+from stone; and `CharacterMover.TimeOfImpact` sweeps a moving body against the
+character, which is how something that is not simulated finds out that a falling
+crate has hit it.
+
 ### Bad numbers are rejected at the boundary
 
 Box3D validates its inputs with assertions, and assertions are compiled out of
@@ -340,9 +346,9 @@ the release builds this package ships. So a NaN is accepted in silence — and i
 does not stay where you put it.
 
 Measured: setting one body's velocity to NaN and stepping thirty times left a
-second body, twenty metres away and never touched, reading `(NaN, NaN, NaN)`.
-The solver couples bodies through islands and the broad phase, so one bad number
-reaches everything, and there is no way to remove it from a world afterwards.
+second body, merely resting on it, reading `(NaN, NaN, NaN)`. The solver couples
+bodies through contact, so one bad number reaches everything it touches, and
+there is no way to remove it from a world afterwards.
 
 So the library rejects non-finite values at the call that produced them:
 
@@ -407,7 +413,7 @@ is no crash to investigate.
 `tools/dump-abi.ps1` compiles a program against the real Box3D headers that
 prints `sizeof`, `_Alignof` and `offsetof` for every field, and records the
 answers in [`abi/native-layout.json`](abi/native-layout.json). The test suite
-holds all 92 structs to that file — size, every field offset, blittability, and
+holds all 94 structs to that file — size, every field offset, blittability, and
 whether a mirror exists at all — and CI regenerates it, so a submodule bump that
 moves a field fails the build instead of shipping.
 
@@ -547,7 +553,7 @@ run time.
 
 | Suite | What it protects |
 | --- | --- |
-| `AbiTests` | All 92 structs against what the C compiler reports for the same declarations: size, every field offset, blittability, and whether a mirror exists at all. |
+| `AbiTests` | All 94 structs against what the C compiler reports for the same declarations: size, every field offset, blittability, and whether a mirror exists at all. |
 | `LayoutTests` | A core set of sizes against values derived by hand from the C declarations. Narrower than `AbiTests` and kept because it needs neither a native binary nor a C toolchain. |
 | `DebugDrawTests` | That debug draw reaches a managed drawer with usable values, that a shape factory is asked once per shape rather than once per frame, that disposal releases every drawable, and that a drawn frame allocates nothing. |
 | `MathTests` | The math ported from the `B3_INLINE` functions, by algebraic identity and by agreement with `System.Numerics`. |
@@ -556,7 +562,7 @@ run time.
 | `LayeringTests` | That no `Box3D.NET.Native` type reaches the public surface, checked by reflection over the built assembly. |
 | `UserDataTests` | Identifiers survive the round trip through the native `void*`, including the top bit, and come back from events and queries. |
 | `GeometryTests` | Hull, mesh and height field behaviour, and the ownership rules for each. |
-| `CharacterMoverTests` | Contact gathering, the plane solver, velocity clipping, and a character sliding along a wall. |
+| `CharacterMoverTests` | Contact gathering and what it reports touching, the plane solver, velocity clipping, one-sided mesh and height field triangles, a moving body striking the character, and a character sliding along a wall. |
 | `FuzzTests` | Non-finite input, extreme magnitudes, degenerate geometry, and seeded random operation sequences. |
 | `DeterminismTests` | That the same scene run twice hashes identically, bit for bit, including alongside other worlds and interleaved queries. |
 | `ThreadingTests` | That independent worlds step in parallel and reach exactly the state they would have reached alone. |

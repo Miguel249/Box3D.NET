@@ -50,6 +50,9 @@ public sealed unsafe partial class PhysicsWorld
                 Normal = plane.plane.normal,
                 Offset = plane.plane.offset,
                 Point = plane.point,
+                TriangleIndex = plane.triangleIndex,
+                ChildIndex = plane.childIndex,
+                MaterialIndex = plane.materialIndex,
             };
 
             if (!ctx.Invoke(ctx.Callback, in contact))
@@ -82,6 +85,12 @@ public sealed unsafe partial class PhysicsWorld
     /// Prefer this over <see cref="CastCapsule"/> for finding out what the
     /// character is touching: a cast tells you where it stops, these planes tell
     /// you what is in the way and in which direction.
+    /// </para>
+    /// <para>
+    /// Mesh and height field triangles are one-sided: only their front face
+    /// produces a plane. <see cref="CharacterContact.TriangleIndex"/> and
+    /// <see cref="CharacterContact.MaterialIndex"/> say which triangle and which
+    /// surface material the capsule is touching.
     /// </para>
     /// </remarks>
     /// <example>
@@ -133,10 +142,16 @@ public sealed unsafe partial class PhysicsWorld
     /// </returns>
     /// <exception cref="ObjectDisposedException">The world has been disposed.</exception>
     /// <remarks>
+    /// <para>
     /// A specialised shape cast that slides along surfaces instead of catching on
     /// them. Useful for a quick "can the character get there" test, but a poor
     /// source of information about what it is touching; use
     /// <see cref="CollideCapsule{TCallback}"/> for that.
+    /// </para>
+    /// <para>
+    /// Mesh and height field triangles are one-sided here, as they are for ray
+    /// casts: a capsule moving into the back of a triangle passes through it.
+    /// </para>
     /// </remarks>
     public float CastCapsule(
         Capsule capsule,

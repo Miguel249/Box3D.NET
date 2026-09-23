@@ -76,7 +76,7 @@ is no crash to investigate.
 
 `tools/dump-abi.ps1` compiles a program against the real Box3D headers that
 prints `sizeof`, `_Alignof` and `offsetof` for every field, and records the
-answers in `abi/native-layout.json`. The test suite holds all 92 structs to that
+answers in `abi/native-layout.json`. The test suite holds all 94 structs to that
 file — size, every field offset, blittability, and whether a mirror exists at
 all — and CI regenerates it, so a submodule bump that moves a field fails the
 build instead of shipping.

@@ -15,9 +15,9 @@ namespace Box3D;
  * silence, and it does not stay where it was put.
  *
  * Measured: setting one body's velocity to NaN and stepping thirty times left a
- * second body, twenty metres away and never touched, with a position of
- * (NaN, NaN, NaN). The solver couples bodies through islands and the broad
- * phase, so one bad number reaches everything. The simulation does not fail, it
+ * second body, merely resting on it, with a position of (NaN, NaN, NaN). The
+ * solver couples bodies through contact, so one bad number reaches everything
+ * it touches. The simulation does not fail, it
  * silently becomes garbage, and the first sign of it is usually a renderer
  * drawing nothing.
  *

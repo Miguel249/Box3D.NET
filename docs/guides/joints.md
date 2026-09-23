@@ -121,6 +121,10 @@ if (force.Length() > BreakingForce)
 report when a joint is overloaded, which is the ingredient for something that
 breaks under load.
 
+`AsJoint.IsAwake` says whether the joint is being simulated, which is exactly
+when at least one of its bodies is awake, and is cheaper than asking both.
+`AsJoint.WakeBodies()` wakes it.
+
 ## Bodies that should not collide
 
 Connected bodies do not collide by default. Set `CollideConnected` on the base

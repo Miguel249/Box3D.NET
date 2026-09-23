@@ -129,10 +129,17 @@ public struct b3CompoundData
     /// <summary>The byte offset of the tree node array from the start of this structure.</summary>
     public int nodeOffset;
 
+    /// <summary>The byte offset of the tree proxy array from the start of this structure.</summary>
+    public int proxyOffset;
+
     /// <summary>
     /// The immutable dynamic tree over the children.
     /// </summary>
-    /// <remarks>Its node pointer must be fixed up using <see cref="nodeOffset"/> after deserialization.</remarks>
+    /// <remarks>
+    /// Its node and proxy pointers must be fixed up using <see cref="nodeOffset"/>
+    /// and <see cref="proxyOffset"/> after deserialization. A baked tree is never
+    /// inserted into, so its parent array stays null.
+    /// </remarks>
     public b3DynamicTree tree;
 
     /// <summary>The byte offset of the material array from the start of this structure.</summary>

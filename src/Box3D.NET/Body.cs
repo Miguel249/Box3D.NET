@@ -166,6 +166,27 @@ public readonly record struct Body
         set => B3.b3Body_SetBullet(Id, value);
     }
 
+    /// <summary>
+    /// Gets or sets the continuous collision safety factor. Non-dimensional.
+    /// </summary>
+    /// <exception cref="ArgumentException">The value is not finite.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">The value is negative.</exception>
+    /// <remarks>
+    /// Smaller is safer against tunneling but can make the body hitch. The
+    /// recommended range is 0.01 to 0.5. See <see cref="BodyDefinition.SafetyFactor"/>.
+    /// </remarks>
+    public float SafetyFactor
+    {
+        get => B3.b3Body_GetSafetyFactor(Id);
+
+        set
+        {
+            Validate.Finite(value);
+            ArgumentOutOfRangeException.ThrowIfNegative(value);
+            B3.b3Body_SetSafetyFactor(Id, value);
+        }
+    }
+
     /// <summary>Gets a value indicating whether the body takes part in the simulation.</summary>
     /// <remarks>Use <see cref="Enable"/> and <see cref="Disable"/> to change it.</remarks>
     public bool IsEnabled => B3.b3Body_IsEnabled(Id);

@@ -31,8 +31,8 @@ public struct b3Recording
 /// </summary>
 /// <remarks>
 /// Only ever used as <c>b3RecPlayer*</c>. Create one with
-/// <see cref="B3.b3RecPlayer_Create"/> and release it with
-/// <see cref="B3.b3RecPlayer_Destroy"/>. The player owns a private copy of the
+/// <see cref="B3.b3CreatePlayer"/> and release it with
+/// <see cref="B3.b3DestroyPlayer"/>. The player owns a private copy of the
 /// recording bytes and drives its own replay world.
 /// </remarks>
 public struct b3RecPlayer

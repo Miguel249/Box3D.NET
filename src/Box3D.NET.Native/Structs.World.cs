@@ -206,9 +206,6 @@ public struct b3Profile
     /// <summary>Time spent relaxing impulses.</summary>
     public float relaxImpulses;
 
-    /// <summary>Time spent applying restitution.</summary>
-    public float applyRestitution;
-
     /// <summary>Time spent storing impulses.</summary>
     public float storeImpulses;
 
@@ -246,6 +243,9 @@ public struct b3Profile
 [StructLayout(LayoutKind.Sequential)]
 public unsafe struct b3Counters
 {
+    /// <summary>The total bytes allocated.</summary>
+    public long byteCount;
+
     /// <summary>The number of bodies.</summary>
     public int bodyCount;
 
@@ -278,9 +278,6 @@ public unsafe struct b3Counters
 
     /// <summary>The number of separating axis cache hits.</summary>
     public int satCacheHitCount;
-
-    /// <summary>The total bytes allocated.</summary>
-    public int byteCount;
 
     /// <summary>The number of tasks enqueued during the step.</summary>
     public int taskCount;

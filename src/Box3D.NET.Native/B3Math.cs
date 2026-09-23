@@ -211,19 +211,21 @@ public static class B3Math
     }
 
     /// <summary>Normalizes a vector and reports its original length.</summary>
-    /// <param name="length">Receives the original length.</param>
+    /// <param name="length">Receives the original length, or zero if the input is very small.</param>
     /// <param name="a">The vector.</param>
     /// <returns>The unit vector, or the zero vector if the input is very small.</returns>
     public static Vector3 b3GetLengthAndNormalize(out float length, Vector3 a)
     {
-        length = b3Length(a);
-        if (length < FltEpsilon)
+        float lengthSquared = (a.X * a.X) + (a.Y * a.Y) + (a.Z * a.Z);
+        if (lengthSquared > 1000.0f * FltMin)
         {
-            return Vector3.Zero;
+            length = MathF.Sqrt(lengthSquared);
+            float s = 1.0f / length;
+            return new Vector3(s * a.X, s * a.Y, s * a.Z);
         }
 
-        float invLength = 1.0f / length;
-        return new Vector3(invLength * a.X, invLength * a.Y, invLength * a.Z);
+        length = 0.0f;
+        return Vector3.Zero;
     }
 
     /// <summary>Computes a unit vector perpendicular to the given vector.</summary>

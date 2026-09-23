@@ -12,12 +12,12 @@ this file and the headers disagree.
 
 | | Count |
 | --- | ---: |
-| Functions declared `B3_API` in the Box3D headers | 580 |
-| Bound by the generator | 543 |
-| Bound by hand | 36 |
+| Functions declared `B3_API` in the Box3D headers | 590 |
+| Bound by the generator | 552 |
+| Bound by hand | 37 |
 | Deliberately not bound | 1 |
-| Reachable through `Box3D.NET` (HIGH_LEVEL) | 338 |
-| Reachable only through `Box3D.NET.Native` (NATIVE_ONLY) | 241 |
+| Reachable through `Box3D.NET` (HIGH_LEVEL) | 342 |
+| Reachable only through `Box3D.NET.Native` (NATIVE_ONLY) | 247 |
 
 `NATIVE_ONLY` is not a to-do list. Most of it is machinery an idiomatic API
 should not surface: individual accessors that a single property reads several
@@ -38,6 +38,7 @@ one of them is an inconvenience rather than a wall.
 | Function | Binding | Reach |
 | --- | --- | --- |
 | `b3GetByteCount` | hand-written | NATIVE_ONLY |
+| `b3GetMaxManifoldPoints` | hand-written | NATIVE_ONLY |
 | `b3GetMilliseconds` | hand-written | NATIVE_ONLY |
 | `b3GetMillisecondsAndReset` | hand-written | NATIVE_ONLY |
 | `b3GetTicks` | hand-written | NATIVE_ONLY |
@@ -90,10 +91,14 @@ one of them is an inconvenience rather than a wall.
 | `b3Body_GetLocalVector` | generated | HIGH_LEVEL |
 | `b3Body_GetMass` | generated | HIGH_LEVEL |
 | `b3Body_GetMassData` | generated | NATIVE_ONLY |
+| `b3Body_GetMaxExtent` | generated | NATIVE_ONLY |
+| `b3Body_GetMaxExtentOrigin` | generated | NATIVE_ONLY |
+| `b3Body_GetMinExtent` | generated | NATIVE_ONLY |
 | `b3Body_GetMotionLocks` | generated | HIGH_LEVEL |
 | `b3Body_GetName` | generated | NATIVE_ONLY |
 | `b3Body_GetPosition` | generated | HIGH_LEVEL |
 | `b3Body_GetRotation` | generated | HIGH_LEVEL |
+| `b3Body_GetSafetyFactor` | generated | HIGH_LEVEL |
 | `b3Body_GetShapeCount` | generated | HIGH_LEVEL |
 | `b3Body_GetShapes` | generated | HIGH_LEVEL |
 | `b3Body_GetSleepThreshold` | generated | NATIVE_ONLY |
@@ -124,11 +129,13 @@ one of them is an inconvenience rather than a wall.
 | `b3Body_SetMassData` | generated | NATIVE_ONLY |
 | `b3Body_SetMotionLocks` | generated | HIGH_LEVEL |
 | `b3Body_SetName` | generated | HIGH_LEVEL |
+| `b3Body_SetSafetyFactor` | generated | HIGH_LEVEL |
 | `b3Body_SetSleepThreshold` | generated | NATIVE_ONLY |
 | `b3Body_SetTargetTransform` | generated | HIGH_LEVEL |
 | `b3Body_SetTransform` | generated | HIGH_LEVEL |
 | `b3Body_SetType` | generated | HIGH_LEVEL |
 | `b3Body_SetUserData` | generated | HIGH_LEVEL |
+| `b3Body_TimeOfImpactMover` | generated | HIGH_LEVEL |
 | `b3Contact_GetData` | generated | NATIVE_ONLY |
 | `b3Contact_IsValid` | generated | NATIVE_ONLY |
 | `b3CreateBakedCompoundShape` | generated | HIGH_LEVEL |
@@ -141,6 +148,7 @@ one of them is an inconvenience rather than a wall.
 | `b3CreateMeshShape` | generated | HIGH_LEVEL |
 | `b3CreateMotorJoint` | generated | HIGH_LEVEL |
 | `b3CreateParallelJoint` | generated | HIGH_LEVEL |
+| `b3CreatePlayer` | generated | NATIVE_ONLY |
 | `b3CreatePrismaticJoint` | generated | HIGH_LEVEL |
 | `b3CreateRecording` | generated | NATIVE_ONLY |
 | `b3CreateRevoluteJoint` | generated | HIGH_LEVEL |
@@ -152,6 +160,7 @@ one of them is an inconvenience rather than a wall.
 | `b3CreateWorld` | generated | HIGH_LEVEL |
 | `b3DestroyBody` | generated | HIGH_LEVEL |
 | `b3DestroyJoint` | generated | HIGH_LEVEL |
+| `b3DestroyPlayer` | generated | NATIVE_ONLY |
 | `b3DestroyRecording` | generated | NATIVE_ONLY |
 | `b3DestroyShape` | generated | HIGH_LEVEL |
 | `b3DestroyWorld` | generated | HIGH_LEVEL |
@@ -195,6 +204,7 @@ one of them is an inconvenience rather than a wall.
 | `b3Joint_GetType` | generated | HIGH_LEVEL |
 | `b3Joint_GetUserData` | generated | HIGH_LEVEL |
 | `b3Joint_GetWorld` | generated | HIGH_LEVEL |
+| `b3Joint_IsAwake` | generated | HIGH_LEVEL |
 | `b3Joint_IsValid` | generated | HIGH_LEVEL |
 | `b3Joint_SetCollideConnected` | generated | HIGH_LEVEL |
 | `b3Joint_SetConstraintTuning` | generated | HIGH_LEVEL |
@@ -255,8 +265,6 @@ one of them is an inconvenience rather than a wall.
 | `b3PrismaticJoint_SetTargetTranslation` | generated | HIGH_LEVEL |
 | `b3Recording_GetData` | generated | NATIVE_ONLY |
 | `b3Recording_GetSize` | generated | NATIVE_ONLY |
-| `b3RecPlayer_Create` | generated | NATIVE_ONLY |
-| `b3RecPlayer_Destroy` | generated | NATIVE_ONLY |
 | `b3RecPlayer_DrawFrameQueries` | generated | NATIVE_ONLY |
 | `b3RecPlayer_GetBodyCount` | generated | NATIVE_ONLY |
 | `b3RecPlayer_GetBodyId` | generated | NATIVE_ONLY |
@@ -543,7 +551,7 @@ one of them is an inconvenience rather than a wall.
 | `b3DynamicTree_Save` | generated | NATIVE_ONLY |
 | `b3DynamicTree_SetCategoryBits` | generated | NATIVE_ONLY |
 | `b3DynamicTree_Validate` | generated | NATIVE_ONLY |
-| `b3DynamicTree_ValidateNoEnlarged` | generated | NATIVE_ONLY |
+| `b3DynamicTree_ValidateNoMoved` | generated | NATIVE_ONLY |
 | `b3GetCompoundCapsule` | generated | NATIVE_ONLY |
 | `b3GetCompoundChild` | generated | NATIVE_ONLY |
 | `b3GetCompoundHull` | generated | NATIVE_ONLY |
@@ -552,6 +560,7 @@ one of them is an inconvenience rather than a wall.
 | `b3GetCompoundSphere` | generated | NATIVE_ONLY |
 | `b3GetHeight` | generated | NATIVE_ONLY |
 | `b3GetSweepTransform` | generated | NATIVE_ONLY |
+| `b3Hull2D` | generated | NATIVE_ONLY |
 | `b3IsValidRay` | generated | NATIVE_ONLY |
 | `b3LoadHeightField` | generated | NATIVE_ONLY |
 | `b3MakeBoxHull` | generated | HIGH_LEVEL |
@@ -584,6 +593,7 @@ one of them is an inconvenience rather than a wall.
 | `b3ShapeCastMesh` | generated | NATIVE_ONLY |
 | `b3ShapeCastSphere` | generated | NATIVE_ONLY |
 | `b3ShapeDistance` | generated | NATIVE_ONLY |
+| `b3SimplifyHull2D` | generated | NATIVE_ONLY |
 | `b3SolvePlanes` | generated | HIGH_LEVEL |
 | `b3TimeOfImpact` | generated | NATIVE_ONLY |
 
