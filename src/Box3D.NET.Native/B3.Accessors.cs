@@ -32,7 +32,7 @@ public static unsafe partial class B3
     /// <returns>The user data.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ulong b3DynamicTree_GetUserData(b3DynamicTree* tree, int proxyId) =>
-        tree->nodes[proxyId].userData;
+        tree->proxies[proxyId].userData;
 
     /// <summary>Gets the bounding box of a tree proxy.</summary>
     /// <param name="tree">The tree.</param>
@@ -40,7 +40,7 @@ public static unsafe partial class B3
     /// <returns>The bounding box.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static b3AABB b3DynamicTree_GetAABB(b3DynamicTree* tree, int proxyId) =>
-        tree->nodes[proxyId].aabb;
+        tree->nodes[tree->proxies[proxyId].node].aabb;
 
     // -------------------------------------------------------------- hull data
 

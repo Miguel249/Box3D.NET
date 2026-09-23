@@ -103,11 +103,8 @@ public struct b3HullData
     /// <summary>The format version. Must equal <see cref="Constants.B3_HULL_VERSION"/>.</summary>
     public ulong version;
 
-    /// <summary>The total size of this hull in bytes, including the trailing arrays.</summary>
-    public int byteCount;
-
-    /// <summary>A content hash of this hull, computed with this field set to zero.</summary>
-    public uint hash;
+    /// <summary>A 64-bit content hash of this hull, computed with this field set to zero.</summary>
+    public ulong hash;
 
     /// <summary>The local-space bounding box.</summary>
     public b3AABB aabb;
@@ -157,8 +154,8 @@ public struct b3HullData
     /// <summary>The byte offset of the structure-of-arrays normal data.</summary>
     public int soaNormalOffset;
 
-    /// <summary>Explicit padding. Hull identity is a hash over raw bytes, so no implicit padding is allowed.</summary>
-    public int padding;
+    /// <summary>The total size of this hull in bytes, including the trailing arrays.</summary>
+    public int byteCount;
 }
 
 /// <summary>
@@ -191,7 +188,7 @@ public unsafe struct b3BoxHull
     public fixed byte boxFaces[6 * 1];
 
     /// <summary>Explicit padding.</summary>
-    public fixed byte padding[10];
+    public fixed byte padding[2];
 
     /// <summary>Vertex x coordinates, structure-of-arrays form.</summary>
     public fixed float vx[8];
@@ -221,7 +218,21 @@ public unsafe struct b3MeshDef
     /// <summary>The vertex positions.</summary>
     public Vector3* vertices;
 
-    /// <summary>Three vertex indices per triangle, wound counter-clockwise.</summary>
+    /// <summary>
+    /// The distance in bytes from one vertex to the next. Zero means the vertices
+    /// are contiguous.
+    /// </summary>
+    /// <remarks>
+    /// Lets the positions be read straight out of an interleaved vertex buffer.
+    /// A non-zero stride must be a multiple of four, at least the size of a
+    /// vector and at most 4096, or <c>b3CreateMesh</c> returns null.
+    /// </remarks>
+    public nuint stride;
+
+    /// <summary>
+    /// Three vertex indices per triangle, wound counter-clockwise unless
+    /// <see cref="clockWiseWinding"/> is set.
+    /// </summary>
     public int* indices;
 
     /// <summary>
@@ -254,6 +265,9 @@ public unsafe struct b3MeshDef
     /// <summary>Whether to compute triangle adjacency from shared edges.</summary>
     /// <remarks>Required for the ghost-collision suppression driven by <see cref="b3MeshEdgeFlags"/>.</remarks>
     public NativeBool identifyEdges;
+
+    /// <summary>Whether the input indices are wound clockwise rather than counter-clockwise.</summary>
+    public NativeBool clockWiseWinding;
 }
 
 /// <summary>A triangle in a collision mesh. Mirror of <c>b3MeshTriangle</c>.</summary>
@@ -322,11 +336,11 @@ public struct b3MeshData
     /// <summary>The format version. Must equal <see cref="Constants.B3_MESH_VERSION"/>.</summary>
     public ulong version;
 
+    /// <summary>A 64-bit content hash of this mesh, computed with this field set to zero.</summary>
+    public ulong hash;
+
     /// <summary>The total size of this mesh in bytes, including the trailing arrays.</summary>
     public int byteCount;
-
-    /// <summary>A content hash of this mesh, computed with this field set to zero.</summary>
-    public uint hash;
 
     /// <summary>The local-space bounding box.</summary>
     public b3AABB bounds;
@@ -366,6 +380,9 @@ public struct b3MeshData
 
     /// <summary>The byte offset of the triangle flag array from the start of this structure.</summary>
     public int flagsOffset;
+
+    /// <summary>Explicit padding. Identity is a hash over raw bytes, so no implicit padding is allowed.</summary>
+    public int padding;
 }
 
 /// <summary>
@@ -439,11 +456,11 @@ public unsafe struct b3HeightFieldData
     /// <summary>The format version. Must equal <see cref="Constants.B3_HEIGHT_FIELD_VERSION"/>.</summary>
     public ulong version;
 
+    /// <summary>A 64-bit content hash, computed with this field set to zero.</summary>
+    public ulong hash;
+
     /// <summary>The total size of this height field in bytes, including the trailing arrays.</summary>
     public int byteCount;
-
-    /// <summary>A content hash, computed with this field set to zero.</summary>
-    public uint hash;
 
     /// <summary>The local-space bounding box.</summary>
     public b3AABB aabb;
@@ -475,9 +492,10 @@ public unsafe struct b3HeightFieldData
     /// <summary>The byte offset of the flag array, one <see cref="byte"/> per triangle.</summary>
     public int flagsOffset;
 
-    /// <summary>Whether the triangles use clockwise winding.</summary>
-    public NativeBool clockwise;
+    /// <summary>Whether the triangles use clockwise winding. Non-zero for clockwise.</summary>
+    /// <remarks>A <c>uint8_t</c> in C rather than a <c>bool</c>, so that every byte of the struct is explicit.</remarks>
+    public byte clockwise;
 
     /// <summary>Explicit padding. Identity is a hash over raw bytes, so no implicit padding is allowed.</summary>
-    public fixed byte padding[3];
+    public fixed byte padding[7];
 }

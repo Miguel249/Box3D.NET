@@ -63,6 +63,29 @@ public readonly record struct CharacterContact
 
     /// <summary>Gets the closest point on the touched shape, relative to the query origin.</summary>
     public Vector3 Point { get; init; }
+
+    /// <summary>Gets the index of the mesh or height field triangle touched.</summary>
+    /// <remarks>
+    /// Zero for a shape that is not a mesh or a height field, so read it only when
+    /// <see cref="Shape"/> is one. Unlike <see cref="RaycastHit.TriangleIndex"/>,
+    /// Box3D does not report minus one here.
+    /// </remarks>
+    public int TriangleIndex { get; init; }
+
+    /// <summary>Gets the index of the compound child touched.</summary>
+    /// <remarks>Zero for a shape that is not a compound.</remarks>
+    public int ChildIndex { get; init; }
+
+    /// <summary>
+    /// Gets the index of the material touched, into the materials the shape was
+    /// created with.
+    /// </summary>
+    /// <remarks>
+    /// This is how a character tells which surface it is on when one mesh or
+    /// height field carries several materials: ice, mud, a ladder. Box3D clamps
+    /// it to the shape's material count, so it is always a valid index.
+    /// </remarks>
+    public int MaterialIndex { get; init; }
 }
 
 /// <summary>
@@ -159,6 +182,44 @@ public readonly record struct CollisionPlane
         PushLimit = plane.pushLimit,
         ClipsVelocity = plane.clipVelocity,
         Push = plane.push,
+    };
+}
+
+/// <summary>
+/// Where a moving body first struck a character capsule during a sweep.
+/// </summary>
+/// <remarks>Reported by <see cref="CharacterMover.TimeOfImpact"/>.</remarks>
+public readonly record struct CharacterImpact
+{
+    /// <summary>Gets a value indicating whether the body struck the capsule.</summary>
+    /// <remarks>When this is false every other member is meaningless, and <see cref="Fraction"/> is one.</remarks>
+    public bool Hit { get; init; }
+
+    /// <summary>Gets the shape on the body that struck the capsule.</summary>
+    public Shape Shape { get; init; }
+
+    /// <summary>Gets the world-space point of impact.</summary>
+    public Vector3 Point { get; init; }
+
+    /// <summary>Gets the impact normal, pointing from the body towards the capsule.</summary>
+    public Vector3 Normal { get; init; }
+
+    /// <summary>
+    /// Gets how far through the sweep the impact occurred, from zero at the
+    /// start poses to one at the end poses.
+    /// </summary>
+    /// <remarks>
+    /// Interpolate the body pose by this to recover where it was at first touch.
+    /// </remarks>
+    public float Fraction { get; init; }
+
+    internal static CharacterImpact FromNative(in b3BodyTOIResult result) => new()
+    {
+        Hit = !result.shapeId.IsNull,
+        Shape = new Shape(result.shapeId),
+        Point = result.point,
+        Normal = result.normal,
+        Fraction = result.fraction,
     };
 }
 
@@ -313,5 +374,86 @@ public static class CharacterMover
         {
             return B3.b3ClipVector(velocity, p, planes.Length);
         }
+    }
+
+    /// <summary>
+    /// Finds when a moving body first strikes a character capsule, with both
+    /// moving over the same interval.
+    /// </summary>
+    /// <param name="body">The body that may strike the capsule.</param>
+    /// <param name="capsule">The character capsule, relative to <paramref name="origin"/>.</param>
+    /// <param name="origin">The world position the capsule starts from.</param>
+    /// <param name="translation">How far the capsule moves over the interval.</param>
+    /// <param name="bodyStartPosition">The world position of the body at the start of the interval.</param>
+    /// <param name="bodyStartRotation">The world rotation of the body at the start of the interval.</param>
+    /// <param name="bodyEndPosition">The world position of the body at the end of the interval.</param>
+    /// <param name="bodyEndRotation">The world rotation of the body at the end of the interval.</param>
+    /// <param name="filter">Which of the body's shapes are considered, or null for all of them.</param>
+    /// <returns>The earliest impact, or one whose <see cref="CharacterImpact.Hit"/> is false.</returns>
+    /// <exception cref="InvalidOperationException">The body handle is stale or default.</exception>
+    /// <remarks>
+    /// <para>
+    /// A kinematic character is not simulated, so nothing tells it that a falling
+    /// crate or a swinging door has hit it. Record the body's pose before
+    /// <see cref="PhysicsWorld.Step"/>, then sweep the body from that pose to its
+    /// current one against the capsule's own movement for the step.
+    /// </para>
+    /// <para>
+    /// Pass the movement the character <em>intends</em> for the interval, and
+    /// sweep before resolving it against the world with
+    /// <see cref="SolvePlanes"/>. A character already pushed clear of the body
+    /// ends the interval merely touching it, and a touch is not reported as an
+    /// impact.
+    /// </para>
+    /// <para>
+    /// Only the sphere, capsule and hull shapes on the body are swept; meshes,
+    /// height fields and compounds are skipped. A shape already overlapping the
+    /// capsule at the start is ignored, though another shape on the same body can
+    /// still hit.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// Vector3 crateStart = crate.Position;
+    /// Quaternion crateStartRotation = crate.Rotation;
+    ///
+    /// world.Step(dt);
+    ///
+    /// CharacterImpact impact = CharacterMover.TimeOfImpact(
+    ///     crate, capsule, position, velocity * dt,
+    ///     crateStart, crateStartRotation, crate.Position, crate.Rotation);
+    ///
+    /// if (impact.Hit)
+    /// {
+    ///     TakeDamage(impact.Point, impact.Normal);
+    /// }
+    ///
+    /// // Only now gather planes and solve the character's own movement.
+    /// </code>
+    /// </example>
+    public static unsafe CharacterImpact TimeOfImpact(
+        Body body,
+        Capsule capsule,
+        Vector3 origin,
+        Vector3 translation,
+        Vector3 bodyStartPosition,
+        Quaternion bodyStartRotation,
+        Vector3 bodyEndPosition,
+        Quaternion bodyEndRotation,
+        QueryFilter? filter = null)
+    {
+        b3BodyId id = Validate.Handle(body.NativeId);
+        b3Capsule native = capsule.ToNative();
+
+        b3BodyTOIResult result = B3.b3Body_TimeOfImpactMover(
+            id,
+            origin,
+            &native,
+            translation,
+            (filter ?? QueryFilter.Default).ToNative(),
+            new b3Transform { p = bodyStartPosition, q = bodyStartRotation },
+            new b3Transform { p = bodyEndPosition, q = bodyEndRotation });
+
+        return CharacterImpact.FromNative(result);
     }
 }

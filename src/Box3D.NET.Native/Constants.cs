@@ -17,8 +17,8 @@ namespace Box3D.Native;
 /// <para>
 /// The values assume a default build of Box3D. Constants guarded by
 /// <c>#ifndef</c> in the header (<c>B3_MAX_WORLDS</c>, <c>B3_GYROSCOPIC_ITERATIONS</c>,
-/// <c>B3_RESTITUTION_ITERATIONS</c>) can be overridden when compiling the native
-/// library, in which case these no longer match.
+/// <c>B3_MAX_MANIFOLD_POINTS</c>, <c>B3_MAX_MESH_CONTACT_TRIANGLES</c>) can be
+/// overridden when compiling the native library, in which case these no longer match.
 /// </para>
 /// </remarks>
 public static class Constants
@@ -61,13 +61,34 @@ public static class Constants
     public const float B3_TIME_TO_SLEEP = 0.5f;
 
     /// <summary>The maximum number of contact points between two touching shapes.</summary>
+    /// <remarks>
+    /// Sizes the point array inline in <see cref="b3Manifold"/>, so a native library
+    /// built with a different value has a different ABI. <see cref="B3.b3GetMaxManifoldPoints"/>
+    /// reports the value the loaded library was compiled with.
+    /// </remarks>
     public const int B3_MAX_MANIFOLD_POINTS = 4;
 
     /// <summary>The number of iterations used for gyroscopic torques. May be overridden at compile time.</summary>
     public const int B3_GYROSCOPIC_ITERATIONS = 1;
 
-    /// <summary>The number of restitution iterations. May be overridden at compile time.</summary>
+    /// <summary>The number of restitution iterations.</summary>
+    /// <remarks>
+    /// Box3D no longer defines this macro: restitution is now applied once, deferred
+    /// to the end of the step. The constant is kept so that code referring to it
+    /// still compiles, and will be removed in a future release.
+    /// </remarks>
+    [System.Obsolete("Box3D no longer has restitution iterations; restitution is applied once per step. This constant no longer affects anything.")]
     public const int B3_RESTITUTION_ITERATIONS = 1;
+
+    /// <summary>
+    /// The maximum number of mesh or height field triangles a single convex shape
+    /// can collide with. May be overridden at compile time.
+    /// </summary>
+    /// <remarks>
+    /// Raising it costs stack space. Simplifying the collision geometry is usually
+    /// the better fix; a render mesh used for collision is the common culprit.
+    /// </remarks>
+    public const int B3_MAX_MESH_CONTACT_TRIANGLES = 256;
 
     /// <summary>The maximum number of convex hull vertices. Fixed for performance.</summary>
     public const int B3_MAX_HULL_VERTICES = 128;
@@ -121,16 +142,16 @@ public static class Constants
     public const float B3_MIN_SCALE = 0.01f;
 
     /// <summary>The dynamic tree version, for validating serialized data.</summary>
-    public const ulong B3_DYNAMIC_TREE_VERSION = 0x93EDAF889FD30B4AUL;
+    public const ulong B3_DYNAMIC_TREE_VERSION = 0x1D6F4C2A73B80E91UL;
 
     /// <summary>The convex hull version, for validating serialized data.</summary>
-    public const ulong B3_HULL_VERSION = 0xDA5150191B994C01UL;
+    public const ulong B3_HULL_VERSION = 0x4A4C9587DE57485CUL;
 
     /// <summary>The triangle mesh version, for validating serialized data.</summary>
-    public const ulong B3_MESH_VERSION = 0xABD11AB62A6E886DUL;
+    public const ulong B3_MESH_VERSION = 0xAAAB9A00F1A8AAF7UL;
 
     /// <summary>The height field version, for validating serialized data.</summary>
-    public const ulong B3_HEIGHT_FIELD_VERSION = 0x8B18CBD138A6BC84UL;
+    public const ulong B3_HEIGHT_FIELD_VERSION = 0x8E41E5FB084848F8UL;
 
     /// <summary>The baked compound version, derived from the tree, mesh and hull versions.</summary>
     public const ulong B3_COMPOUND_VERSION =

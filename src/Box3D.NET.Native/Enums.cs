@@ -107,26 +107,6 @@ public enum b3TOIState
 }
 
 /// <summary>
-/// Flags on a dynamic tree node. Mirror of <c>b3TreeNodeFlags</c>.
-/// </summary>
-/// <remarks>Internal to the tree implementation; exposed because <c>b3TreeNode</c> is public.</remarks>
-[Flags]
-public enum b3TreeNodeFlags
-{
-    /// <summary>No flags.</summary>
-    None = 0,
-
-    /// <summary>The node is allocated rather than on the free list.</summary>
-    b3_allocatedNode = 0x0001,
-
-    /// <summary>The node bounding box was enlarged and needs a refit.</summary>
-    b3_enlargedNode = 0x0002,
-
-    /// <summary>The node is a leaf and carries user data instead of children.</summary>
-    b3_leafNode = 0x0004,
-}
-
-/// <summary>
 /// Adjacency flags on a mesh triangle. Mirror of <c>b3MeshEdgeFlags</c>.
 /// </summary>
 /// <remarks>

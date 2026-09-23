@@ -48,20 +48,24 @@ public class FuzzTests : IDisposable
     // ----------------------------------------------------------- the reason
 
     [NativeFact]
-    public void One_bad_velocity_would_otherwise_poison_unrelated_bodies()
+    public void One_bad_velocity_would_otherwise_poison_the_bodies_it_touches()
     {
         // This is the measurement that justifies validating at all. Setting one
-        // body's velocity to NaN and stepping leaves a second body, twenty metres
-        // away and never touched, reading NaN. The solver couples bodies through
-        // islands and the broad phase, so there is no containment and no way to
-        // remove it afterwards.
+        // body's velocity to NaN and stepping leaves a second body, one it is
+        // merely resting against, reading NaN. The solver couples bodies through
+        // contact, so the value spreads through whatever the bad body touches and
+        // there is no way to remove it afterwards.
+        //
+        // Before Box3D 9e5a4cd the spread was wider still: a body twenty metres
+        // away and never touched was poisoned too. The broad-phase rewrite
+        // upstream contained that, but not contamination through contact.
         //
         // Going through the native layer directly reproduces what the library
         // would do without the check.
         Body poisoned = _world.CreateDynamicBody(new Vector3(0.0f, 10.0f, 0.0f));
         poisoned.AddSphere(new Sphere(0.5f));
 
-        Body innocent = _world.CreateDynamicBody(new Vector3(20.0f, 10.0f, 0.0f));
+        Body innocent = _world.CreateDynamicBody(new Vector3(0.0f, 11.0f, 0.0f));
         innocent.AddSphere(new Sphere(0.5f));
 
         Box3D.Native.B3.b3Body_SetLinearVelocity(
@@ -247,6 +251,42 @@ public class FuzzTests : IDisposable
         body.AddSphere(new Sphere(0.5f), ShapeDefinition.Default with { Density = 0.0f });
 
         Assert.Equal(0.0f, body.Mass);
+    }
+
+    [NativeTheory]
+    [MemberData(nameof(NonFiniteValues))]
+    public void A_non_finite_safety_factor_is_rejected(float bad)
+    {
+        Body body = _world.CreateDynamicBody();
+        body.AddSphere(new Sphere(0.5f));
+
+        Assert.Throws<ArgumentException>(() => body.SafetyFactor = bad);
+        Assert.Throws<ArgumentException>(() =>
+            _world.CreateBody(BodyDefinition.Dynamic() with { SafetyFactor = bad }));
+    }
+
+    [NativeFact]
+    public void A_negative_safety_factor_is_rejected()
+    {
+        Body body = _world.CreateDynamicBody();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => body.SafetyFactor = -0.1f);
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            _world.CreateBody(BodyDefinition.Dynamic() with { SafetyFactor = -0.1f }));
+    }
+
+    [NativeFact]
+    public void The_safety_factor_reaches_the_body_and_can_be_changed()
+    {
+        // The engine default comes through the definition untouched.
+        Assert.Equal(0.5f, BodyDefinition.Default.SafetyFactor);
+        Assert.Equal(0.5f, _world.CreateDynamicBody().SafetyFactor);
+
+        Body careful = _world.CreateBody(BodyDefinition.Dynamic() with { SafetyFactor = 0.05f });
+        Assert.Equal(0.05f, careful.SafetyFactor);
+
+        careful.SafetyFactor = 0.25f;
+        Assert.Equal(0.25f, careful.SafetyFactor);
     }
 
     [NativeFact]

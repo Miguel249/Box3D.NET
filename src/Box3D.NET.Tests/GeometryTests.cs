@@ -2,6 +2,7 @@
 
 using System;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using Box3D.Native;
 using Xunit;
 
@@ -141,7 +142,7 @@ public class GeometryTests
     [NativeFact]
     public void A_hull_gives_its_memory_back()
     {
-        int before = B3.b3GetByteCount();
+        long before = B3.b3GetByteCount();
 
         ConvexHull hull = ConvexHull.Cylinder(2.0f, 1.0f, sides: 32);
         Assert.True(B3.b3GetByteCount() > before, "building a hull should allocate");
@@ -188,6 +189,180 @@ public class GeometryTests
     {
         Assert.Throws<ArgumentException>(() =>
             CollisionMesh.FromTriangles(FloorVertices, FloorIndices, materialIndices: [0, 0, 0]));
+    }
+
+    // The same floor wound the other way, as a tool with the opposite convention
+    // would export it.
+    private static readonly int[] ClockwiseFloorIndices = [0, 1, 2, 0, 2, 3];
+
+    // A render vertex with the position deliberately not first, and a normal
+    // that would put the mesh somewhere else entirely if it were read instead.
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RenderVertex
+    {
+        public Vector3 Normal;
+        public Vector3 Position;
+        public Vector2 Uv;
+    }
+
+    // Thirteen bytes, which no stride Box3D accepts can describe.
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    private struct PackedVertex
+    {
+        public Vector3 Position;
+        public byte Flags;
+    }
+
+    private static RenderVertex[] InterleavedFloor()
+    {
+        var vertices = new RenderVertex[FloorVertices.Length];
+        for (int i = 0; i < vertices.Length; i++)
+        {
+            vertices[i] = new RenderVertex
+            {
+                Normal = new Vector3(100.0f, 100.0f, 100.0f),
+                Position = FloorVertices[i],
+                Uv = new Vector2(i, -i),
+            };
+        }
+
+        return vertices;
+    }
+
+    private static readonly int PositionOffset = (int)Marshal.OffsetOf<RenderVertex>(nameof(RenderVertex.Position));
+
+    // Ray casts only see the front of a triangle, so the side a ray hits from is
+    // the side the mesh faces.
+    private static (bool FromAbove, bool FromBelow) SidesThatBlockARay(CollisionMesh mesh)
+    {
+        using var world = new PhysicsWorld();
+        world.CreateStaticBody().AddMesh(mesh);
+
+        RaycastHit down = world.RaycastClosest(new Vector3(1.0f, 10.0f, 1.0f), new Vector3(0.0f, -20.0f, 0.0f));
+        RaycastHit up = world.RaycastClosest(new Vector3(1.0f, -10.0f, 1.0f), new Vector3(0.0f, 20.0f, 0.0f));
+
+        return (down.Hit, up.Hit);
+    }
+
+    [NativeFact]
+    public void A_mesh_read_with_the_plain_vector_stride_matches_the_contiguous_build()
+    {
+        using CollisionMesh contiguous = CollisionMesh.FromTriangles(FloorVertices, FloorIndices);
+        using CollisionMesh strided = CollisionMesh.FromTriangles<Vector3>(FloorVertices, 0, FloorIndices);
+
+        Assert.Equal(contiguous.TriangleCount, strided.TriangleCount);
+        Assert.Equal(contiguous.VertexCount, strided.VertexCount);
+        Assert.Equal(contiguous.Bounds, strided.Bounds);
+    }
+
+    [NativeFact]
+    public void A_mesh_reads_its_positions_out_of_an_interleaved_vertex_buffer()
+    {
+        Assert.Equal(12, PositionOffset);
+
+        using CollisionMesh mesh = CollisionMesh.FromTriangles<RenderVertex>(
+            InterleavedFloor(), PositionOffset, FloorIndices);
+
+        // Reading the normal or the texture coordinates by mistake would move the
+        // box to y = 100 or pull it off the floor's footprint.
+        Assert.Equal(2, mesh.TriangleCount);
+        Assert.Equal(-5.0f, mesh.Bounds.Min.X, 3);
+        Assert.Equal(5.0f, mesh.Bounds.Max.X, 3);
+        Assert.Equal(-5.0f, mesh.Bounds.Min.Z, 3);
+        Assert.Equal(5.0f, mesh.Bounds.Max.Z, 3);
+        Assert.Equal(0.0f, mesh.Bounds.Min.Y, 3);
+        Assert.Equal(0.0f, mesh.Bounds.Max.Y, 3);
+
+        Assert.Equal((true, false), SidesThatBlockARay(mesh));
+    }
+
+    [NativeFact]
+    public void An_interleaved_mesh_can_be_welded()
+    {
+        // Welding reads the source vertices through the stride too.
+        using CollisionMesh mesh = CollisionMesh.FromTriangles<RenderVertex>(
+            InterleavedFloor(), PositionOffset, FloorIndices, MeshOptions.Default with { WeldVertices = true });
+
+        Assert.Equal(4, mesh.VertexCount);
+        Assert.Equal(0.0f, mesh.Bounds.Max.Y, 3);
+    }
+
+    [NativeFact]
+    public void A_vertex_smaller_than_a_position_is_rejected()
+    {
+        Vector2[] tooSmall = [Vector2.Zero, Vector2.UnitX, Vector2.UnitY];
+
+        Assert.Throws<ArgumentException>(() => CollisionMesh.FromTriangles<Vector2>(tooSmall, 0, [0, 1, 2]));
+    }
+
+    [NativeFact]
+    public void A_vertex_whose_size_is_not_a_multiple_of_four_is_rejected()
+    {
+        Assert.Equal(13, Marshal.SizeOf<PackedVertex>());
+
+        var vertices = new PackedVertex[3];
+
+        Assert.Throws<ArgumentException>(() => CollisionMesh.FromTriangles<PackedVertex>(vertices, 0, [0, 1, 2]));
+    }
+
+    [NativeTheory]
+    [InlineData(-4)]
+    [InlineData(2)]
+    [InlineData(24)]
+    public void A_position_that_does_not_fit_the_vertex_is_rejected(int positionOffset)
+    {
+        // RenderVertex is 32 bytes: 24 would run the position past its end, and 2
+        // would read it off a four-byte boundary.
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            CollisionMesh.FromTriangles<RenderVertex>(InterleavedFloor(), positionOffset, FloorIndices));
+    }
+
+    [NativeFact]
+    public void A_counter_clockwise_mesh_faces_the_side_it_is_wound_towards()
+    {
+        using CollisionMesh mesh = CollisionMesh.FromTriangles(FloorVertices, FloorIndices);
+
+        Assert.Equal((true, false), SidesThatBlockARay(mesh));
+    }
+
+    [NativeFact]
+    public void A_clockwise_mesh_declared_as_clockwise_faces_the_same_way()
+    {
+        using CollisionMesh mesh = CollisionMesh.FromTriangles(
+            FloorVertices, ClockwiseFloorIndices, MeshOptions.Default with { ClockwiseWinding = true });
+
+        Assert.Equal((true, false), SidesThatBlockARay(mesh));
+    }
+
+    [NativeFact]
+    public void A_clockwise_mesh_left_undeclared_faces_the_other_way()
+    {
+        // This is the mistake the option exists to prevent: a mesh exported with
+        // the other convention is solid only from underneath.
+        using CollisionMesh mesh = CollisionMesh.FromTriangles(FloorVertices, ClockwiseFloorIndices);
+
+        Assert.Equal((false, true), SidesThatBlockARay(mesh));
+    }
+
+    [NativeFact]
+    public void Declaring_a_counter_clockwise_mesh_clockwise_flips_it()
+    {
+        using CollisionMesh mesh = CollisionMesh.FromTriangles(
+            FloorVertices, FloorIndices, MeshOptions.Default with { ClockwiseWinding = true });
+
+        Assert.Equal((false, true), SidesThatBlockARay(mesh));
+    }
+
+    [NativeFact]
+    public void An_interleaved_clockwise_mesh_faces_the_right_way()
+    {
+        using CollisionMesh mesh = CollisionMesh.FromTriangles<RenderVertex>(
+            InterleavedFloor(),
+            PositionOffset,
+            ClockwiseFloorIndices,
+            MeshOptions.Fast with { ClockwiseWinding = true });
+
+        Assert.Equal((true, false), SidesThatBlockARay(mesh));
     }
 
     [NativeFact]
@@ -253,7 +428,7 @@ public class GeometryTests
     [NativeFact]
     public void A_mesh_gives_its_memory_back()
     {
-        int before = B3.b3GetByteCount();
+        long before = B3.b3GetByteCount();
 
         CollisionMesh mesh = CollisionMesh.Grid(16, 16, 1.0f);
         Assert.True(B3.b3GetByteCount() > before, "building a mesh should allocate");
@@ -390,7 +565,7 @@ public class GeometryTests
     [NativeFact]
     public void A_height_field_gives_its_memory_back()
     {
-        int before = B3.b3GetByteCount();
+        long before = B3.b3GetByteCount();
 
         HeightField field = HeightField.Grid(32, 32, Vector3.One);
         Assert.True(B3.b3GetByteCount() > before, "building a height field should allocate");
@@ -580,7 +755,7 @@ public class GeometryTests
     {
         using ConvexHull tetrahedron = ConvexHull.FromPoints(TetrahedronPoints);
 
-        int before = B3.b3GetByteCount();
+        long before = B3.b3GetByteCount();
 
         CompoundGeometry compound = new CompoundBuilder()
             .AddHull(tetrahedron, Vector3.Zero)

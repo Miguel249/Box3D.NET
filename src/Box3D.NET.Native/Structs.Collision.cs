@@ -214,3 +214,24 @@ public unsafe struct b3LocalManifold
     /// <summary>The triangle adjacency flags, as <see cref="b3MeshEdgeFlags"/>.</summary>
     public int triangleFlags;
 }
+
+/// <summary>
+/// A point of a two-dimensional hull used to simplify contact manifolds.
+/// Mirror of <c>b3Point2D</c>.
+/// </summary>
+/// <remarks>
+/// Internal to Box3D, and in the public header only so that <c>b3Hull2D</c> and
+/// <c>b3SimplifyHull2D</c> can be tested.
+/// </remarks>
+[StructLayout(LayoutKind.Sequential)]
+public struct b3Point2D
+{
+    /// <summary>The point in the plane of the manifold.</summary>
+    public b3Vec2 p;
+
+    /// <summary>The separation of the associated contact point.</summary>
+    public float separation;
+
+    /// <summary>The index of the associated contact point before simplification.</summary>
+    public int originalIndex;
+}

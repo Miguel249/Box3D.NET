@@ -31,6 +31,15 @@ public struct b3PlaneResult
 
     /// <summary>The closest point on the shape. Not necessarily unique.</summary>
     public Vector3 point;
+
+    /// <summary>The index of the mesh or height field triangle hit. Zero for other shapes.</summary>
+    public int triangleIndex;
+
+    /// <summary>The index of the compound child shape. Zero for other shapes.</summary>
+    public int childIndex;
+
+    /// <summary>The material index, clamped to the materials of the shape.</summary>
+    public int materialIndex;
 }
 
 /// <summary>
@@ -88,4 +97,24 @@ public struct b3BodyPlaneResult
 
     /// <summary>The plane result.</summary>
     public b3PlaneResult result;
+}
+
+/// <summary>
+/// The time of impact between a character mover and a body. Mirror of <c>b3BodyTOIResult</c>.
+/// </summary>
+/// <remarks>Returned by <c>b3Body_TimeOfImpactMover</c>.</remarks>
+[StructLayout(LayoutKind.Sequential)]
+public struct b3BodyTOIResult
+{
+    /// <summary>The hit point in world space.</summary>
+    public Vector3 point;
+
+    /// <summary>The hit normal, pointing from the body towards the mover.</summary>
+    public Vector3 normal;
+
+    /// <summary>The fraction of the sweep at which the hit occurs. One when nothing is hit.</summary>
+    public float fraction;
+
+    /// <summary>The shape that was hit. Null when nothing is hit.</summary>
+    public b3ShapeId shapeId;
 }

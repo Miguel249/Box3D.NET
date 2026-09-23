@@ -122,8 +122,8 @@ public static unsafe partial class B3
     /// </summary>
     /// <param name="tree">the dynamic tree to query</param>
     /// <param name="point">the query point</param>
-    /// <param name="maskBits">nodes are skipped if the bit-wise AND with the node category bits is zero</param>
-    /// <param name="requireAllBits">nodes are skipped if the bit-wise AND with the node category bits does not equal the maskBits</param>
+    /// <param name="maskBits">proxies are skipped if the bit-wise AND with the proxy category bits is zero</param>
+    /// <param name="requireAllBits">proxies are skipped if the bit-wise AND with the proxy category bits does not equal the maskBits</param>
     /// <param name="callback">a user provided instance of b3TreeQueryClosestCallbackFcn</param>
     /// <param name="context">a user context object that is provided to the callback</param>
     /// <param name="minDistanceSqr">the initial and final minimum squared distance. Provide a small initial to restrict the search and improve performance. If the value is large this query has performance that scales linearly with the number of proxies and would be slower than a brute force search.</param>
@@ -149,8 +149,8 @@ public static unsafe partial class B3
     /// </summary>
     /// <param name="tree">the dynamic tree to ray cast</param>
     /// <param name="input">the ray cast input data. The ray extends from p1 to p1 + maxFraction * (p2 - p1)</param>
-    /// <param name="maskBits">bit mask test: `bool accept = (maskBits &amp; node-&gt;categoryBits) != 0;`</param>
-    /// <param name="requireAllBits">modifies bit mask test: `bool accept = (maskBits &amp; node-&gt;categoryBits) == maskBits;`</param>
+    /// <param name="maskBits">bit mask test: `bool accept = (maskBits &amp; proxy-&gt;categoryBits) != 0;`</param>
+    /// <param name="requireAllBits">modifies bit mask test: `bool accept = (maskBits &amp; proxy-&gt;categoryBits) == maskBits;`</param>
     /// <param name="callback">a callback function that is called for each proxy that is hit by the ray</param>
     /// <param name="context">user context that is passed to the callback</param>
     /// <returns>performance data</returns>
@@ -252,12 +252,12 @@ public static unsafe partial class B3
     public static partial void b3DynamicTree_Validate(b3DynamicTree* tree);
 
     /// <summary>
-    /// Validate this tree has no enlarged AABBs. For testing.
+    /// Validate this tree has no moved nodes. For testing.
     /// </summary>
     /// <param name="tree">See the Box3D documentation.</param>
     [LibraryImport(Box3DLibrary.Name)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    public static partial void b3DynamicTree_ValidateNoEnlarged(b3DynamicTree* tree);
+    public static partial void b3DynamicTree_ValidateNoMoved(b3DynamicTree* tree);
 
     /// <summary>
     /// Save this tree to a file for debugging
@@ -312,7 +312,8 @@ public static unsafe partial class B3
     public static partial b3HullData* b3CreateRock(float radius);
 
     /// <summary>
-    /// Create a generic convex hull.
+    /// Create a generic convex hull. This can fail if B3_MAX_HULL_VERTICES, B3_MAX_HULL_FACES,
+    /// or B3_MAX_HULL_EDGES is exceeded.
     /// </summary>
     /// <param name="points">See the Box3D documentation.</param>
     /// <param name="pointCount">See the Box3D documentation.</param>
@@ -1296,6 +1297,30 @@ public static unsafe partial class B3
         int capacity,
         Vector3* triangleA,
         b3Sphere* sphereB);
+
+    /// <summary>
+    /// Compute a 2D hull. Used internally for contact manifold simplification. Here for
+    /// testing.
+    /// </summary>
+    /// <param name="pts">See the Box3D documentation.</param>
+    /// <param name="count">See the Box3D documentation.</param>
+    /// <param name="hull">See the Box3D documentation.</param>
+    /// <returns>See the Box3D documentation.</returns>
+    [LibraryImport(Box3DLibrary.Name)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int b3Hull2D(b3Point2D* pts, int count, b3Point2D* hull);
+
+    /// <summary>
+    /// Simplify a 2D hull. Used internally for contact manifold simplification. Here for
+    /// testing.
+    /// </summary>
+    /// <param name="hull">See the Box3D documentation.</param>
+    /// <param name="count">See the Box3D documentation.</param>
+    /// <param name="target">See the Box3D documentation.</param>
+    /// <returns>See the Box3D documentation.</returns>
+    [LibraryImport(Box3DLibrary.Name)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int b3SimplifyHull2D(b3Point2D* hull, int count, int target);
 
     /// <summary>
     /// Solves the position of a mover that satisfies the given collision planes.

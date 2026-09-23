@@ -38,23 +38,24 @@ public static unsafe partial class B3
     /// Overrides the allocation functions. Must be called during application startup.
     /// </summary>
     /// <param name="allocFcn">
-    /// The allocation callback, with signature <c>void* (int size, int alignment)</c>.
+    /// The allocation callback, with signature <c>void* (size_t size, int alignment)</c>.
     /// The alignment is guaranteed to be a power of two.
     /// </param>
     /// <param name="freeFcn">
-    /// The deallocation callback, with signature <c>void (void* mem)</c>.
+    /// The deallocation callback, with signature <c>void (void* mem, size_t size)</c>.
+    /// The size is the one the block was allocated with.
     /// </param>
     [LibraryImport(Box3DLibrary.Name)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     public static partial void b3SetAllocator(
-        delegate* unmanaged[Cdecl]<int, int, void*> allocFcn,
-        delegate* unmanaged[Cdecl]<void*, void> freeFcn);
+        delegate* unmanaged[Cdecl]<nuint, int, void*> allocFcn,
+        delegate* unmanaged[Cdecl]<void*, nuint, void> freeFcn);
 
     /// <summary>Gets the total number of bytes currently allocated by Box3D.</summary>
     /// <returns>The byte count.</returns>
     [LibraryImport(Box3DLibrary.Name)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    public static partial int b3GetByteCount();
+    public static partial long b3GetByteCount();
 
     /// <summary>Overrides the assertion callback.</summary>
     /// <param name="assertFcn">
@@ -92,6 +93,19 @@ public static unsafe partial class B3
     [LibraryImport(Box3DLibrary.Name)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     public static partial NativeBool b3IsDoublePrecision();
+
+    /// <summary>
+    /// Gets the value of <c>B3_MAX_MANIFOLD_POINTS</c> the library was compiled with.
+    /// </summary>
+    /// <returns>The maximum number of contact points per manifold.</returns>
+    /// <remarks>
+    /// That value sizes the point array inside <see cref="b3Manifold"/>. If it
+    /// differs from <see cref="Constants.B3_MAX_MANIFOLD_POINTS"/>, every structure
+    /// holding a manifold has a different layout from its mirror here.
+    /// </remarks>
+    [LibraryImport(Box3DLibrary.Name)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial int b3GetMaxManifoldPoints();
 
     /// <summary>Gets the absolute number of system ticks. The unit is platform specific.</summary>
     /// <returns>The tick count.</returns>

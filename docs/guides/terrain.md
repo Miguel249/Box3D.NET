@@ -76,8 +76,26 @@ geometry.AddMesh(level, scale: new Vector3(-1.0f, 1.0f, 1.0f));   // mirrored
 Indices are three per triangle, wound counter-clockwise seen from the side the
 surface faces. **Winding decides which side is solid**, so a mesh built the wrong
 way round lets bodies fall through from above while stopping them from below.
+Content exported with the opposite convention does not need its indices
+reordered: set `ClockwiseWinding` and the mesh is built facing the same way.
 The inputs are copied, so the arrays can be released as soon as the call
 returns.
+
+Ray casts, shape casts and the character mover all treat mesh and height field
+triangles as one-sided: they see the front face and pass through the back.
+
+Positions can be read straight out of an interleaved render vertex buffer. The
+vertex type's size is the stride, and the position is found at a byte offset
+inside it:
+
+```csharp
+int offset = (int)Marshal.OffsetOf<RenderVertex>(nameof(RenderVertex.Position));
+using var level = CollisionMesh.FromTriangles<RenderVertex>(vertexBuffer, offset, indices);
+```
+
+Box3D accepts strides that are a multiple of four bytes between 12 and 4096; a
+vertex type outside that range is rejected with an `ArgumentException` rather
+than failing inside the build.
 
 [`MeshOptions`](../api/Box3D.MeshOptions.yml) controls how the mesh is prepared:
 
@@ -86,6 +104,7 @@ returns.
 | `WeldVertices`, `WeldTolerance` | Merge vertices that coincide, so shared edges are recognised |
 | `IdentifyEdges` | Mark internal edges, which stops bodies catching on triangle boundaries |
 | `UseMedianSplit` | A faster build with a slightly worse tree |
+| `ClockwiseWinding` | The indices are wound clockwise rather than counter-clockwise |
 
 `MeshOptions.Fast` is the preset for content built at run time, where build time
 matters more than query time. `DegenerateTriangleCount` reports how many

@@ -325,6 +325,14 @@ public readonly record struct Joint
         set => B3.b3Joint_SetTorqueThreshold(Id, value);
     }
 
+    /// <summary>Gets a value indicating whether the joint is awake.</summary>
+    /// <remarks>
+    /// A joint is awake when it is in the awake set, which is exactly when at
+    /// least one body it connects is awake. Cheaper than asking both bodies. Use
+    /// <see cref="WakeBodies"/> to wake it.
+    /// </remarks>
+    public bool IsAwake => B3.b3Joint_IsAwake(Id);
+
     /// <summary>Wakes both attached bodies.</summary>
     public void WakeBodies() => B3.b3Joint_WakeBodies(Id);
 

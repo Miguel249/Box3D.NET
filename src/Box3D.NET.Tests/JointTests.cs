@@ -408,4 +408,49 @@ public class JointTests : IDisposable
         Assert.Throws<ArgumentException>(() =>
             Joint.FramesFromWorldAnchor(a, b, Vector3.Zero, Vector3.Zero));
     }
+
+    // ---------------------------------------------------------------- sleep
+
+    [NativeFact]
+    public void A_joint_is_awake_while_its_body_is_and_sleeps_with_it()
+    {
+        Body anchor = CreateAnchor(new Vector3(0.0f, 10.0f, 0.0f));
+        Body welded = _world.CreateBody(BodyDefinition.Dynamic(new Vector3(1.0f, 10.0f, 0.0f)));
+        welded.AddBox(Box.Cube(0.25f));
+
+        Joint joint = _world.CreateWeldJoint(
+            WeldJointDefinition.Weld(anchor, welded, new Vector3(0.5f, 10.0f, 0.0f))).AsJoint;
+
+        Assert.True(joint.IsAwake, "a new joint on an awake body should be awake");
+
+        // Held still by a static anchor, the body settles and falls asleep, and
+        // the joint goes with it.
+        Simulate(240);
+
+        Assert.False(welded.IsAwake, "the welded body should have settled and slept");
+        Assert.False(joint.IsAwake, "a joint whose only dynamic body sleeps should sleep too");
+
+        welded.IsAwake = true;
+
+        Assert.True(joint.IsAwake, "waking the body should wake its joint");
+    }
+
+    [NativeFact]
+    public void Waking_the_bodies_through_the_joint_wakes_the_joint()
+    {
+        Body anchor = CreateAnchor(new Vector3(0.0f, 10.0f, 0.0f));
+        Body welded = _world.CreateBody(BodyDefinition.Dynamic(new Vector3(1.0f, 10.0f, 0.0f)));
+        welded.AddBox(Box.Cube(0.25f));
+
+        Joint joint = _world.CreateWeldJoint(
+            WeldJointDefinition.Weld(anchor, welded, new Vector3(0.5f, 10.0f, 0.0f))).AsJoint;
+
+        Simulate(240);
+        Assert.False(joint.IsAwake);
+
+        joint.WakeBodies();
+
+        Assert.True(joint.IsAwake);
+        Assert.True(welded.IsAwake);
+    }
 }

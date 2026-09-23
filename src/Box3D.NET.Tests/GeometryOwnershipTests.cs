@@ -44,9 +44,9 @@ public class GeometryOwnershipTests
         // measuring from cold would report that as a leak.
         operation();
 
-        int before = B3.b3GetByteCount();
+        long before = B3.b3GetByteCount();
         operation();
-        int after = B3.b3GetByteCount();
+        long after = B3.b3GetByteCount();
 
         Assert.True(
             before == after,

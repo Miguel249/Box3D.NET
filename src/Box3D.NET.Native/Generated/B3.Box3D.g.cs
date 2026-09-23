@@ -170,7 +170,8 @@ public static unsafe partial class B3
 
     /// <summary>
     /// Cast a ray into the world to collect shapes in the path of the ray. Your callback
-    /// function controls whether you get the closest point, any point, or n-points.
+    /// function controls whether you get the closest point, any point, or n-points. Ignores
+    /// back-side collision on meshes and height-fields.
     /// </summary>
     /// <param name="worldId">The world to cast the ray against</param>
     /// <param name="origin">The start point of the ray</param>
@@ -196,7 +197,7 @@ public static unsafe partial class B3
     /// <summary>
     /// Cast a ray into the world to collect the closest hit. This is a convenience function.
     /// Ignores initial overlap. This is less general than b3World_CastRay() and does not allow
-    /// for custom filtering.
+    /// for custom filtering. Ignores back-side collision on meshes and height-fields.
     /// </summary>
     /// <param name="worldId">See the Box3D documentation.</param>
     /// <param name="origin">See the Box3D documentation.</param>
@@ -214,7 +215,8 @@ public static unsafe partial class B3
     /// <summary>
     /// Cast a shape through the world. Similar to a cast ray except that a shape is cast
     /// instead of a point. The proxy points are relative to the origin and the hit points come
-    /// back as world positions, so the cast stays precise far from the world origin.
+    /// back as world positions, so the cast stays precise far from the world origin. Ignores
+    /// back-side collision on meshes and height-fields.
     /// </summary>
     /// <param name="worldId">See the Box3D documentation.</param>
     /// <param name="origin">See the Box3D documentation.</param>
@@ -242,7 +244,7 @@ public static unsafe partial class B3
     /// Cast a capsule mover through the world. This is a special shape cast that handles
     /// sliding along other shapes while reducing clipping. This is not a good source of
     /// information about what the mover is touching. Instead use the planes returned by
-    /// b3World_CollideMover.
+    /// b3World_CollideMover. Ignores back-side collision on meshes and height-fields.
     /// </summary>
     /// <param name="worldId">World to cast the mover against</param>
     /// <param name="origin">World position the mover capsule is relative to</param>
@@ -266,7 +268,8 @@ public static unsafe partial class B3
     /// <summary>
     /// Collide a capsule mover with the world, gathering collision planes that can be fed to
     /// b3SolvePlanes. Useful for kinematic character movement. The mover and the returned
-    /// planes are relative to the origin.
+    /// planes are relative to the origin. Ignores back-side collision on meshes and
+    /// height-fields.
     /// </summary>
     /// <param name="worldId">See the Box3D documentation.</param>
     /// <param name="origin">See the Box3D documentation.</param>
@@ -733,7 +736,7 @@ public static unsafe partial class B3
     /// <returns>a new player, or NULL on bad header or deserialization failure</returns>
     [LibraryImport(Box3DLibrary.Name)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    public static partial b3RecPlayer* b3RecPlayer_Create(void* data, int size, int workerCount);
+    public static partial b3RecPlayer* b3CreatePlayer(void* data, int size, int workerCount);
 
     /// <summary>
     /// Destroy the player and free all memory. Restores the previous global length scale.
@@ -741,7 +744,7 @@ public static unsafe partial class B3
     /// <param name="player">See the Box3D documentation.</param>
     [LibraryImport(Box3DLibrary.Name)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    public static partial void b3RecPlayer_Destroy(b3RecPlayer* player);
+    public static partial void b3DestroyPlayer(b3RecPlayer* player);
 
     /// <summary>
     /// Advance one frame. dispatch ops until the next Step completes.
@@ -1539,6 +1542,25 @@ public static unsafe partial class B3
     public static partial float b3Body_GetSleepThreshold(b3BodyId bodyId);
 
     /// <summary>
+    /// Set the continuous collision safety factor. Smaller is safer but can lead to hitching.
+    /// Recommended range [0.01, 0.5]. Non-dimensional.
+    /// </summary>
+    /// <param name="bodyId">See the Box3D documentation.</param>
+    /// <param name="safetyFactor">See the Box3D documentation.</param>
+    [LibraryImport(Box3DLibrary.Name)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial void b3Body_SetSafetyFactor(b3BodyId bodyId, float safetyFactor);
+
+    /// <summary>
+    /// Get the continuous collision safety factor. Non-dimensional.
+    /// </summary>
+    /// <param name="bodyId">See the Box3D documentation.</param>
+    /// <returns>See the Box3D documentation.</returns>
+    [LibraryImport(Box3DLibrary.Name)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial float b3Body_GetSafetyFactor(b3BodyId bodyId);
+
+    /// <summary>
     /// Returns true if this body is enabled
     /// </summary>
     /// <param name="bodyId">See the Box3D documentation.</param>
@@ -1738,6 +1760,34 @@ public static unsafe partial class B3
     public static partial b3AABB b3Body_ComputeAABB(b3BodyId bodyId);
 
     /// <summary>
+    /// The minimum distance from any shape to the shape centroid.
+    /// </summary>
+    /// <param name="bodyId">See the Box3D documentation.</param>
+    /// <returns>See the Box3D documentation.</returns>
+    [LibraryImport(Box3DLibrary.Name)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial float b3Body_GetMinExtent(b3BodyId bodyId);
+
+    /// <summary>
+    /// The maximum extent vector from any point on the body shapes to the center of mass.
+    /// </summary>
+    /// <param name="bodyId">See the Box3D documentation.</param>
+    /// <returns>See the Box3D documentation.</returns>
+    [LibraryImport(Box3DLibrary.Name)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial Vector3 b3Body_GetMaxExtent(b3BodyId bodyId);
+
+    /// <summary>
+    /// The maximum extent vector from any point on the body shapes to the body origin.
+    /// Conservative.
+    /// </summary>
+    /// <param name="bodyId">See the Box3D documentation.</param>
+    /// <returns>See the Box3D documentation.</returns>
+    [LibraryImport(Box3DLibrary.Name)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial Vector3 b3Body_GetMaxExtentOrigin(b3BodyId bodyId);
+
+    /// <summary>
     /// Get the closest point on a body to a world target.
     /// </summary>
     /// <param name="bodyId">See the Box3D documentation.</param>
@@ -1749,7 +1799,8 @@ public static unsafe partial class B3
     public static partial float b3Body_GetClosestPoint(b3BodyId bodyId, Vector3* result, Vector3 target);
 
     /// <summary>
-    /// Cast a ray at a specific body using a specified body transform.
+    /// Cast a ray at a specific body using a specified body transform. Ignores back-side
+    /// collision on meshes and height-fields.
     /// </summary>
     /// <param name="bodyId">See the Box3D documentation.</param>
     /// <param name="origin">See the Box3D documentation.</param>
@@ -1769,7 +1820,8 @@ public static unsafe partial class B3
         b3Transform bodyTransform);
 
     /// <summary>
-    /// Cast a shape at a specific body using a specified body transform.
+    /// Cast a shape at a specific body using a specified body transform. Ignores back-side
+    /// collision on meshes and height-fields.
     /// </summary>
     /// <param name="bodyId">See the Box3D documentation.</param>
     /// <param name="origin">See the Box3D documentation.</param>
@@ -1811,7 +1863,8 @@ public static unsafe partial class B3
         b3Transform bodyTransform);
 
     /// <summary>
-    /// Collide a character mover with a specific body using a specified body transform.
+    /// Collide a character mover with a specific body using a specified body transform. Only
+    /// considers convex shapes on the body.
     /// </summary>
     /// <param name="bodyId">See the Box3D documentation.</param>
     /// <param name="bodyPlanes">See the Box3D documentation.</param>
@@ -1831,6 +1884,30 @@ public static unsafe partial class B3
         b3Capsule* mover,
         b3QueryFilter filter,
         b3Transform bodyTransform);
+
+    /// <summary>
+    /// Perform a time of impact between a character mover and a body using specified sweep
+    /// transforms. Initial overlap of any shape on the body is ignored. A non-overlapped shape
+    /// can still be hit. Only considers convex shapes on the body.
+    /// </summary>
+    /// <param name="bodyId">See the Box3D documentation.</param>
+    /// <param name="origin">See the Box3D documentation.</param>
+    /// <param name="mover">See the Box3D documentation.</param>
+    /// <param name="moverTranslation">See the Box3D documentation.</param>
+    /// <param name="filter">See the Box3D documentation.</param>
+    /// <param name="bodyTransform1">See the Box3D documentation.</param>
+    /// <param name="bodyTransform2">See the Box3D documentation.</param>
+    /// <returns>See the Box3D documentation.</returns>
+    [LibraryImport(Box3DLibrary.Name)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial b3BodyTOIResult b3Body_TimeOfImpactMover(
+        b3BodyId bodyId,
+        Vector3 origin,
+        b3Capsule* mover,
+        Vector3 moverTranslation,
+        b3QueryFilter filter,
+        b3Transform bodyTransform1,
+        b3Transform bodyTransform2);
 
     /// <summary>
     /// Create a circle shape and attach it to a body. The shape definition and geometry are
@@ -2610,6 +2687,15 @@ public static unsafe partial class B3
     [LibraryImport(Box3DLibrary.Name)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     public static partial void b3Joint_WakeBodies(b3JointId jointId);
+
+    /// <summary>
+    /// Is the joint awake? If true then an attached body is awake.
+    /// </summary>
+    /// <param name="jointId">See the Box3D documentation.</param>
+    /// <returns>See the Box3D documentation.</returns>
+    [LibraryImport(Box3DLibrary.Name)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial NativeBool b3Joint_IsAwake(b3JointId jointId);
 
     /// <summary>
     /// Get the current constraint force for this joint
@@ -3838,7 +3924,9 @@ public static unsafe partial class B3
     public static partial NativeBool b3SphericalJoint_IsMotorEnabled(b3JointId jointId);
 
     /// <summary>
-    /// Set the spherical joint motor velocity in radians per second
+    /// Set the spherical joint motor velocity in radians per second. This is the relative
+    /// angular velocity between the two bodies in world space. motorVelocity = angularVelocityB
+    /// - angularVelocityA
     /// </summary>
     /// <param name="jointId">See the Box3D documentation.</param>
     /// <param name="motorVelocity">See the Box3D documentation.</param>

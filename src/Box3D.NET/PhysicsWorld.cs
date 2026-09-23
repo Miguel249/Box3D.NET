@@ -369,6 +369,7 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
     /// <param name="definition">The body's initial state.</param>
     /// <returns>The new body, with no shapes attached yet.</returns>
     /// <exception cref="ObjectDisposedException">The world has been disposed.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">The definition's <see cref="BodyDefinition.SafetyFactor"/> is negative.</exception>
     /// <example>
     /// <code>
     /// Body crate = world.CreateBody(BodyDefinition.Dynamic(new Vector3(0, 5, 0)));
@@ -383,6 +384,8 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
         Validate.Finite(definition.Rotation);
         Validate.Finite(definition.LinearVelocity);
         Validate.Finite(definition.AngularVelocity);
+        Validate.Finite(definition.SafetyFactor);
+        ArgumentOutOfRangeException.ThrowIfNegative(definition.SafetyFactor);
 
         // Naming a body is a debugging aid that almost nothing uses, and stack
         // space is zeroed on entry, so reserving the name buffer unconditionally

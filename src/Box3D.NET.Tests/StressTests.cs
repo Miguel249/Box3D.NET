@@ -38,9 +38,9 @@ public class StressTests
         // so measuring from cold would report that as a leak.
         operation();
 
-        int before = B3.b3GetByteCount();
+        long before = B3.b3GetByteCount();
         operation();
-        int after = B3.b3GetByteCount();
+        long after = B3.b3GetByteCount();
 
         Assert.True(
             before == after,
@@ -268,9 +268,9 @@ public class StressTests
             Churn(world);
         }
 
-        int before = B3.b3GetByteCount();
+        long before = B3.b3GetByteCount();
         Churn(world);
-        int after = B3.b3GetByteCount();
+        long after = B3.b3GetByteCount();
 
         // Box3D's arrays grow and keep their capacity, so this checks that
         // repeated churn does not grow without bound rather than that it returns

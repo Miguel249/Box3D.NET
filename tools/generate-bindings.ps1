@@ -84,8 +84,8 @@ $CallbackMap = @{
     'b3MoverFilterFcn'                = 'delegate* unmanaged[Cdecl]<b3ShapeId, void*, NativeBool>'
     'b3CompoundQueryFcn'              = 'delegate* unmanaged[Cdecl]<b3CompoundData*, int, void*, NativeBool>'
     'b3MeshQueryFcn'                  = 'delegate* unmanaged[Cdecl]<Vector3, Vector3, Vector3, int, void*, NativeBool>'
-    'b3AllocFcn'                      = 'delegate* unmanaged[Cdecl]<int, int, void*>'
-    'b3FreeFcn'                       = 'delegate* unmanaged[Cdecl]<void*, void>'
+    'b3AllocFcn'                      = 'delegate* unmanaged[Cdecl]<nuint, int, void*>'
+    'b3FreeFcn'                       = 'delegate* unmanaged[Cdecl]<void*, nuint, void>'
     'b3AssertFcn'                     = 'delegate* unmanaged[Cdecl]<byte*, byte*, int, int>'
     'b3LogFcn'                        = 'delegate* unmanaged[Cdecl]<byte*, void>'
 }

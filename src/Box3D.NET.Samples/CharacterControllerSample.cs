@@ -12,7 +12,8 @@ namespace Box3D.Samples;
 /// <para>
 /// This is the sample to copy for player movement. It is a complete controller
 /// in about eighty lines: gravity, walking, jumping, ground detection, slope
-/// limiting and sliding along walls.
+/// limiting and sliding along walls. The end of it shows how a character that
+/// is not simulated can still tell that a falling body has struck it.
 /// </para>
 /// <para>
 /// None of that logic lives in Box3D.NET, on purpose. What counts as ground,
@@ -27,6 +28,8 @@ internal static class CharacterControllerSample
     // How steep a surface can be before the character slides off it instead of
     // standing on it. Forty-five degrees.
     private static readonly float MinimumGroundNormalY = MathF.Cos(MathF.PI / 4.0f);
+
+    private static readonly Capsule CharacterCapsule = Capsule.Upright(height: 1.8f, radius: 0.3f);
 
     private const int MaxPlanes = 16;
 
@@ -59,7 +62,7 @@ internal static class CharacterControllerSample
     {
         private readonly PhysicsWorld _world;
         private readonly CollisionPlane[] _planes = new CollisionPlane[MaxPlanes];
-        private readonly Capsule _capsule = Capsule.Upright(height: 1.8f, radius: 0.3f);
+        private readonly Capsule _capsule = CharacterCapsule;
 
         public Character(PhysicsWorld world, Vector3 start)
         {
@@ -208,5 +211,42 @@ internal static class CharacterControllerSample
         Console.WriteLine($"   climbed       : {climbed:F2} m up a {RampAngle * 180.0f / MathF.PI:F0} degree ramp");
 
         SampleRunner.Expect(climbed > 0.3f, "the character walked up the slope");
+
+        // Drop a crate on a character standing still. The character is not in
+        // the simulation, so the crate falls straight through it and nothing
+        // reports the blow. Sweeping the crate from where it was before each step
+        // to where it is after is how the character finds out.
+        var bystander = new Character(world, new Vector3(-3.0f, 1.0f, -10.0f));
+        for (int i = 0; i < 30; i++)
+        {
+            bystander.Update(Vector3.Zero, 0.0f, TimeStep);
+        }
+
+        Body crate = world.CreateDynamicBody(new Vector3(-3.0f, 6.0f, -10.0f));
+        crate.AddBox(Box.Cube(0.4f));
+
+        CharacterImpact impact = default;
+        for (int i = 0; i < 120 && !impact.Hit; i++)
+        {
+            Vector3 crateStart = crate.Position;
+            Quaternion crateStartRotation = crate.Rotation;
+
+            world.Step(TimeStep);
+
+            // Sweep before the character is resolved against the world. Once it
+            // has been pushed clear of the crate the two only touch, and a touch
+            // is not an impact. The bystander means to stand still, so its own
+            // translation for the step is zero.
+            impact = CharacterMover.TimeOfImpact(
+                crate, CharacterCapsule, bystander.Position, Vector3.Zero,
+                crateStart, crateStartRotation, crate.Position, crate.Rotation);
+
+            bystander.Update(Vector3.Zero, 0.0f, TimeStep);
+        }
+
+        Console.WriteLine($"   crate struck  : {impact.Hit} at {impact.Point}, from {impact.Normal}");
+
+        SampleRunner.Expect(impact.Hit, "the falling crate was seen to strike the character");
+        SampleRunner.Expect(impact.Normal.Y < -0.9f, "and it came from above");
     }
 }

@@ -131,8 +131,8 @@ specific amount.
 
 What it buys: Box3D validates its own inputs with assertions that release builds
 compile out, so a single NaN is accepted in silence and then spreads. Setting
-one body's velocity to NaN and stepping thirty times left a second body, twenty
-metres away and never touched, reading `(NaN, NaN, NaN)`. There is no way to
+one body's velocity to NaN and stepping thirty times left a second body, merely
+resting on it, reading `(NaN, NaN, NaN)`. There is no way to
 remove it from a world afterwards. `FuzzTests` pins both halves: that the
 contamination is real, and that the guards stop it.
 

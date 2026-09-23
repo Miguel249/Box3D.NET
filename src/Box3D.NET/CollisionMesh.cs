@@ -50,6 +50,17 @@ public readonly record struct MeshOptions
     /// </remarks>
     public bool UseMedianSplit { get; init; }
 
+    /// <summary>
+    /// Gets a value indicating whether the triangle indices are wound clockwise
+    /// when seen from the side the surface faces.
+    /// </summary>
+    /// <remarks>
+    /// Box3D's own convention is counter-clockwise. Set this for geometry exported
+    /// with the opposite convention, rather than reordering the indices by hand;
+    /// the mesh is built facing the same way either way.
+    /// </remarks>
+    public bool ClockwiseWinding { get; init; }
+
     /// <summary>Gets options suited to level geometry a character walks on.</summary>
     public static MeshOptions Default => new()
     {
@@ -57,6 +68,7 @@ public readonly record struct MeshOptions
         WeldTolerance = 1e-4f,
         IdentifyEdges = true,
         UseMedianSplit = false,
+        ClockwiseWinding = false,
     };
 
     /// <summary>Gets options that build as fast as possible, skipping the repair passes.</summary>
@@ -67,6 +79,7 @@ public readonly record struct MeshOptions
         WeldTolerance = 0.0f,
         IdentifyEdges = false,
         UseMedianSplit = true,
+        ClockwiseWinding = false,
     };
 }
 
@@ -194,7 +207,7 @@ public sealed unsafe class CollisionMesh : IDisposable
     /// <param name="vertices">The vertex positions, in mesh-local space.</param>
     /// <param name="indices">
     /// Three indices per triangle, wound counter-clockwise when seen from the
-    /// side the surface faces.
+    /// side the surface faces unless <see cref="MeshOptions.ClockwiseWinding"/> is set.
     /// </param>
     /// <param name="options">The build options, or null for <see cref="MeshOptions.Default"/>.</param>
     /// <param name="materialIndices">
@@ -218,10 +231,124 @@ public sealed unsafe class CollisionMesh : IDisposable
         MeshOptions? options = null,
         ReadOnlySpan<byte> materialIndices = default)
     {
-        if (vertices.Length < 3)
+        fixed (Vector3* vertexPtr = vertices)
+        {
+            // A stride of zero is Box3D's spelling of "contiguous".
+            return Build(vertexPtr, 0, vertices.Length, indices, options, materialIndices);
+        }
+    }
+
+    /// <summary>
+    /// Builds a mesh straight from an interleaved vertex buffer, reading each
+    /// position out of a larger vertex structure.
+    /// </summary>
+    /// <typeparam name="TVertex">
+    /// The vertex type, such as a struct holding a position, a normal and texture
+    /// coordinates. Its size is the vertex stride.
+    /// </typeparam>
+    /// <param name="vertices">The vertices, in mesh-local space.</param>
+    /// <param name="positionOffset">
+    /// The byte offset of the <see cref="Vector3"/> position inside
+    /// <typeparamref name="TVertex"/>, typically from <c>Marshal.OffsetOf</c>.
+    /// </param>
+    /// <param name="indices">
+    /// Three indices per triangle, wound counter-clockwise when seen from the side
+    /// the surface faces unless <see cref="MeshOptions.ClockwiseWinding"/> is set.
+    /// </param>
+    /// <param name="options">The build options, or null for <see cref="MeshOptions.Default"/>.</param>
+    /// <param name="materialIndices">
+    /// One material index per triangle, selecting into the per-triangle materials
+    /// of the shape definition. Leave empty for a single material.
+    /// </param>
+    /// <returns>The mesh.</returns>
+    /// <exception cref="ArgumentException">
+    /// The vertex type has a size Box3D cannot use as a stride, or any of the
+    /// conditions of the
+    /// <see cref="FromTriangles(ReadOnlySpan{Vector3}, ReadOnlySpan{int}, MeshOptions?, ReadOnlySpan{byte})"/>
+    /// overload.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="positionOffset"/> is not on a four-byte boundary, or the
+    /// position does not fit inside the vertex.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// This saves copying the positions out of a render vertex buffer before
+    /// building. Box3D reads the positions through the stride and copies them, so
+    /// the buffer may be released as soon as this returns.
+    /// </para>
+    /// <para>
+    /// Box3D accepts strides that are a multiple of four bytes, from twelve up to
+    /// 4096, and the position must start on a four-byte boundary. Vertex structs
+    /// made of floats satisfy both.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// [StructLayout(LayoutKind.Sequential)]
+    /// struct RenderVertex
+    /// {
+    ///     public Vector3 Position;
+    ///     public Vector3 Normal;
+    ///     public Vector2 Uv;
+    /// }
+    ///
+    /// int offset = (int)Marshal.OffsetOf&lt;RenderVertex&gt;(nameof(RenderVertex.Position));
+    /// using var level = CollisionMesh.FromTriangles&lt;RenderVertex&gt;(vertexBuffer, offset, indexBuffer);
+    /// </code>
+    /// </example>
+    public static CollisionMesh FromTriangles<TVertex>(
+        ReadOnlySpan<TVertex> vertices,
+        int positionOffset,
+        ReadOnlySpan<int> indices,
+        MeshOptions? options = null,
+        ReadOnlySpan<byte> materialIndices = default)
+        where TVertex : unmanaged
+    {
+        int stride = sizeof(TVertex);
+
+        // Box3D rejects these by returning null, which would surface as the
+        // unhelpful "could not build a mesh". Saying which rule was broken is
+        // cheap here and impossible afterwards.
+        if (stride < sizeof(Vector3) || stride > MaxVertexStride || stride % 4 != 0)
         {
             throw new ArgumentException(
-                $"A mesh needs at least three vertices, got {vertices.Length}.",
+                $"A vertex of {stride} bytes cannot be read by Box3D, which needs a stride that is a multiple " +
+                $"of four between {sizeof(Vector3)} and {MaxVertexStride} bytes.",
+                nameof(vertices));
+        }
+
+        if (positionOffset < 0 || positionOffset > stride - sizeof(Vector3) || positionOffset % 4 != 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(positionOffset),
+                positionOffset,
+                $"The position must start on a four-byte boundary and fit inside the {stride}-byte vertex.");
+        }
+
+        fixed (TVertex* vertexPtr = vertices)
+        {
+            Vector3* positions = (Vector3*)((byte*)vertexPtr + positionOffset);
+            return Build(positions, (nuint)stride, vertices.Length, indices, options, materialIndices);
+        }
+    }
+
+    // The largest stride Box3D accepts; anything above it is taken to be an
+    // uninitialized field rather than a real vertex layout.
+    private const int MaxVertexStride = 4096;
+
+    private static CollisionMesh Build(
+        Vector3* vertices,
+        nuint stride,
+        int vertexCount,
+        ReadOnlySpan<int> indices,
+        MeshOptions? options,
+        ReadOnlySpan<byte> materialIndices)
+    {
+        if (vertexCount < 3)
+        {
+            throw new ArgumentException(
+                $"A mesh needs at least three vertices, got {vertexCount}.",
                 nameof(vertices));
         }
 
@@ -239,10 +366,10 @@ public sealed unsafe class CollisionMesh : IDisposable
         // while building the hierarchy. Checking here is cheap next to the build.
         for (int i = 0; i < indices.Length; i++)
         {
-            if ((uint)indices[i] >= (uint)vertices.Length)
+            if ((uint)indices[i] >= (uint)vertexCount)
             {
                 throw new ArgumentException(
-                    $"Index {i} refers to vertex {indices[i]}, but there are only {vertices.Length} vertices.",
+                    $"Index {i} refers to vertex {indices[i]}, but there are only {vertexCount} vertices.",
                     nameof(indices));
             }
         }
@@ -256,21 +383,22 @@ public sealed unsafe class CollisionMesh : IDisposable
 
         MeshOptions settings = options ?? MeshOptions.Default;
 
-        fixed (Vector3* vertexPtr = vertices)
         fixed (int* indexPtr = indices)
         fixed (byte* materialPtr = materialIndices)
         {
             b3MeshDef def = new()
             {
-                vertices = vertexPtr,
+                vertices = vertices,
+                stride = stride,
                 indices = indexPtr,
                 materialIndices = materialIndices.IsEmpty ? null : materialPtr,
-                vertexCount = vertices.Length,
+                vertexCount = vertexCount,
                 triangleCount = triangleCount,
                 weldVertices = settings.WeldVertices,
                 weldTolerance = settings.WeldTolerance,
                 identifyEdges = settings.IdentifyEdges,
                 useMedianSplit = settings.UseMedianSplit,
+                clockWiseWinding = settings.ClockwiseWinding,
             };
 
             b3MeshData* mesh = B3.b3CreateMesh(&def, null, 0);

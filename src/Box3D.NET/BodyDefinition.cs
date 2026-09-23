@@ -159,6 +159,19 @@ public readonly record struct BodyDefinition
     /// <summary>Gets the speed below which the body is considered still enough to sleep.</summary>
     public float SleepThreshold { get; init; }
 
+    /// <summary>
+    /// Gets the continuous collision safety factor, which decides when the body
+    /// counts as fast enough to need continuous collision. Non-dimensional.
+    /// </summary>
+    /// <remarks>
+    /// Box3D only pays for continuous collision when a body risks tunneling: one
+    /// that could tunnel after moving some distance is treated as fast once it
+    /// moves more than this fraction of that distance in a step. Smaller is safer
+    /// but can make the body hitch. The recommended range is 0.01 to 0.5, and the
+    /// engine default of 0.5 favours performance.
+    /// </remarks>
+    public float SafetyFactor { get; init; }
+
     /// <summary>Gets an optional name, used when debugging and drawing.</summary>
     /// <remarks>Copied by the engine, so the string need not be kept alive.</remarks>
     public string? Name { get; init; }
@@ -266,6 +279,7 @@ public readonly record struct BodyDefinition
         def.angularDamping = AngularDamping;
         def.gravityScale = GravityScale;
         def.sleepThreshold = SleepThreshold;
+        def.safetyFactor = SafetyFactor;
         def.name = name;
         def.motionLocks = MotionLocks.ToNative();
         def.enableSleep = CanSleep;
@@ -289,6 +303,7 @@ public readonly record struct BodyDefinition
         AngularDamping = def.angularDamping,
         GravityScale = def.gravityScale,
         SleepThreshold = def.sleepThreshold,
+        SafetyFactor = def.safetyFactor,
         Name = null,
         MotionLocks = MotionLocks.FromNative(def.motionLocks),
         CanSleep = def.enableSleep,

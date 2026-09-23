@@ -7,26 +7,20 @@ using System.Runtime.InteropServices;
 namespace Box3D.Native;
 
 /// <summary>
-/// The child indices of an internal tree node. Mirror of <c>b3TreeNodeChildren</c>.
-/// </summary>
-[StructLayout(LayoutKind.Sequential)]
-public struct b3TreeNodeChildren
-{
-    /// <summary>The index of the first child node.</summary>
-    public int child1;
-
-    /// <summary>The index of the second child node.</summary>
-    public int child2;
-}
-
-/// <summary>
 /// A node in the dynamic tree. Mirror of <c>b3TreeNode</c>.
 /// </summary>
 /// <remarks>
-/// This is internal data, exposed for performance. It contains two unions: the
-/// children of an internal node overlap the user data of a leaf, and the parent
-/// index of an allocated node overlaps the free-list link of a free node.
-/// Which member is live follows from <see cref="flags"/>.
+/// <para>
+/// This is internal data, exposed for performance. Siblings are stored as a
+/// pair at an even index so that two nodes share a 64-byte cache line; the root
+/// is at index zero and index one is always empty.
+/// </para>
+/// <para>
+/// <see cref="flagIndex"/> packs a leaf bit, a moved bit and an index: the
+/// first node of the child pair for an internal node, or the proxy id for a
+/// leaf. The last word is a union of <see cref="height"/> and
+/// <see cref="shapeIndex"/>, and <see cref="IsLeaf"/> says which is live.
+/// </para>
 /// </remarks>
 [StructLayout(LayoutKind.Explicit)]
 public struct b3TreeNode
@@ -35,50 +29,52 @@ public struct b3TreeNode
     [FieldOffset(0)]
     public b3AABB aabb;
 
-    /// <summary>The category bits used for collision filtering.</summary>
+    /// <summary>
+    /// Bit 31 is set for a leaf, bit 30 for a moved node, and bits 0 to 29 hold
+    /// the index of the child pair or, for a leaf, the proxy id.
+    /// </summary>
     [FieldOffset(24)]
-    public ulong categoryBits;
+    public uint flagIndex;
 
-    /// <summary>The child indices. Valid when the node is not a leaf.</summary>
-    [FieldOffset(32)]
-    public b3TreeNodeChildren children;
+    /// <summary>The height of an internal node. A leaf has height zero.</summary>
+    [FieldOffset(28)]
+    public int height;
 
-    /// <summary>The user data. Valid when the node is a leaf.</summary>
-    [FieldOffset(32)]
-    public ulong userData;
+    /// <summary>The shape index of a leaf, truncated from the proxy user data.</summary>
+    [FieldOffset(28)]
+    public int shapeIndex;
 
-    /// <summary>The parent node index. Valid when the node is allocated.</summary>
-    [FieldOffset(40)]
-    public int parent;
+    /// <summary>Gets a value indicating whether this node is a leaf.</summary>
+    public readonly bool IsLeaf => (flagIndex & 0x80000000u) != 0;
 
-    /// <summary>The next free node index. Valid when the node is on the free list.</summary>
-    [FieldOffset(40)]
-    public int next;
+    /// <summary>Gets a value indicating whether this node is flagged as moved.</summary>
+    public readonly bool IsMoved => (flagIndex & 0x40000000u) != 0;
 
-    /// <summary>The height of the node. Leaves have height zero.</summary>
-    [FieldOffset(44)]
-    public ushort height;
-
-    /// <summary>The node flags.</summary>
-    [FieldOffset(46)]
-    public b3TreeNodeFlagsStorage flags;
+    /// <summary>
+    /// Gets the index held in the low 30 bits: the first node of the child pair,
+    /// or the proxy id when <see cref="IsLeaf"/> is true.
+    /// </summary>
+    public readonly int Index => (int)(flagIndex & 0x3FFFFFFFu);
 }
 
 /// <summary>
-/// The storage form of <see cref="b3TreeNodeFlags"/> inside a <see cref="b3TreeNode"/>,
-/// which the C header declares as a <c>uint16_t</c>.
+/// The per-proxy data of a dynamic tree, kept apart from the nodes as cold data.
+/// Mirror of <c>b3TreeProxy</c>.
 /// </summary>
-[StructLayout(LayoutKind.Sequential, Size = 2)]
-public struct b3TreeNodeFlagsStorage
+[StructLayout(LayoutKind.Sequential)]
+public struct b3TreeProxy
 {
-    private ushort _value;
+    /// <summary>The user data. An integer rather than a pointer, because Box3D uses it as a shape index.</summary>
+    public ulong userData;
 
-    /// <summary>Gets or sets the flags.</summary>
-    public b3TreeNodeFlags Value
-    {
-        readonly get => (b3TreeNodeFlags)_value;
-        set => _value = (ushort)value;
-    }
+    /// <summary>The category bits used for collision filtering.</summary>
+    public ulong categoryBits;
+
+    /// <summary>The leaf node of this proxy, or <see cref="Constants.B3_NULL_INDEX"/> for a free proxy.</summary>
+    public int node;
+
+    /// <summary>The next free proxy.</summary>
+    public int next;
 }
 
 /// <summary>
@@ -105,26 +101,44 @@ public unsafe struct b3DynamicTree
     /// </summary>
     public ulong version;
 
-    /// <summary>The node pool.</summary>
+    /// <summary>
+    /// The nodes. The root is at index zero and index one is empty; otherwise
+    /// siblings are paired at even indices, with holes for free pairs.
+    /// </summary>
     public b3TreeNode* nodes;
 
-    /// <summary>The index of the root node.</summary>
-    public int root;
+    /// <summary>The parent index of each node. The free list is interleaved with it.</summary>
+    public int* parents;
 
-    /// <summary>The number of nodes in use.</summary>
-    public int nodeCount;
+    /// <summary>The proxies, indexed by proxy id.</summary>
+    public b3TreeProxy* proxies;
+
+    /// <summary>One past the highest allocated node index.</summary>
+    public int nodeEnd;
 
     /// <summary>The number of nodes allocated.</summary>
     public int nodeCapacity;
 
+    /// <summary>The head of the list of free node pairs below <see cref="nodeEnd"/>.</summary>
+    public int pairFreeList;
+
     /// <summary>The number of proxies created.</summary>
     public int proxyCount;
 
-    /// <summary>The head of the node free list.</summary>
-    public int freeList;
+    /// <summary>The number of proxies allocated.</summary>
+    public int proxyCapacity;
+
+    /// <summary>The head of the proxy free list.</summary>
+    public int proxyFreeList;
+
+    /// <summary>Scratch storage: the node array swapped in during a rebuild.</summary>
+    public b3TreeNode* swapNodes;
 
     /// <summary>Scratch storage: leaf indices used during a rebuild.</summary>
     public int* leafIndices;
+
+    /// <summary>Scratch storage: the leaves of a rebuild, each a proxy or a retained subtree.</summary>
+    public b3TreeNode* leafNodes;
 
     /// <summary>Scratch storage: leaf bounding boxes used during a rebuild.</summary>
     public b3AABB* leafBoxes;
@@ -137,6 +151,12 @@ public unsafe struct b3DynamicTree
 
     /// <summary>The capacity of the rebuild scratch storage.</summary>
     public int rebuildCapacity;
+
+    /// <summary>
+    /// Whether the nodes are in depth-first order, children after their parent.
+    /// </summary>
+    /// <remarks>Set by a rebuild and disturbed by creating proxies.</remarks>
+    public NativeBool dfsOrdered;
 }
 
 /// <summary>
