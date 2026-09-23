@@ -34,6 +34,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   keeping the ratio across each joint to roughly 10:1–20:1 or less, with the
   measurement, and the `chain` sample says the same where its links are made.
 
+- **`Explode`'s `filter` is documented as the mask it is.** The name suggests a
+  filter type, and the queries take a `QueryFilter`, but this is a `ulong`
+  compared with each shape's `CollisionFilter.Categories`, in that direction
+  only: the shape's own `CollidesWith` is not consulted. The parameter keeps its
+  name, since renaming it would break callers passing it by name. No
+  `QueryFilter` overload was added, because it would have to ignore
+  `QueryFilter.Categories` without saying so.
+
 ## [0.5.0] - 2026-09-23
 
 An engine release, and a minor version for two reasons at once: the idiomatic

@@ -121,4 +121,20 @@ public class ExplosionTests : IDisposable
         Assert.True(affected.LinearVelocity.X > 0.1f, $"the debris should be pushed, velocity {affected.LinearVelocity}");
         Assert.Equal(Vector3.Zero, spared.LinearVelocity);
     }
+
+    [NativeFact]
+    public void The_filter_ignores_what_the_shape_collides_with()
+    {
+        // Unlike a query, which also needs the shape to accept the query's
+        // categories, an explosion checks one direction only. A shape that
+        // collides with nothing is still pushed.
+        var aloof = ShapeDefinition.Default with { Filter = CollisionFilter.Default with { CollidesWith = 0 } };
+
+        Body body = _world.CreateDynamicBody(new Vector3(2.0f, 0.0f, 0.0f));
+        body.AddBox(Box.Cube(0.5f), aloof);
+
+        Blast();
+
+        Assert.True(body.LinearVelocity.X > 0.1f, $"velocity {body.LinearVelocity}");
+    }
 }
