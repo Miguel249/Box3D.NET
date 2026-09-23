@@ -290,7 +290,10 @@ public readonly record struct Body
     /// <returns>The new shape.</returns>
     /// <remarks>
     /// The box is a convex hull underneath, but it is self-contained, so nothing
-    /// needs to be released afterwards.
+    /// needs to be released afterwards. Because it is a hull, the shape reports
+    /// <see cref="ShapeType.Hull"/> as its <see cref="Shape.Type"/>, and behaves as
+    /// a hull everywhere, including in <see cref="PhysicsWorld.Explode"/>. There is
+    /// no need to build a box from eight corners with <see cref="ConvexHull"/>.
     /// </remarks>
     /// <example>
     /// <code>

@@ -51,6 +51,27 @@ Build the assembly in its rest pose. A chain assembled already displaced has
 every joint violated on the first step and snaps — give it angular velocity
 instead.
 
+## Keep mass ratios modest
+
+> **Keep the mass ratio between jointed bodies modest — roughly 10:1 to 20:1 or
+> less.** Light links holding a heavy body jitter, stretch or fly apart. Make
+> the links heavier or the load lighter.
+
+This is how the solver behaves, not a fault in a particular joint. It resolves
+each joint iteratively, and a light body between a heavy one and an anchor
+barely moves the heavy one, so the error never converges. Measured with a chain
+of ten `Spherical` joints, links of radius 0.14 and a ball of radius 1.1:
+
+| Link density | Ball density | Mass ratio | Fastest link | Worst stretch at the ball |
+| ---: | ---: | ---: | ---: | ---: |
+| 2 | 6 | about 1450:1 | 427 m/s | 0.66 m |
+| 60 | 2.5 | about 20:1 | 3.1 m/s | 0.003 m |
+
+The masses that matter are the ones either side of each joint, so a chain of
+equal links is fine however heavy it is overall; it is the last link against the
+load that has to be kept in proportion. Density is the lever: mass follows from
+it and the volume.
+
 ## Limits and motors
 
 Most joints take limits, a motor, or both. The pattern is the same everywhere:

@@ -744,9 +744,25 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
     /// The impulse per unit of facing area. Negative values implode.
     /// </param>
     /// <param name="falloff">The distance beyond the radius over which the impulse fades to nothing.</param>
-    /// <param name="filter">Which shape categories are affected. Defaults to all of them.</param>
+    /// <param name="filter">
+    /// A category mask, not a <see cref="QueryFilter"/>: a shape is affected when
+    /// this has a bit in common with its <see cref="CollisionFilter.Categories"/>.
+    /// It plays the part of <see cref="QueryFilter.CollidesWith"/> in a query, but
+    /// only in that direction; the shape's own
+    /// <see cref="CollisionFilter.CollidesWith"/> is not consulted. Defaults to
+    /// every category.
+    /// </param>
     /// <exception cref="ObjectDisposedException">The world has been disposed.</exception>
-    /// <remarks>Only spheres, capsules and hulls respond.</remarks>
+    /// <remarks>
+    /// <para>
+    /// Spheres, capsules and hulls respond, and boxes are hulls, so a shape added
+    /// with <see cref="Body.AddBox"/> responds too. Meshes, height fields and
+    /// compounds do not: they can only be attached to static bodies, and an
+    /// explosion only reaches dynamic ones. Kinematic bodies are not pushed
+    /// either.
+    /// </para>
+    /// <para>Sleeping bodies within reach are woken.</para>
+    /// </remarks>
     public void Explode(
         Vector3 center,
         float radius,

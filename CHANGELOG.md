@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`ShapeDefinition.Friction` and `ShapeDefinition.Restitution`**, shortcuts for
+  the two material properties changed most often. Changing one used to take a
+  nested `with`; now `ShapeDefinition.Default with { Friction = 0.7f }` does it.
+  Both read and write `Material` and store nothing of their own, so a definition
+  built either way is equal to the other. Initializers run in order, so set
+  `Material` before them when using both.
+
+### Changed
+
+- **`PhysicsWorld.Explode` says which shapes respond.** It read "only spheres,
+  capsules and hulls respond", which in an API where `Box` and `ConvexHull` are
+  different types reads as "boxes do not". They do: a box is a hull. The remarks
+  now say so, and that meshes, height fields and compounds never respond,
+  because they only go on static bodies and an explosion only reaches dynamic
+  ones; kinematic bodies are not pushed either. `Body.AddBox` and
+  `ShapeType.Hull` note that a box reports `ShapeType.Hull`. `ExplosionTests`
+  pins all of it.
+
+- **The joint guide warns about mass ratios.** A chain of light links holding a
+  heavy body — about 1450:1 across the last joint — lets the links reach
+  hundreds of metres per second, while 20:1 hangs still. That is the solver, not
+  the binding, but nothing said so. `docs/guides/joints.md` now recommends
+  keeping the ratio across each joint to roughly 10:1–20:1 or less, with the
+  measurement, and the `chain` sample says the same where its links are made.
+
+- **`Explode`'s `filter` is documented as the mask it is.** The name suggests a
+  filter type, and the queries take a `QueryFilter`, but this is a `ulong`
+  compared with each shape's `CollisionFilter.Categories`, in that direction
+  only: the shape's own `CollidesWith` is not consulted. The parameter keeps its
+  name, since renaming it would break callers passing it by name. No
+  `QueryFilter` overload was added, because it would have to ignore
+  `QueryFilter.Categories` without saying so.
+
 ## [0.5.0] - 2026-09-23
 
 An engine release, and a minor version for two reasons at once: the idiomatic
