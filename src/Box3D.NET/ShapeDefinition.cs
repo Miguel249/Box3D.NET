@@ -19,6 +19,10 @@ public enum ShapeType
     HeightField = 2,
 
     /// <summary>A convex hull.</summary>
+    /// <remarks>
+    /// Boxes are hulls too: a shape added with <see cref="Body.AddBox"/> reports
+    /// this type, since Box3D has no separate box shape.
+    /// </remarks>
     Hull = 3,
 
     /// <summary>A triangle mesh.</summary>

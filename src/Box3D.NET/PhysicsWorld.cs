@@ -746,7 +746,16 @@ public sealed unsafe partial class PhysicsWorld : IDisposable
     /// <param name="falloff">The distance beyond the radius over which the impulse fades to nothing.</param>
     /// <param name="filter">Which shape categories are affected. Defaults to all of them.</param>
     /// <exception cref="ObjectDisposedException">The world has been disposed.</exception>
-    /// <remarks>Only spheres, capsules and hulls respond.</remarks>
+    /// <remarks>
+    /// <para>
+    /// Spheres, capsules and hulls respond, and boxes are hulls, so a shape added
+    /// with <see cref="Body.AddBox"/> responds too. Meshes, height fields and
+    /// compounds do not: they can only be attached to static bodies, and an
+    /// explosion only reaches dynamic ones. Kinematic bodies are not pushed
+    /// either.
+    /// </para>
+    /// <para>Sleeping bodies within reach are woken.</para>
+    /// </remarks>
     public void Explode(
         Vector3 center,
         float radius,

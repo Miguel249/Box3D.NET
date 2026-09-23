@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`PhysicsWorld.Explode` says which shapes respond.** It read "only spheres,
+  capsules and hulls respond", which in an API where `Box` and `ConvexHull` are
+  different types reads as "boxes do not". They do: a box is a hull. The remarks
+  now say so, and that meshes, height fields and compounds never respond,
+  because they only go on static bodies and an explosion only reaches dynamic
+  ones; kinematic bodies are not pushed either. `Body.AddBox` and
+  `ShapeType.Hull` note that a box reports `ShapeType.Hull`. `ExplosionTests`
+  pins all of it.
+
 ## [0.5.0] - 2026-09-23
 
 An engine release, and a minor version for two reasons at once: the idiomatic
