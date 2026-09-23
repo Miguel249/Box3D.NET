@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-09-23
+
+Corrections from building a game on 0.5.0: what an explosion pushes, what its
+filter means, and the mass ratios joints tolerate, plus a shorter way to set a
+shape's friction and restitution. Nothing existing changes; package validation
+against 0.5.0 reports no difference.
+
 ### Added
 
 - **`ShapeDefinition.Friction` and `ShapeDefinition.Restitution`**, shortcuts for
@@ -658,7 +665,8 @@ rather than left standing:
   follow Box3D and are documented rather than corrected.
 - Single precision only. Box3D's large-world mode changes the ABI and would need
   a separate package.
-[Unreleased]: https://github.com/Miguel249/Box3D.NET/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/Miguel249/Box3D.NET/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/Miguel249/Box3D.NET/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/Miguel249/Box3D.NET/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Miguel249/Box3D.NET/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Miguel249/Box3D.NET/compare/v0.2.0...v0.3.0
