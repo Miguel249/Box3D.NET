@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-23
+
+An engine release, and a minor version for two reasons at once: the idiomatic
+API gains members, and the native mirror breaks where Box3D's C API broke.
+Before 1.0 a break is carried by a minor version, and every one is listed below.
+
 Box3D moves from `3fc20f5` to `9e5a4cd`, the six upstream commits between them.
 The idiomatic `Box3D.NET` only gains members: nothing in it is removed or
 changes signature, and package validation against the last release reports no
@@ -617,7 +623,8 @@ rather than left standing:
   follow Box3D and are documented rather than corrected.
 - Single precision only. Box3D's large-world mode changes the ABI and would need
   a separate package.
-[Unreleased]: https://github.com/Miguel249/Box3D.NET/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/Miguel249/Box3D.NET/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/Miguel249/Box3D.NET/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Miguel249/Box3D.NET/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Miguel249/Box3D.NET/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Miguel249/Box3D.NET/compare/v0.1.0...v0.2.0

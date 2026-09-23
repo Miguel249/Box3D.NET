@@ -62,7 +62,18 @@
       VersionPrefix, not in the one after it.
     -->
     <EnablePackageValidation>true</EnablePackageValidation>
-    <PackageValidationBaselineVersion>0.3.0</PackageValidationBaselineVersion>
+    <PackageValidationBaselineVersion>0.4.0</PackageValidationBaselineVersion>
+
+    <!--
+      A break recorded in CompatibilitySuppressions.xml is keyed by the pair of
+      assemblies it was found between, and a package packed here has two
+      possible shapes. With Box3DTargetApple, as CI and the release pack, the
+      baseline's iOS assembly is compared with the new iOS assembly; without
+      it, as a local pack, it is compared with net8.0 instead. The file records
+      both pairs, so whichever build runs finds the other pair's entries
+      unused, and that must not fail it.
+    -->
+    <ApiCompatPermitUnnecessarySuppressions>true</ApiCompatPermitUnnecessarySuppressions>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(IsPackable)' == 'true'">
