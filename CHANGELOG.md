@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ShapeType.Hull` note that a box reports `ShapeType.Hull`. `ExplosionTests`
   pins all of it.
 
+- **The joint guide warns about mass ratios.** A chain of light links holding a
+  heavy body — about 1450:1 across the last joint — lets the links reach
+  hundreds of metres per second, while 20:1 hangs still. That is the solver, not
+  the binding, but nothing said so. `docs/guides/joints.md` now recommends
+  keeping the ratio across each joint to roughly 10:1–20:1 or less, with the
+  measurement, and the `chain` sample says the same where its links are made.
+
 ## [0.5.0] - 2026-09-23
 
 An engine release, and a minor version for two reasons at once: the idiomatic

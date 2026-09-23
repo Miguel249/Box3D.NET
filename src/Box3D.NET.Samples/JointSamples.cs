@@ -107,6 +107,9 @@ internal static class ChainSample
         {
             Vector3 position = new(0.0f, 10.0f - ((i + 1) * LinkSpacing), 0.0f);
 
+            // Every link weighs the same. Hanging something heavy off the end of
+            // light links is what makes a chain jitter or fly apart; keep the
+            // mass ratio across each joint to about 10:1 or 20:1 at most.
             Body link = world.CreateBody(BodyDefinition.Dynamic(position));
             link.AddSphere(new Sphere(0.12f), ShapeDefinition.Default with { Density = 2000.0f });
             links[i] = link;
